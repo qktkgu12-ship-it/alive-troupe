@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import {
   AUDIO_KIND_LABEL,
   type AudioKind,
@@ -36,6 +37,7 @@ function AudioInner() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tracks, setTracks] = useState<AudioTrack[]>([]);
   const [loadingTracks, setLoadingTracks] = useState(false);
+  const [view, setView] = useState<ViewMode>("card");
 
   const loadProductions = useCallback(async () => {
     const snap = await getDocs(query(collection(db, "productions"), orderBy("order", "asc")));
@@ -97,6 +99,12 @@ function AudioInner() {
     await loadProductions();
   }
 
+  async function removeTrack(t: AudioTrack) {
+    if (!confirm("이 음원 링크를 삭제할까요?")) return;
+    await deleteDoc(doc(db, "audio", t.id));
+    if (activeId) loadTracks(activeId);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -149,11 +157,17 @@ function AudioInner() {
           />
 
           {/* 곡별 음원 목록 */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-500">총 {tracks.length}개 음원</span>
+            <ViewToggle value={view} onChange={setView} />
+          </div>
+
           {loadingTracks ? (
             <p className="py-8 text-center text-slate-400">불러오는 중…</p>
-          ) : grouped.length === 0 ? (
+          ) : tracks.length === 0 ? (
             <p className="card py-8 text-center text-slate-400">등록된 음원이 없습니다.</p>
-          ) : (
+          ) : view === "card" ? (
+            /* ===== 카드 보기 (곡별 묶음) ===== */
             <div className="space-y-3">
               {grouped.map(([song, list]) => (
                 <div key={song} className="card !p-4">
@@ -163,6 +177,35 @@ function AudioInner() {
                       <TrackRow key={t.id} track={t} canDelete={isAdmin} onDeleted={() => loadTracks(active.id)} />
                     ))}
                   </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* ===== 리스트 보기 (전체 한 줄씩) ===== */
+            <div className="card divide-y divide-slate-100 !p-0">
+              {tracks.map((t) => (
+                <div key={t.id} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
+                  <span className="chip shrink-0">{AUDIO_KIND_LABEL[t.kind]}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {t.song}
+                      {t.label ? ` · ${t.label}` : ""}
+                    </p>
+                    <p className="text-xs text-slate-400">{t.addedByName}</p>
+                  </div>
+                  <a
+                    href={toDownloadUrl(t.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-ghost !px-3 !py-1.5 shrink-0"
+                  >
+                    다운로드 ↗
+                  </a>
+                  {isAdmin && (
+                    <button onClick={() => removeTrack(t)} className="shrink-0 text-xs text-red-500 hover:underline">
+                      삭제
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

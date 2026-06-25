@@ -13,7 +13,12 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { ARCHIVE_KIND_LABEL, type ArchiveItem, type ArchiveKind } from "@/lib/types";
+
+function openLink(url: string) {
+  window.open(url, "_blank", "noreferrer");
+}
 
 const KIND_STYLE: Record<ArchiveKind, string> = {
   performance: "bg-rose-100 text-rose-600",
@@ -28,6 +33,7 @@ function ArchiveInner() {
   const [search, setSearch] = useState("");
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
+  const [view, setView] = useState<ViewMode>("card");
 
   async function load() {
     setLoading(true);
@@ -105,22 +111,24 @@ function ArchiveInner() {
             )
           )}
         </div>
+        <ViewToggle value={view} onChange={setView} />
       </div>
 
       {loading ? (
         <p className="py-12 text-center text-slate-400">불러오는 중…</p>
       ) : filtered.length === 0 ? (
         <p className="card py-12 text-center text-slate-400">자료가 없습니다.</p>
-      ) : (
+      ) : view === "card" ? (
+        /* ===== 카드 보기 ===== */
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((it) => (
             <div
               key={it.id}
               role="link"
               tabIndex={0}
-              onClick={() => window.open(it.url, "_blank", "noreferrer")}
+              onClick={() => openLink(it.url)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") window.open(it.url, "_blank", "noreferrer");
+                if (e.key === "Enter") openLink(it.url);
               }}
               className="card flex cursor-pointer flex-col !p-4 transition hover:shadow-md hover:ring-1 hover:ring-accent/30"
             >
@@ -154,6 +162,46 @@ function ArchiveInner() {
                   </button>
                 )}
               </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* ===== 리스트 보기 ===== */
+        <div className="card divide-y divide-slate-100 !p-0">
+          {filtered.map((it) => (
+            <div
+              key={it.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => openLink(it.url)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") openLink(it.url);
+              }}
+              className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-50"
+            >
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
+                {ARCHIVE_KIND_LABEL[it.kind]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{it.title}</p>
+                <p className="truncate text-xs text-slate-400">
+                  {[it.date, it.createdByName, (it.tags ?? []).map((t) => `#${t}`).join(" ")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold text-accent">열기 ↗</span>
+              {canDelete(it) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeItem(it);
+                  }}
+                  className="shrink-0 text-xs text-red-500 hover:underline"
+                >
+                  삭제
+                </button>
+              )}
             </div>
           ))}
         </div>
