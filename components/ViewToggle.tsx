@@ -34,13 +34,13 @@ export default function ViewToggle({
   ];
 
   return (
-    <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+    <div className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
       {options.map((o) => (
         <button
           key={o.v}
           onClick={() => onChange(o.v)}
           aria-label={`${o.label} 보기`}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+          className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 transition ${
             value === o.v ? "bg-white text-accent shadow-sm" : "text-slate-500"
           }`}
         >

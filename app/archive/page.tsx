@@ -91,27 +91,29 @@ function ArchiveInner() {
       )}
 
       {/* 검색 / 필터 */}
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="space-y-2">
         <input
           className="input"
           placeholder="제목 · 설명 · 태그로 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
-          {([["all", "전체"], ["performance", "공연"], ["rehearsal", "연습"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
-            ([k, label]) => (
-              <button
-                key={k}
-                onClick={() => setKindFilter(k)}
-                className={`rounded-lg px-3 py-1.5 transition ${kindFilter === k ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-              >
-                {label}
-              </button>
-            )
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+            {([["all", "전체"], ["performance", "공연"], ["rehearsal", "연습"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
+              ([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setKindFilter(k)}
+                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 transition ${kindFilter === k ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
+          <ViewToggle value={view} onChange={setView} />
         </div>
-        <ViewToggle value={view} onChange={setView} />
       </div>
 
       {loading ? (
