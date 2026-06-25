@@ -31,8 +31,17 @@ const SETTINGS_DOC = doc(db, "settings", "site");
 function applyAccent(hex: string) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  root.style.setProperty("--accent", hexToRgbTriplet(hex));
-  root.style.setProperty("--accent-fg", readableTextColor(hex));
+  const accent = hexToRgbTriplet(hex);
+  const accentFg = readableTextColor(hex);
+  root.style.setProperty("--accent", accent);
+  root.style.setProperty("--accent-fg", accentFg);
+  // 다음 방문 때 깜빡임 없이 바로 칠하도록 캐시 (layout.tsx의 인라인 스크립트가 읽음)
+  try {
+    localStorage.setItem("alive-accent", accent);
+    localStorage.setItem("alive-accent-fg", accentFg);
+  } catch {
+    /* 무시 */
+  }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -40,7 +49,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    applyAccent(DEFAULT_SETTINGS.accentColor);
+    // 인라인 스크립트(layout)가 이미 캐시된 색을 칠했음.
+    // 캐시가 전혀 없을 때(최초 방문)만 기본색을 적용해 둔다.
+    try {
+      if (!localStorage.getItem("alive-accent")) applyAccent(DEFAULT_SETTINGS.accentColor);
+    } catch {
+      applyAccent(DEFAULT_SETTINGS.accentColor);
+    }
     // 설정 문서를 실시간 구독 → 관리자가 색을 바꾸면 모두에게 즉시 반영
     const unsub = onSnapshot(
       SETTINGS_DOC,
