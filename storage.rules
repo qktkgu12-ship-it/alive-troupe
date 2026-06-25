@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// ALIVE 얼라이브 - Cloud Storage 보안 규칙 (음원 파일)
+// 정단원 이상만 다운로드(read)/업로드(create) 가능, 삭제는 관리자만.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function adminEmail() {
+      return 'qktkgu12@gmail.com';
+    }
+
+    function role() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        (request.auth.token.email == adminEmail() || role() == 'admin');
+    }
+
+    function isMember() {
+      return request.auth != null && (isAdmin() || role() == 'member');
+    }
+
+    match /audio/{allPaths=**} {
+      allow read: if isMember();
+      // 업로드: 정단원 이상, 한 파일 최대 200MB
+      allow create: if isMember() && request.resource.size < 200 * 1024 * 1024;
+      // 삭제: 관리자만
+      allow delete: if isAdmin();
+    }
+
+    // 그 외 경로는 모두 차단
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

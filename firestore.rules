@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// ALIVE 얼라이브 - Firestore 보안 규칙
+// 핵심: 승인된 단원(member/admin)만 데이터 접근 가능. guest(대기)는 자기 문서 외 아무것도 못 봄.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 최초 관리자 이메일 (이 계정은 항상 관리자 권한 허용)
+    function adminEmail() {
+      return 'qktkgu12@gmail.com';
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 본인 user 문서에서 role 읽기
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        (request.auth.token.email == adminEmail() || myRole() == 'admin');
+    }
+
+    // 정단원 이상 (승인 완료)
+    function isMember() {
+      return isSignedIn() && (isAdmin() || myRole() == 'member');
+    }
+
+    // ---------- 회원 ----------
+    match /users/{userId} {
+      // 본인 문서 또는 관리자만 읽기 (명단·연락처는 관리자 전용)
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // 가입: 본인 문서만 생성 가능. 스스로 관리자/정단원으로 만들 수 없음
+      // (관리자 이메일 계정은 예외적으로 admin 으로 생성 허용)
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && (request.resource.data.role == 'guest'
+            || request.auth.token.email == adminEmail());
+
+      // 수정: 관리자는 전부 / 본인은 등급(role)은 못 바꾸고 프로필만 수정
+      allow update: if isAdmin()
+        || (request.auth.uid == userId
+            && request.resource.data.role == resource.data.role);
+
+      // 삭제: 관리자만
+      allow delete: if isAdmin();
+    }
+
+    // ---------- 확정 일정 ----------
+    match /events/{id} {
+      allow read: if isMember();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- 개인 가능 일정 ----------
+    match /availability/{id} {
+      // 전체 가능 현황을 보려면 정단원 이상은 모두 읽기 가능
+      allow read: if isMember();
+      // 쓰기는 본인 것만 (문서 데이터의 uid 가 본인이어야 함)
+      allow create, update: if isMember() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isMember() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---------- 아카이빙 ----------
+    match /archives/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && request.resource.data.createdBy == request.auth.uid;
+      // 작성자 본인 또는 관리자만 수정·삭제
+      allow update, delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // ---------- 음원 자료실 ----------
+    match /productions/{id} {
+      allow read: if isMember();
+      allow create, update, delete: if isAdmin();
+    }
+    match /audio/{id} {
+      allow read: if isMember();
+      allow create: if isMember(); // 관리자 + 정단원 업로드
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- 사이트 설정(테마) ----------
+    match /settings/{id} {
+      // 로그인 화면에서도 극단명·색을 보여주므로 읽기는 공개
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
