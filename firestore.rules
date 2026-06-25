@@ -62,7 +62,8 @@ service cloud.firestore {
       allow read: if isMember();
       // 쓰기는 본인 것만 (문서 데이터의 uid 가 본인이어야 함)
       allow create, update: if isMember() && request.resource.data.uid == request.auth.uid;
-      allow delete: if isMember() && resource.data.uid == request.auth.uid;
+      // 본인 것 삭제 가능 + 관리자는 단원 삭제 시 모두 정리 가능
+      allow delete: if isAdmin() || (isMember() && resource.data.uid == request.auth.uid);
     }
 
     // ---------- 아카이빙 ----------

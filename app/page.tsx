@@ -11,9 +11,9 @@ import type { ScheduleEvent } from "@/lib/types";
 import { toDateStr } from "@/lib/utils";
 
 const FEATURES = [
-  { href: "/schedule", emoji: "📅", title: "일정", desc: "가능 일자 체크 · 확정 일정 확인" },
-  { href: "/archive", emoji: "🎬", title: "아카이빙", desc: "공연·연습 사진/영상 기록" },
-  { href: "/audio", emoji: "🎵", title: "음원 자료실", desc: "MR · 가이드 음원 다운로드" },
+  { href: "/schedule", emoji: "📅", title: "일정" },
+  { href: "/archive", emoji: "🎬", title: "아카이빙" },
+  { href: "/audio", emoji: "🎵", title: "음원 자료실" },
 ];
 
 function HomeInner() {
@@ -39,32 +39,20 @@ function HomeInner() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* 환영 배너 */}
-      <div className="overflow-hidden rounded-2xl bg-accent p-6 text-accent-fg shadow-sm">
-        <p className="text-sm opacity-80">안녕하세요, {profile?.name || profile?.displayName}님 👋</p>
-        <h1 className="mt-1 text-2xl font-bold">{settings.troupeName}</h1>
-        {settings.currentProduction ? (
-          <p className="mt-2 inline-block rounded-full bg-black/15 px-3 py-1 text-sm font-medium">
+    <div className="space-y-5">
+      {/* 인사 */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          안녕하세요, <b className="text-slate-700">{profile?.name || profile?.displayName}</b>님 👋
+        </p>
+        {settings.currentProduction && (
+          <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
             현재 공연 · {settings.currentProduction}
-          </p>
-        ) : (
-          <p className="mt-2 text-sm opacity-80">함께 만들어가는 무대 ✨</p>
+          </span>
         )}
       </div>
 
-      {/* 기능 바로가기 */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {FEATURES.map((f) => (
-          <Link key={f.href} href={f.href} className="card transition hover:shadow-md hover:ring-1 hover:ring-accent/30">
-            <div className="text-3xl">{f.emoji}</div>
-            <div className="mt-3 font-bold">{f.title}</div>
-            <div className="mt-1 text-sm text-slate-500">{f.desc}</div>
-          </Link>
-        ))}
-      </div>
-
-      {/* 다가오는 확정 일정 */}
+      {/* 다가오는 확정 일정 (최상단) */}
       <div className="card">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-bold">다가오는 일정</h2>
@@ -93,6 +81,20 @@ function HomeInner() {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* 기능 바로가기 — 앱 아이콘 3분할 */}
+      <div className="grid grid-cols-3 gap-3">
+        {FEATURES.map((f) => (
+          <Link
+            key={f.href}
+            href={f.href}
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-5 text-center shadow-sm transition hover:shadow-md hover:ring-1 hover:ring-accent/30"
+          >
+            <span className="text-3xl">{f.emoji}</span>
+            <span className="text-xs font-semibold text-slate-700 sm:text-sm">{f.title}</span>
+          </Link>
+        ))}
       </div>
 
       {role === "admin" && (

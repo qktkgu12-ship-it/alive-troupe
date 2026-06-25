@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
@@ -47,7 +47,11 @@ function AdminInner() {
   }
 
   async function rejectUser(uid: string) {
-    if (!confirm("이 가입 신청을 거절(삭제)할까요?")) return;
+    if (!confirm("이 단원을 삭제할까요? 해당 단원이 등록한 가능 일정도 함께 삭제됩니다.")) return;
+    // 이 단원이 제출한 가능 일정(availability) 모두 삭제
+    const av = await getDocs(query(collection(db, "availability"), where("uid", "==", uid)));
+    await Promise.all(av.docs.map((d) => deleteDoc(d.ref)));
+    // 회원 문서 삭제
     await deleteDoc(doc(db, "users", uid));
     load();
   }

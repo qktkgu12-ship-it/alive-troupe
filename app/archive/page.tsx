@@ -114,12 +114,22 @@ function ArchiveInner() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((it) => (
-            <div key={it.id} className="card flex flex-col !p-4">
+            <div
+              key={it.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => window.open(it.url, "_blank", "noreferrer")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") window.open(it.url, "_blank", "noreferrer");
+              }}
+              className="card flex cursor-pointer flex-col !p-4 transition hover:shadow-md hover:ring-1 hover:ring-accent/30"
+            >
               <div className="mb-2 flex items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
                   {ARCHIVE_KIND_LABEL[it.kind]}
                 </span>
                 <span className="text-xs text-slate-400">{it.date}</span>
+                <span className="ml-auto text-sm font-semibold text-accent">열기 ↗</span>
               </div>
               <h3 className="font-semibold">{it.title}</h3>
               {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
@@ -130,16 +140,19 @@ function ArchiveInner() {
                   ))}
                 </div>
               )}
-              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                <a href={it.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-accent hover:underline">
-                  자료 열기 ↗
-                </a>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">{it.createdByName}</span>
-                  {canDelete(it) && (
-                    <button onClick={() => removeItem(it)} className="text-xs text-red-500 hover:underline">삭제</button>
-                  )}
-                </div>
+              <div className="mt-3 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <span className="text-xs text-slate-400">{it.createdByName}</span>
+                {canDelete(it) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeItem(it);
+                    }}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    삭제
+                  </button>
+                )}
               </div>
             </div>
           ))}
