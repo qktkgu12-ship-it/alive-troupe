@@ -56,6 +56,30 @@ function AdminInner() {
     load();
   }
 
+  // 탈퇴한(목록에 없는) 단원이 남긴 가능 일정 일괄 정리
+  const [cleaning, setCleaning] = useState(false);
+  async function cleanupOrphans() {
+    setCleaning(true);
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const ids = new Set(usersSnap.docs.map((d) => d.id));
+      const avSnap = await getDocs(collection(db, "availability"));
+      const orphans = avSnap.docs.filter((d) => !ids.has((d.data() as { uid: string }).uid));
+      if (orphans.length === 0) {
+        alert("정리할 잔여 데이터가 없습니다. 👍");
+        return;
+      }
+      if (!confirm(`탈퇴한 단원이 남긴 가능 일정 ${orphans.length}건을 삭제할까요?`)) return;
+      await Promise.all(orphans.map((d) => deleteDoc(d.ref)));
+      alert(`${orphans.length}건 정리 완료!`);
+    } catch (e) {
+      console.error(e);
+      alert("정리에 실패했어요. 보안 규칙(Firestore)이 최신으로 게시됐는지 확인해 주세요.");
+    } finally {
+      setCleaning(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold">관리자</h1>
@@ -128,6 +152,17 @@ function AdminInner() {
             })}
           </div>
         )}
+      </section>
+
+      {/* 데이터 정리 */}
+      <section className="card">
+        <h2 className="mb-1 font-bold">데이터 정리</h2>
+        <p className="mb-3 text-sm text-slate-500">
+          탈퇴한 단원이 남긴 가능 일정 데이터를 한 번에 정리합니다.
+        </p>
+        <button onClick={cleanupOrphans} disabled={cleaning} className="btn-ghost">
+          {cleaning ? "정리 중…" : "탈퇴 단원의 잔여 가능일정 정리"}
+        </button>
       </section>
     </div>
   );
