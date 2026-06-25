@@ -12,6 +12,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#ffffff",
 };
 
 // 화면이 그려지기 직전에 실행 → 마지막으로 본 테마색을 즉시 칠해 깜빡임 방지
