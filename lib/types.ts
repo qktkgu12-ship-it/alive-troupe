@@ -75,17 +75,15 @@ export const AUDIO_KIND_LABEL: Record<AudioKind, string> = {
   etc: "기타",
 };
 
-// 곡별 음원 파일
+// 곡별 음원 (구글 드라이브 등 외부 링크 연동)
 export interface AudioTrack {
   id: string;
   productionId: string;
   song: string; // 곡명
   kind: AudioKind; // MR / 가이드 / 기타
-  fileName: string;
-  fileUrl: string; // Firebase Storage 다운로드 URL
-  storagePath: string; // Storage 내부 경로 (삭제용)
-  size: number; // bytes
-  uploadedByName: string;
+  label: string; // 표시용 이름(선택) 예: "MR 2키 다운"
+  url: string; // 구글 드라이브 등 외부 링크
+  addedByName: string;
   createdAt: number;
 }
 

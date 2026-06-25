@@ -11,13 +11,7 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
-import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytesResumable,
-} from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import {
@@ -26,7 +20,13 @@ import {
   type AudioTrack,
   type Production,
 } from "@/lib/types";
-import { formatBytes } from "@/lib/utils";
+
+// 구글 드라이브 공유 링크를 '바로 다운로드' 링크로 변환 (가능할 때만)
+function toDownloadUrl(url: string): string {
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+  return url;
+}
 
 function AudioInner() {
   const { profile, role } = useAuth();
@@ -89,20 +89,9 @@ function AudioInner() {
   }
 
   async function removeProduction(p: Production) {
-    if (!confirm(`'${p.name}' 폴더와 안의 모든 음원을 삭제할까요?`)) return;
-    // 안의 음원 파일/문서 모두 삭제
+    if (!confirm(`'${p.name}' 폴더와 안의 모든 음원 링크를 삭제할까요?`)) return;
     const snap = await getDocs(query(collection(db, "audio"), where("productionId", "==", p.id)));
-    await Promise.all(
-      snap.docs.map(async (d) => {
-        const t = d.data() as AudioTrack;
-        try {
-          await deleteObject(ref(storage, t.storagePath));
-        } catch {
-          /* 파일이 이미 없을 수 있음 */
-        }
-        await deleteDoc(d.ref);
-      })
-    );
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
     await deleteDoc(doc(db, "productions", p.id));
     setActiveId(null);
     await loadProductions();
@@ -115,6 +104,11 @@ function AudioInner() {
         {isAdmin && (
           <button onClick={addProduction} className="btn-accent">+ 작품 폴더</button>
         )}
+      </div>
+
+      <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
+        💡 음원은 구글 드라이브 등에 올린 뒤 <b>공유 링크</b>를 등록하는 방식입니다.
+        드라이브 파일은 <b>‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요.
       </div>
 
       {/* 작품(폴더) 탭 */}
@@ -147,11 +141,11 @@ function AudioInner() {
             )}
           </div>
 
-          {/* 업로드 (관리자 + 정단원) */}
-          <UploadForm
+          {/* 음원 링크 추가 (관리자 + 정단원) */}
+          <AddTrackForm
             productionId={active.id}
-            uploaderName={profile?.name || profile?.displayName || ""}
-            onUploaded={() => loadTracks(active.id)}
+            addedByName={profile?.name || profile?.displayName || ""}
+            onAdded={() => loadTracks(active.id)}
           />
 
           {/* 곡별 음원 목록 */}
@@ -188,35 +182,8 @@ function TrackRow({
   canDelete: boolean;
   onDeleted: () => void;
 }) {
-  const [downloading, setDownloading] = useState(false);
-
-  async function download() {
-    setDownloading(true);
-    try {
-      const res = await fetch(track.fileUrl);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = track.fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(track.fileUrl, "_blank");
-    } finally {
-      setDownloading(false);
-    }
-  }
-
   async function remove() {
-    if (!confirm("이 음원을 삭제할까요?")) return;
-    try {
-      await deleteObject(ref(storage, track.storagePath));
-    } catch {
-      /* 무시 */
-    }
+    if (!confirm("이 음원 링크를 삭제할까요?")) return;
     await deleteDoc(doc(db, "audio", track.id));
     onDeleted();
   }
@@ -225,12 +192,17 @@ function TrackRow({
     <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
       <span className="chip shrink-0">{AUDIO_KIND_LABEL[track.kind]}</span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{track.fileName}</p>
-        <p className="text-xs text-slate-400">{formatBytes(track.size)} · {track.uploadedByName}</p>
+        <p className="truncate text-sm font-medium">{track.label || track.song}</p>
+        <p className="text-xs text-slate-400">{track.addedByName}</p>
       </div>
-      <button onClick={download} disabled={downloading} className="btn-ghost !px-3 !py-1.5 shrink-0">
-        {downloading ? "받는 중…" : "다운로드"}
-      </button>
+      <a
+        href={toDownloadUrl(track.url)}
+        target="_blank"
+        rel="noreferrer"
+        className="btn-ghost !px-3 !py-1.5 shrink-0"
+      >
+        다운로드 ↗
+      </a>
       {canDelete && (
         <button onClick={remove} className="text-xs text-red-500 hover:underline shrink-0">삭제</button>
       )}
@@ -238,83 +210,63 @@ function TrackRow({
   );
 }
 
-function UploadForm({
+function AddTrackForm({
   productionId,
-  uploaderName,
-  onUploaded,
+  addedByName,
+  onAdded,
 }: {
   productionId: string;
-  uploaderName: string;
-  onUploaded: () => void;
+  addedByName: string;
+  onAdded: () => void;
 }) {
   const [song, setSong] = useState("");
   const [kind, setKind] = useState<AudioKind>("mr");
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function upload() {
-    if (!song || !file) {
-      alert("곡명과 파일을 선택하세요.");
+  async function add() {
+    if (!song || !url) {
+      alert("곡명과 링크는 필수입니다.");
       return;
     }
-    const id = crypto.randomUUID();
-    const storagePath = `audio/${productionId}/${id}_${file.name}`;
-    const task = uploadBytesResumable(ref(storage, storagePath), file);
-    setProgress(0);
-    task.on(
-      "state_changed",
-      (snap) => setProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-      (err) => {
-        console.error(err);
-        alert("업로드에 실패했어요. 다시 시도해 주세요.");
-        setProgress(null);
-      },
-      async () => {
-        const fileUrl = await getDownloadURL(task.snapshot.ref);
-        const track: Omit<AudioTrack, "id"> = {
-          productionId,
-          song,
-          kind,
-          fileName: file.name,
-          fileUrl,
-          storagePath,
-          size: file.size,
-          uploadedByName: uploaderName,
-          createdAt: Date.now(),
-        };
-        await setDoc(doc(db, "audio", id), track);
-        setSong("");
-        setFile(null);
-        setProgress(null);
-        onUploaded();
-      }
-    );
+    setBusy(true);
+    try {
+      const id = crypto.randomUUID();
+      const track: Omit<AudioTrack, "id"> = {
+        productionId,
+        song,
+        kind,
+        label,
+        url: url.startsWith("http") ? url : `https://${url}`,
+        addedByName,
+        createdAt: Date.now(),
+      };
+      await setDoc(doc(db, "audio", id), track);
+      setSong("");
+      setLabel("");
+      setUrl("");
+      onAdded();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="card space-y-3 border-dashed">
-      <p className="text-sm font-semibold text-slate-600">음원 업로드</p>
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+      <p className="text-sm font-semibold text-slate-600">음원 링크 추가</p>
+      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
         <input className="input" value={song} onChange={(e) => setSong(e.target.value)} placeholder="곡명 (예: I Am the One)" />
-        <select className="input sm:w-32" value={kind} onChange={(e) => setKind(e.target.value as AudioKind)}>
+        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as AudioKind)}>
           <option value="mr">MR</option>
           <option value="guide">가이드</option>
           <option value="etc">기타</option>
         </select>
       </div>
-      <input
-        type="file"
-        accept="audio/*"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-sm file:font-semibold file:text-accent"
-      />
-      {progress !== null && (
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
-        </div>
-      )}
-      <button onClick={upload} disabled={progress !== null} className="btn-accent w-full">
-        {progress !== null ? `업로드 중… ${progress}%` : "업로드"}
+      <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="표시 이름 (선택) — 예: MR 풀버전 / 2키 다운" />
+      <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="구글 드라이브 공유 링크 (https://drive.google.com/...)" />
+      <button onClick={add} disabled={busy} className="btn-accent w-full">
+        {busy ? "추가 중…" : "음원 추가"}
       </button>
     </div>
   );
