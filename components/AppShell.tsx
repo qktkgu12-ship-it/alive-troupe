@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
+import { NAV_ICON } from "@/components/Icons";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -151,6 +152,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 overflow-y-auto p-3">
           {links.map((n) => {
             const active = pathname === n.href;
+            const Icon = NAV_ICON[n.href];
             return (
               <Link
                 key={n.href}
@@ -159,7 +161,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   active ? "bg-accent-soft text-accent" : "text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-accent" : "bg-slate-300"}`} />
+                {Icon && <Icon className={`h-5 w-5 ${active ? "text-accent" : "text-slate-400"}`} />}
                 {n.label}
               </Link>
             );
