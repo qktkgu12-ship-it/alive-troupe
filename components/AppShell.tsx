@@ -24,12 +24,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
 
-  // 페이지 이동 시 사이드바 닫기
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // 사이드바 열릴 때 배경 스크롤 잠금
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -42,107 +40,143 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }
 
+  const Wordmark = () => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/wordmark.png" alt="ALIVE" className="h-7 w-auto select-none" draggable={false} />
+  );
+
   return (
-    <div className="min-h-screen">
-      {/* 상단 메인컬러 박스 헤더 */}
-      <header className="sticky top-0 z-30 bg-accent text-accent-fg shadow-sm">
-        <div className="mx-auto flex max-w-5xl items-center px-3 py-3">
-          {/* 햄버거 (왼쪽) */}
+    <div className="min-h-screen bg-slate-50/40">
+      {/* 뉴트럴 헤더 */}
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
+          {/* 모바일: 햄버거 */}
           <button
             onClick={() => setOpen(true)}
             aria-label="메뉴 열기"
-            className="grid h-10 w-10 place-items-center rounded-lg transition hover:bg-white/15"
+            className="-ml-1 grid h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100 md:hidden"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
 
-          {/* 로고(가운데, 흰색) */}
-          <div className="flex flex-1 flex-col items-center">
-            <Link href="/" className="text-lg font-extrabold tracking-tight">
-              {settings.troupeName}
-            </Link>
+          {/* 로고 (모바일 가운데 / PC 왼쪽) */}
+          <Link
+            href="/"
+            className="flex flex-1 items-center justify-center gap-2.5 md:flex-none md:justify-start"
+          >
+            <Wordmark />
             {settings.currentProduction && (
-              <span className="text-[11px] font-medium opacity-80">{settings.currentProduction}</span>
+              <span className="hidden rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent lg:inline">
+                {settings.currentProduction}
+              </span>
             )}
+          </Link>
+
+          {/* PC: 가로 메뉴 */}
+          <nav className="hidden flex-1 items-center justify-center gap-1 md:flex">
+            {links.map((n) => {
+              const active = pathname === n.href;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  className={`relative flex h-16 items-center px-3.5 text-sm font-medium transition ${
+                    active ? "text-accent" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {n.label}
+                  {active && (
+                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* PC: 사용자 */}
+          <div className="hidden items-center gap-3 md:flex">
+            <span className="text-sm font-medium text-slate-500">
+              {profile?.name || profile?.displayName}
+            </span>
+            <button
+              onClick={handleSignOut}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              로그아웃
+            </button>
           </div>
 
-          {/* 오른쪽 균형용 빈 공간 */}
-          <div className="h-10 w-10" />
+          {/* 모바일: 균형용 빈 공간 */}
+          <div className="h-10 w-10 md:hidden" />
         </div>
       </header>
 
-      {/* 오버레이 */}
+      {/* 모바일 사이드바 오버레이 */}
       <div
         onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/45 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
 
-      {/* 슬라이드 사이드바 */}
+      {/* 모바일 슬라이드 사이드바 */}
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-full w-[78%] max-w-[300px] flex-col bg-accent text-accent-fg shadow-2xl transition-transform duration-300 ${
+        className={`fixed left-0 top-0 z-50 flex h-full w-[80%] max-w-[320px] flex-col bg-white shadow-2xl transition-transform duration-300 md:hidden ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* 사이드바 상단 (브랜드) */}
-        <div className="flex items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15 text-base font-black">A</span>
-            <div className="leading-tight">
-              <p className="text-base font-extrabold">{settings.troupeName}</p>
-              {settings.currentProduction && (
-                <p className="text-[11px] opacity-80">{settings.currentProduction}</p>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <Wordmark />
           <button
             onClick={() => setOpen(false)}
             aria-label="메뉴 닫기"
-            className="grid h-9 w-9 place-items-center rounded-lg transition hover:bg-white/15"
+            className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
         </div>
 
-        {/* 메뉴 영역 — 헤더와 살짝 톤차이 (약간 어둡게) */}
-        <nav className="flex-1 overflow-y-auto bg-black/10 py-2">
+        {settings.currentProduction && (
+          <div className="px-5 pt-4">
+            <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
+              현재 공연 · {settings.currentProduction}
+            </span>
+          </div>
+        )}
+
+        <nav className="flex-1 overflow-y-auto p-3">
           {links.map((n) => {
             const active = pathname === n.href;
             return (
               <Link
                 key={n.href}
                 href={n.href}
-                className={`flex items-center gap-3 px-5 py-3.5 text-[15px] font-semibold transition ${
-                  active ? "bg-white/20" : "hover:bg-white/10"
+                className={`mb-0.5 flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition ${
+                  active ? "bg-accent-soft text-accent" : "text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-white/40"}`} />
+                <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-accent" : "bg-slate-300"}`} />
                 {n.label}
               </Link>
             );
           })}
         </nav>
 
-        {/* 하단 — 사용자 + 로그아웃 */}
-        <div className="border-t border-white/15 bg-black/10 px-5 py-4">
-          <p className="mb-2 truncate text-sm font-medium opacity-90">
+        <div className="border-t border-slate-100 p-4">
+          <p className="mb-2 truncate px-1 text-sm font-medium text-slate-500">
             {profile?.name || profile?.displayName}
           </p>
-          <button
-            onClick={handleSignOut}
-            className="w-full rounded-lg bg-white/15 py-2 text-sm font-semibold transition hover:bg-white/25"
-          >
+          <button onClick={handleSignOut} className="btn-ghost w-full">
             로그아웃
           </button>
         </div>
       </aside>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
     </div>
   );
 }

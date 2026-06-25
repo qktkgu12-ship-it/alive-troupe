@@ -35,20 +35,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-gradient-to-b from-white to-slate-100 px-4">
+    <div className="grid min-h-screen place-items-center bg-white px-4">
       <div className="w-full max-w-sm text-center">
-        <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-accent text-2xl font-black text-accent-fg shadow-lg">
-          A
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">{settings.troupeName}</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/wordmark.png" alt="ALIVE" className="mx-auto mb-6 h-10 w-auto" />
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">단원 전용 공간</h1>
         <p className="mt-2 text-sm text-slate-500">
-          단원 전용 공간입니다. 구글 계정으로 로그인해 주세요.
+          구글 계정으로 로그인해 주세요.
         </p>
 
         <button
           onClick={handleSignIn}
           disabled={busy}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
         >
           <svg width="18" height="18" viewBox="0 0 48 48">
             <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.3 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z" />
