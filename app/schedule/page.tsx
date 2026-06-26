@@ -69,6 +69,12 @@ function ScheduleInner() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("tab") === "events") setTab("events");
+    // 일정 날짜가 넘어오면 그 달로 달력 이동 (7월 일정인데 6월이 보이던 버그 수정)
+    const dateParam = p.get("date");
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      const [y, m] = dateParam.split("-").map(Number);
+      setCursor(new Date(y, m - 1, 1));
+    }
     const ev = p.get("event");
     if (ev) {
       setHighlightEvent(ev);
