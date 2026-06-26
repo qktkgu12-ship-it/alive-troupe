@@ -203,7 +203,7 @@ function ScheduleInner() {
   }
 
   // ----- 전체 현황 집계 -----
-  const { dayMax, slotCount, slotNames, submitters } = useMemo(() => {
+  const { slotCount, slotNames, submitters } = useMemo(() => {
     const slotCount: Record<string, Record<string, number>> = {};
     const slotNames: Record<string, Record<string, string[]>> = {};
     for (const a of allAvail) {
@@ -219,12 +219,7 @@ function ScheduleInner() {
         }
       }
     }
-    const dayMax: Record<string, number> = {};
-    for (const date in slotCount) {
-      const vals = Object.values(slotCount[date]);
-      dayMax[date] = vals.length ? Math.max(...vals) : 0;
-    }
-    return { dayMax, slotCount, slotNames, submitters: allAvail.length };
+    return { slotCount, slotNames, submitters: allAvail.length };
   }, [allAvail]);
 
   const recommendations = useMemo(() => {
@@ -306,7 +301,7 @@ function ScheduleInner() {
           <div className="grid gap-4 md:grid-cols-[0.9fr_1.2fr_1fr]">
             {/* 왼쪽: 전체 가능 현황 */}
             <div className="order-3 md:order-1">
-              <div className="card space-y-4 md:sticky md:top-20">
+              <div className="card h-full space-y-4">
                 <div>
                   <h2 className="font-bold">전체 가능 현황</h2>
                   <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
@@ -343,41 +338,41 @@ function ScheduleInner() {
               </div>
             </div>
 
-            {/* 가운데: 달력 (월 선택 + 히트맵 + 내 선택) */}
+            {/* 가운데: 달력 (월 선택 카드 안 + 내 선택만) */}
             <div className="order-1 md:order-2">
-              <MonthNav label={`${year}년 ${month0 + 1}월`} onPrev={() => changeMonth(-1)} onNext={() => changeMonth(1)} />
-              <div className="card">
-                <p className="mb-3 text-sm text-slate-500">
-                  가능한 <b className="text-slate-700">날짜</b>를 선택하세요. 색이 진할수록 가능한 단원이 많아요.
-                </p>
+              <div className="card h-full">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-lg font-bold text-slate-900">{year}년 {month0 + 1}월</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => changeMonth(-1)} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
+                    <button onClick={() => changeMonth(1)} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+                  </div>
+                </div>
                 <CalendarGrid
                   grid={grid}
                   renderCell={(d) => {
                     const ds = toDateStr(d);
-                    const cnt = dayMax[ds] ?? 0;
-                    const ratio = submitters ? cnt / submitters : 0;
                     const mine = myDates.includes(ds);
                     const active = activeDate === ds;
                     return (
                       <button
                         onClick={() => selectDate(ds)}
-                        style={cnt > 0 ? { backgroundColor: `rgb(var(--accent) / ${(0.1 + ratio * 0.55).toFixed(3)})`, color: ratio > 0.6 ? "rgb(var(--accent-fg))" : undefined } : undefined}
-                        className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition hover:brightness-95 ${mine ? "font-bold" : ""} ${
-                          active ? "ring-2 ring-accent ring-offset-1" : mine ? "ring-2 ring-accent" : ds === todayStr ? "ring-1 ring-accent" : ""
-                        }`}
+                        className={`flex h-full w-full items-center justify-center rounded-full text-sm transition ${
+                          mine ? "bg-accent font-bold text-accent-fg" : "text-slate-700 hover:bg-slate-100"
+                        } ${active ? "ring-2 ring-accent ring-offset-1" : !mine && ds === todayStr ? "ring-1 ring-accent" : ""}`}
                       >
                         {d.getDate()}
                       </button>
                     );
                   }}
                 />
-                <p className="mt-3 text-xs text-slate-400">테두리 = 내가 고른 날 · 색 농도 = 가능 인원</p>
+                <p className="mt-3 text-xs text-slate-400">가능한 날짜를 눌러 선택하세요. 단원 현황은 왼쪽에서 확인해요.</p>
               </div>
             </div>
 
             {/* 오른쪽: 내 시간 선택 */}
             <div className="order-2 md:order-3">
-              <div className="card md:sticky md:top-20">
+              <div className="card h-full">
                 {!activeDate ? (
                   <p className="py-10 text-center text-sm text-slate-400">날짜를 선택하면<br />시간을 고를 수 있어요.</p>
                 ) : (
