@@ -14,7 +14,7 @@ import { toDateStr } from "@/lib/utils";
 
 const FEATURES = [
   { href: "/schedule", title: "일정", desc: "가능일정 · 확정일정", Icon: CalendarIcon },
-  { href: "/archive", title: "아카이빙", desc: "공연 · 연습 기록", Icon: ArchiveIcon },
+  { href: "/archive", title: "아카이브", desc: "공연 · 연습 기록", Icon: ArchiveIcon },
   { href: "/audio", title: "음원 자료실", desc: "MR · 가이드", Icon: MusicIcon },
 ];
 

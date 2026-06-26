@@ -243,7 +243,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
   }
 
   async function remove(p: Production) {
-    if (!confirm(`'${p.name}' 작품을 삭제할까요? 이 작품의 음원도 함께 삭제되고, 연결된 아카이빙은 '미지정'으로 바뀝니다.`)) return;
+    if (!confirm(`'${p.name}' 작품을 삭제할까요? 이 작품의 음원도 함께 삭제되고, 연결된 아카이브는 '미지정'으로 바뀝니다.`)) return;
     const aud = await getDocs(query(collection(db, "audio"), where("productionId", "==", p.id)));
     await Promise.all(aud.docs.map((d) => deleteDoc(d.ref)));
     const arc = await getDocs(query(collection(db, "archives"), where("productionId", "==", p.id)));

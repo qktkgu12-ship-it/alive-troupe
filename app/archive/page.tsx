@@ -110,7 +110,7 @@ function ArchiveInner() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">아카이빙</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">아카이브</h1>
         <button onClick={() => setShowForm((v) => !v)} className="btn-accent">
           {showForm ? "닫기" : "+ 자료 등록"}
         </button>
@@ -138,7 +138,7 @@ function ArchiveInner() {
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
-            {([["all", "전체"], ["performance", "공연"], ["rehearsal", "연습"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
+            {([["all", "전체"], ["rehearsal", "연습"], ["performance", "공연"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
               ([k, label]) => (
                 <button
                   key={k}
