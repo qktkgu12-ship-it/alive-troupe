@@ -34,6 +34,7 @@ function PostDetailInner() {
   const [images, setImages] = useState<string[]>([]);
   const [asNotice, setAsNotice] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
     getDoc(doc(db, "posts", id))
@@ -143,10 +144,10 @@ function PostDetailInner() {
           {(post.images ?? []).length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {(post.images ?? []).map((src, i) => (
-                <a key={i} href={src} target="_blank" rel="noreferrer" className="block">
+                <button key={i} type="button" onClick={() => setZoom(src)} className="block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="aspect-square w-full rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
-                </a>
+                  <img src={src} alt="" className="aspect-square w-full cursor-zoom-in rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
+                </button>
               ))}
             </div>
           )}
@@ -158,6 +159,24 @@ function PostDetailInner() {
             </div>
           )}
         </article>
+      )}
+
+      {/* 사진 크게 보기 (라이트박스) */}
+      {zoom && (
+        <div
+          onClick={() => setZoom(null)}
+          className="fixed inset-0 z-50 grid cursor-zoom-out place-items-center bg-black/85 p-4"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoom} alt="" className="max-h-[90vh] max-w-full rounded-lg object-contain" />
+          <button
+            onClick={() => setZoom(null)}
+            aria-label="닫기"
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/15 text-2xl text-white transition hover:bg-white/25"
+          >
+            ×
+          </button>
+        </div>
       )}
     </div>
   );
