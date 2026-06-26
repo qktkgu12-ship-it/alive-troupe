@@ -68,8 +68,10 @@ service cloud.firestore {
     match /availability/{id} {
       // 전체 가능 현황을 보려면 정단원 이상은 모두 읽기 가능
       allow read: if isMember();
-      // 쓰기는 본인 것만 (문서 데이터의 uid 가 본인이어야 함)
-      allow create, update: if isMember() && request.resource.data.uid == request.auth.uid;
+      // 쓰기는 본인 것만 (데이터 uid + 문서ID 앞부분이 모두 본인이어야 함 → 남의 문서 덮어쓰기 방지)
+      allow create, update: if isMember()
+        && request.resource.data.uid == request.auth.uid
+        && id.split('_')[0] == request.auth.uid;
       // 본인 것 삭제 가능 + 관리자는 단원 삭제 시 모두 정리 가능
       allow delete: if isAdmin() || (isMember() && resource.data.uid == request.auth.uid);
     }
@@ -80,8 +82,13 @@ service cloud.firestore {
       allow read: if isAdmin() || (isMember() && canAccessProduction(resource.data.productionId));
       allow create: if isMember() && request.resource.data.createdBy == request.auth.uid
         && (isAdmin() || canAccessProduction(request.resource.data.productionId));
-      // 작성자 본인 또는 관리자만 수정·삭제
-      allow update, delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
+      // 수정: 관리자 전체 / 작성자 본인은 (작성자 변경 불가 + 참여 작품 내에서만)
+      allow update: if isAdmin()
+        || (isMember() && resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdBy == resource.data.createdBy
+            && canAccessProduction(request.resource.data.productionId));
+      // 삭제: 관리자 또는 작성자 본인
+      allow delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
     }
 
     // ---------- 작품(음원·아카이빙 공용) ----------
@@ -106,20 +113,24 @@ service cloud.firestore {
       allow create: if isMember()
         && request.resource.data.authorUid == request.auth.uid
         && (request.resource.data.isNotice == false || isAdmin());
-      // 수정: 관리자, 또는 본인 글(공지로 바꾸는 것은 불가)
+      // 수정: 관리자, 또는 본인 글(작성자 변경 불가 + 공지로 바꾸는 것은 불가)
       allow update: if isAdmin()
         || (isMember() && resource.data.authorUid == request.auth.uid
+            && request.resource.data.authorUid == resource.data.authorUid
             && request.resource.data.isNotice == false);
       // 삭제: 관리자 또는 본인 글
       allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
     }
 
     // 게시글 첨부 사진 (별도 저장 → 목록 경량화)
+    // 하이재킹 방지: 같은 id의 '글 작성자'(또는 관리자)만 사진을 쓸 수 있음
     match /postMedia/{id} {
       allow read: if isMember();
-      allow create: if isAdmin()
-        || (isMember() && request.resource.data.authorUid == request.auth.uid);
-      allow update, delete: if isAdmin()
+      allow create, update: if isAdmin()
+        || (isMember()
+            && exists(/databases/$(database)/documents/posts/$(id))
+            && get(/databases/$(database)/documents/posts/$(id)).data.authorUid == request.auth.uid);
+      allow delete: if isAdmin()
         || (isMember() && resource.data.authorUid == request.auth.uid);
     }
 

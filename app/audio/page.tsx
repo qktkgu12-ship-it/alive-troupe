@@ -12,6 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeExternalUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
@@ -23,10 +24,11 @@ import {
 } from "@/lib/types";
 
 // 구글 드라이브 공유 링크를 '바로 다운로드' 링크로 변환 (가능할 때만)
+// 항상 http(s)만 반환 (javascript: 등 위험 링크 차단)
 function toDownloadUrl(url: string): string {
   const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (m) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
-  return url;
+  return safeExternalUrl(url) || "#";
 }
 
 function AudioInner() {

@@ -58,6 +58,11 @@ export function buildMonthGrid(year: number, month0: number): (Date | null)[] {
 
 export const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
+// 외부 링크 안전 검사: http(s) 만 허용 (javascript:, data: 등 차단 → 저장형 XSS 방지)
+export function safeExternalUrl(url: string): string {
+  return /^https?:\/\//i.test((url || "").trim()) ? url.trim() : "";
+}
+
 // 배열을 size 단위로 쪼개기 (Firestore 'in' 쿼리는 최대 30개)
 export function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];

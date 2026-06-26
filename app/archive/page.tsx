@@ -16,10 +16,12 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { ARCHIVE_KIND_LABEL, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
-import { chunk } from "@/lib/utils";
+import { chunk, safeExternalUrl } from "@/lib/utils";
 
 function openLink(url: string) {
-  window.open(url, "_blank", "noreferrer");
+  const safe = safeExternalUrl(url);
+  if (safe) window.open(safe, "_blank", "noreferrer");
+  else alert("열 수 없는 링크입니다. (http/https 주소만 지원)");
 }
 
 const KIND_STYLE: Record<ArchiveKind, string> = {
