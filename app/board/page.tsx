@@ -6,7 +6,11 @@ import { collection, doc, getDocs, query, setDoc, where } from "firebase/firesto
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import ImagePicker from "@/components/ImagePicker";
 import { BOARD_LABEL, BOARD_ORDER, type BoardKey, type Post } from "@/lib/types";
+
+// Firestore 문서 1MB 제한 안전선
+const MAX_DOC_BYTES = 950_000;
 
 function fmtDate(ts: number) {
   const d = new Date(ts);
@@ -148,6 +152,7 @@ function PostForm({
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [asNotice, setAsNotice] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -165,11 +170,17 @@ function PostForm({
         isNotice: isAdmin ? asNotice : false,
         title: title.trim(),
         content: content.trim(),
+        images,
         authorUid: author.uid,
         authorName: author.name,
         createdAt: now,
         updatedAt: now,
       };
+      if (JSON.stringify(post).length > MAX_DOC_BYTES) {
+        alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
+        setBusy(false);
+        return;
+      }
       await setDoc(doc(db, "posts", id), post);
       onSaved();
     } finally {
@@ -185,7 +196,11 @@ function PostForm({
       </div>
       <div>
         <label className="label">내용</label>
-        <textarea className="input min-h-[140px]" value={content} onChange={(e) => setContent(e.target.value)} />
+        <textarea className="input min-h-[140px]" value={content} onChange={(e) => setContent(e.target.value)} placeholder="내용을 입력하세요. 링크(http…)를 적으면 자동으로 눌러서 열 수 있어요." />
+      </div>
+      <div>
+        <label className="label">사진 첨부</label>
+        <ImagePicker images={images} onChange={setImages} />
       </div>
       {isAdmin && (
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

@@ -105,6 +105,7 @@ export interface Post {
   isNotice: boolean; // 공지 (관리자만 작성, 모든 게시판 상단 고정)
   title: string;
   content: string;
+  images?: string[]; // 첨부 사진 (압축된 data URL)
   authorUid: string;
   authorName: string;
   createdAt: number;

@@ -7,7 +7,11 @@ import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import ImagePicker from "@/components/ImagePicker";
+import Linkify from "@/components/Linkify";
 import { BOARD_LABEL, type Post } from "@/lib/types";
+
+const MAX_DOC_BYTES = 950_000;
 
 function fmtDateTime(ts: number) {
   const d = new Date(ts);
@@ -27,6 +31,7 @@ function PostDetailInner() {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [asNotice, setAsNotice] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -38,6 +43,7 @@ function PostDetailInner() {
           setPost(p);
           setTitle(p.title);
           setContent(p.content);
+          setImages(p.images ?? []);
           setAsNotice(p.isNotice);
         }
       })
@@ -48,19 +54,21 @@ function PostDetailInner() {
 
   async function save() {
     if (!post || !title.trim() || !content.trim()) return;
+    const update = {
+      title: title.trim(),
+      content: content.trim(),
+      images,
+      isNotice: isAdmin ? asNotice : post.isNotice,
+      updatedAt: Date.now(),
+    };
+    if (JSON.stringify(update).length > MAX_DOC_BYTES) {
+      alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
+      return;
+    }
     setBusy(true);
     try {
-      await setDoc(
-        doc(db, "posts", post.id),
-        {
-          title: title.trim(),
-          content: content.trim(),
-          isNotice: isAdmin ? asNotice : post.isNotice,
-          updatedAt: Date.now(),
-        },
-        { merge: true }
-      );
-      setPost({ ...post, title: title.trim(), content: content.trim(), isNotice: isAdmin ? asNotice : post.isNotice });
+      await setDoc(doc(db, "posts", post.id), update, { merge: true });
+      setPost({ ...post, ...update });
       setEditing(false);
     } finally {
       setBusy(false);
@@ -98,6 +106,10 @@ function PostDetailInner() {
             <label className="label">내용</label>
             <textarea className="input min-h-[160px]" value={content} onChange={(e) => setContent(e.target.value)} />
           </div>
+          <div>
+            <label className="label">사진 첨부</label>
+            <ImagePicker images={images} onChange={setImages} />
+          </div>
           {isAdmin && (
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
               <input type="checkbox" checked={asNotice} onChange={(e) => setAsNotice(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
@@ -125,8 +137,19 @@ function PostDetailInner() {
             <span>{fmtDateTime(post.createdAt)}</span>
           </div>
           <div className="mt-5 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-slate-700">
-            {post.content}
+            <Linkify text={post.content} />
           </div>
+
+          {(post.images ?? []).length > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {(post.images ?? []).map((src, i) => (
+                <a key={i} href={src} target="_blank" rel="noreferrer" className="block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="aspect-square w-full rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
+                </a>
+              ))}
+            </div>
+          )}
 
           {canEdit && (
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
