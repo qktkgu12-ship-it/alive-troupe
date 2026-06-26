@@ -294,11 +294,13 @@ function ScheduleInner() {
     const map = new Map<string, { uid: string; name: string; avatar?: string }>();
     for (const a of allAvail) {
       if ((a.dates ?? []).includes(activeDate)) {
-        map.set(a.uid, { uid: a.uid, name: a.name || "이름없음", avatar: a.avatar });
+        // 본인은 실시간 프로필 사진을 우선 사용 (옛 제출 데이터에 사진이 없어도 바로 보이게)
+        const avatar = a.uid === user?.uid ? profile?.avatar || a.avatar : a.avatar;
+        map.set(a.uid, { uid: a.uid, name: a.name || "이름없음", avatar });
       }
     }
     return [...map.values()].sort((x, y) => y.name.localeCompare(x.name, "ko"));
-  }, [activeDate, allAvail]);
+  }, [activeDate, allAvail, user?.uid, profile?.avatar]);
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, ScheduleEvent[]> = {};
