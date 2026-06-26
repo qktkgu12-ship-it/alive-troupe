@@ -23,6 +23,8 @@ function BoardInner() {
   const [notices, setNotices] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const PAGE = 30;
+  const [visible, setVisible] = useState(PAGE);
 
   const loadNotices = useCallback(async () => {
     const snap = await getDocs(query(collection(db, "posts"), where("isNotice", "==", true)));
@@ -54,6 +56,7 @@ function BoardInner() {
 
   useEffect(() => {
     loadBoard(board);
+    setVisible(PAGE);
   }, [board, loadBoard]);
 
   return (
@@ -117,7 +120,7 @@ function BoardInner() {
         <p className="card py-12 text-center text-slate-400">아직 글이 없습니다. 첫 글을 남겨보세요!</p>
       ) : (
         <div className="card divide-y divide-slate-100 !p-0">
-          {posts.map((p) => (
+          {posts.slice(0, visible).map((p) => (
             <Link key={p.id} href={`/board/${p.id}`} className="block px-4 py-3 transition hover:bg-slate-50">
               <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
@@ -148,6 +151,11 @@ function BoardInner() {
               </div>
             </Link>
           ))}
+          {posts.length > visible && (
+            <button onClick={() => setVisible((v) => v + PAGE)} className="w-full py-3 text-sm font-medium text-accent hover:bg-slate-50">
+              더 보기 ({posts.length - visible}개)
+            </button>
+          )}
         </div>
       )}
     </div>

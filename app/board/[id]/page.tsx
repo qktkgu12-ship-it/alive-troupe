@@ -45,6 +45,7 @@ function PostDetailInner() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
+  const [visibleC, setVisibleC] = useState(10);
   const viewedRef = useRef(false);
 
   const loadComments = useCallback(async () => {
@@ -277,7 +278,7 @@ function PostDetailInner() {
             <p className="py-4 text-center text-sm text-slate-400">첫 댓글을 남겨보세요.</p>
           ) : (
             <div className="divide-y divide-slate-100">
-              {comments.map((c) => (
+              {comments.slice(0, visibleC).map((c) => (
                 <div key={c.id} className="flex items-start justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="text-sm">
@@ -293,6 +294,11 @@ function PostDetailInner() {
                   )}
                 </div>
               ))}
+              {comments.length > visibleC && (
+                <button onClick={() => setVisibleC((v) => v + 10)} className="w-full py-2.5 text-sm font-medium text-accent hover:bg-slate-50">
+                  댓글 더 보기 ({comments.length - visibleC}개)
+                </button>
+              )}
             </div>
           )}
           <div className="mt-3 flex gap-2">

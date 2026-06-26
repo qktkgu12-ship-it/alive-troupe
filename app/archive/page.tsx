@@ -42,6 +42,8 @@ function ArchiveInner() {
   const [showForm, setShowForm] = useState(false);
   const [view, setView] = useState<ViewMode>("card");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const PAGE = 30;
+  const [visible, setVisible] = useState(PAGE);
 
   const prodMap = useMemo(() => new Map(productions.map((p) => [p.id, p])), [productions]);
 
@@ -107,6 +109,10 @@ function ArchiveInner() {
       return (a.title || "").localeCompare(b.title || "", "ko");
     });
   }, [filtered, sortOrder]);
+
+  useEffect(() => {
+    setVisible(PAGE);
+  }, [search, kindFilter, sortOrder]);
 
   async function removeItem(it: ArchiveItem) {
     if (!confirm("이 자료를 삭제할까요?")) return;
@@ -192,8 +198,9 @@ function ArchiveInner() {
         </p>
       ) : view === "card" ? (
         /* ===== 카드 보기 ===== */
+        <div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {sorted.map((it) => (
+          {sorted.slice(0, visible).map((it) => (
             <div
               key={it.id}
               role="link"
@@ -252,10 +259,16 @@ function ArchiveInner() {
             </div>
           ))}
         </div>
+        {sorted.length > visible && (
+          <button onClick={() => setVisible((v) => v + PAGE)} className="btn-ghost mt-3 w-full">
+            더 보기 ({sorted.length - visible}개)
+          </button>
+        )}
+        </div>
       ) : (
         /* ===== 리스트 보기 ===== */
         <div className="card divide-y divide-slate-100 !p-0">
-          {sorted.map((it) => (
+          {sorted.slice(0, visible).map((it) => (
             <div
               key={it.id}
               role="link"
@@ -289,6 +302,11 @@ function ArchiveInner() {
               )}
             </div>
           ))}
+          {sorted.length > visible && (
+            <button onClick={() => setVisible((v) => v + PAGE)} className="w-full py-3 text-sm font-medium text-accent hover:bg-slate-50">
+              더 보기 ({sorted.length - visible}개)
+            </button>
+          )}
         </div>
       )}
     </div>
