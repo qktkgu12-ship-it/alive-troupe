@@ -71,6 +71,8 @@ function ArchiveInner() {
         }
       }
       setItems(list);
+    } catch (e) {
+      console.error("아카이브 불러오기 오류:", e);
     } finally {
       setLoading(false);
     }
