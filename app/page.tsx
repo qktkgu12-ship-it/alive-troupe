@@ -92,7 +92,7 @@ function HomeInner() {
               const dt = parseDate(e.date);
               const meta = eventMeta(e);
               return (
-                <Link href="/schedule" className="card flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+                <Link href={`/schedule?tab=events&event=${e.id}`} className="card flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
                   <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-accent-soft leading-none text-accent">
                     <span className="text-[11px] font-semibold">{dt.getMonth() + 1}월</span>
                     <span className="text-2xl font-extrabold">{dt.getDate()}</span>
@@ -122,7 +122,7 @@ function HomeInner() {
                   const dt = parseDate(e.date);
                   const meta = eventMeta(e);
                   return (
-                    <Link key={e.id} href="/schedule" className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
+                    <Link key={e.id} href={`/schedule?tab=events&event=${e.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
                       <div className="w-11 shrink-0 text-center leading-none">
                         <p className="text-sm font-bold text-slate-700">{dt.getMonth() + 1}.{dt.getDate()}</p>
                         <p className="mt-1 text-[11px] text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</p>

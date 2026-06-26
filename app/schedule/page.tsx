@@ -63,6 +63,19 @@ function ScheduleInner() {
   });
   const [tab, setTab] = useState<Tab>("coord");
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
+  const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
+
+  // 홈 '다가오는 일정'에서 넘어온 경우: 확정 일정 탭으로 이동 + 해당 일정 강조
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("tab") === "events") setTab("events");
+    const ev = p.get("event");
+    if (ev) {
+      setHighlightEvent(ev);
+      const t = setTimeout(() => setHighlightEvent(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   const year = cursor.getFullYear();
   const month0 = cursor.getMonth();
@@ -498,6 +511,7 @@ function ScheduleInner() {
           grid={grid}
           isAdmin={role === "admin"}
           onChanged={loadEvents}
+          highlightId={highlightEvent}
         />
       )}
     </div>
@@ -616,6 +630,7 @@ function EventsSection({
   grid,
   isAdmin,
   onChanged,
+  highlightId,
 }: {
   monthLabel: string;
   onPrev: () => void;
@@ -626,10 +641,18 @@ function EventsSection({
   grid: (Date | null)[];
   isAdmin: boolean;
   onChanged: () => void;
+  highlightId?: string | null;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState(`${yearMonth}-01`);
   const today = toDateStr(new Date());
+
+  useEffect(() => {
+    if (highlightId) {
+      const el = document.getElementById(`ev-${highlightId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightId, events]);
 
   async function removeEvent(id: string) {
     if (!confirm("이 일정을 삭제할까요?")) return;
@@ -701,7 +724,11 @@ function EventsSection({
         ) : (
           <div className="space-y-2">
             {events.map((e) => (
-              <div key={e.id} className="flex items-start gap-3 rounded-xl border border-slate-200/70 p-3">
+              <div
+                key={e.id}
+                id={`ev-${e.id}`}
+                className={`flex items-start gap-3 rounded-xl border p-3 transition ${highlightId === e.id ? "border-accent ring-2 ring-accent" : "border-slate-200/70"}`}
+              >
                 <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft leading-none text-accent">
                   <span className="text-[10px] font-semibold">{Number(e.date.slice(5, 7))}월</span>
                   <span className="text-base font-extrabold">{Number(e.date.slice(8, 10))}</span>
