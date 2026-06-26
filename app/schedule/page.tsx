@@ -405,8 +405,9 @@ function EventsSection({
         ) : (
           events.map((e) => (
             <div key={e.id} className="card flex items-start gap-3 !p-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
-                <span className="text-xs font-bold">{e.date.slice(5).replace("-", "/")}</span>
+              <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft leading-none text-accent">
+                <span className="text-[10px] font-semibold">{Number(e.date.slice(5, 7))}월</span>
+                <span className="text-lg font-extrabold">{Number(e.date.slice(8, 10))}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{e.title}</p>

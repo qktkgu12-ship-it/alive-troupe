@@ -77,9 +77,9 @@ function HomeInner() {
             <ul className="divide-y divide-slate-100">
               {upcoming.map((e) => (
                 <li key={e.id} className="flex items-center gap-3.5 px-3 py-3">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
-                    <span className="text-base font-bold leading-none">{Number(e.date.slice(8, 10))}</span>
-                    <span className="mt-0.5 text-[10px] font-medium leading-none">{Number(e.date.slice(5, 7))}월</span>
+                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft leading-none text-accent">
+                    <span className="text-[10px] font-semibold">{Number(e.date.slice(5, 7))}월</span>
+                    <span className="text-lg font-extrabold">{Number(e.date.slice(8, 10))}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-slate-900">{e.title}</p>
