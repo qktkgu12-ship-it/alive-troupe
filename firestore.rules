@@ -85,6 +85,21 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ---------- 게시판 ----------
+    match /posts/{id} {
+      allow read: if isMember();
+      // 작성: 정단원 이상. 단, 공지(isNotice=true)는 관리자만
+      allow create: if isMember()
+        && request.resource.data.authorUid == request.auth.uid
+        && (request.resource.data.isNotice == false || isAdmin());
+      // 수정: 관리자, 또는 본인 글(공지로 바꾸는 것은 불가)
+      allow update: if isAdmin()
+        || (isMember() && resource.data.authorUid == request.auth.uid
+            && request.resource.data.isNotice == false);
+      // 삭제: 관리자 또는 본인 글
+      allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
+    }
+
     // ---------- 사이트 설정(테마) ----------
     match /settings/{id} {
       // 로그인 화면에서도 극단명·색을 보여주므로 읽기는 공개

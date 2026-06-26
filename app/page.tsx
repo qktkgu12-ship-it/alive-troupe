@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { ArchiveIcon, CalendarIcon, MusicIcon } from "@/components/Icons";
-import type { ScheduleEvent } from "@/lib/types";
+import { BOARD_LABEL, type Post, type ScheduleEvent } from "@/lib/types";
 import { toDateStr } from "@/lib/utils";
 
 const FEATURES = [
@@ -21,6 +21,7 @@ function HomeInner() {
   const { profile, role } = useAuth();
   const { settings } = useTheme();
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
+  const [recentPosts, setRecentPosts] = useState<Post[]>([]);
 
   useEffect(() => {
     const today = toDateStr(new Date());
@@ -37,6 +38,11 @@ function HomeInner() {
         setUpcoming(list);
       })
       .catch(() => setUpcoming([]));
+
+    // 전체글 (모든 게시판 최신글)
+    getDocs(query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(6)))
+      .then((snap) => setRecentPosts(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))))
+      .catch(() => setRecentPosts([]));
   }, []);
 
   return (
@@ -109,6 +115,39 @@ function HomeInner() {
               </div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* 전체글 (모든 게시판 최신글) */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">전체글</h2>
+          <Link href="/board" className="text-sm font-medium text-accent hover:underline">
+            게시판 →
+          </Link>
+        </div>
+        <div className="card !p-0">
+          {recentPosts.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">아직 작성된 글이 없습니다.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {recentPosts.map((p) => (
+                <li key={p.id}>
+                  <Link href={`/board/${p.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
+                    {p.isNotice ? (
+                      <span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">공지</span>
+                    ) : (
+                      <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                        {BOARD_LABEL[p.board]}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{p.title}</span>
+                    <span className="shrink-0 text-xs text-slate-400">{p.authorName}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

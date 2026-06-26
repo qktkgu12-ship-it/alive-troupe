@@ -67,12 +67,20 @@ export const AdminIcon = makeIcon(
   </>
 );
 
+export const BoardIcon = makeIcon(
+  <>
+    <rect x="4" y="3.5" width="16" height="17" rx="2.5" />
+    <path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" />
+  </>
+);
+
 // 경로(href) → 아이콘 매핑 (헤더/사이드바 공용)
 export const NAV_ICON: Record<string, FC<IconProps>> = {
   "/": HomeIcon,
   "/schedule": CalendarIcon,
   "/archive": ArchiveIcon,
   "/audio": MusicIcon,
+  "/board": BoardIcon,
   "/members": MembersIcon,
   "/admin": AdminIcon,
 };

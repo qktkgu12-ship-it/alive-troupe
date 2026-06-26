@@ -87,6 +87,27 @@ export interface AudioTrack {
   createdAt: number;
 }
 
+// 게시판
+export type BoardKey = "free" | "costume" | "stage";
+export const BOARD_LABEL: Record<BoardKey, string> = {
+  free: "자유게시판",
+  costume: "의상·소품",
+  stage: "무대",
+};
+export const BOARD_ORDER: BoardKey[] = ["free", "costume", "stage"];
+
+export interface Post {
+  id: string;
+  board: BoardKey;
+  isNotice: boolean; // 공지 (관리자만 작성, 모든 게시판 상단 고정)
+  title: string;
+  content: string;
+  authorUid: string;
+  authorName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // 사이트 설정 (현재 공연 + 테마색)
 export interface SiteSettings {
   troupeName: string;
