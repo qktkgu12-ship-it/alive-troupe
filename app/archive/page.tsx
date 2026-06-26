@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -9,12 +9,14 @@ import {
   orderBy,
   query,
   setDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
-import { ARCHIVE_KIND_LABEL, type ArchiveItem, type ArchiveKind } from "@/lib/types";
+import { ARCHIVE_KIND_LABEL, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
+import { chunk } from "@/lib/utils";
 
 function openLink(url: string) {
   window.open(url, "_blank", "noreferrer");
@@ -28,6 +30,9 @@ const KIND_STYLE: Record<ArchiveKind, string> = {
 
 function ArchiveInner() {
   const { user, profile, role } = useAuth();
+  const isAdmin = role === "admin";
+
+  const [productions, setProductions] = useState<Production[]>([]);
   const [items, setItems] = useState<ArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -35,33 +40,58 @@ function ArchiveInner() {
   const [showForm, setShowForm] = useState(false);
   const [view, setView] = useState<ViewMode>("card");
 
-  async function load() {
+  const prodMap = useMemo(() => new Map(productions.map((p) => [p.id, p])), [productions]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "archives"), orderBy("date", "desc"));
-      const snap = await getDocs(q);
-      setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) })));
+      // 접근 가능한 작품 (관리자 전체 / 정단원은 참여 작품만)
+      const pq = isAdmin
+        ? query(collection(db, "productions"), orderBy("order", "asc"))
+        : query(collection(db, "productions"), where("participants", "array-contains", user?.uid ?? "__none__"));
+      const psnap = await getDocs(pq);
+      const prods = psnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) }));
+      setProductions(prods);
+
+      // 아카이빙 자료
+      let list: ArchiveItem[] = [];
+      if (isAdmin) {
+        const snap = await getDocs(query(collection(db, "archives"), orderBy("date", "desc")));
+        list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) }));
+      } else {
+        const ids = prods.map((p) => p.id);
+        if (ids.length > 0) {
+          for (const part of chunk(ids, 30)) {
+            const snap = await getDocs(query(collection(db, "archives"), where("productionId", "in", part)));
+            list.push(...snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) })));
+          }
+          list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+        }
+      }
+      setItems(list);
     } finally {
       setLoading(false);
     }
-  }
+  }, [isAdmin, user?.uid]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
     return items.filter((it) => {
       if (kindFilter !== "all" && it.kind !== kindFilter) return false;
       if (!s) return true;
+      const prodName = it.productionId ? prodMap.get(it.productionId)?.name ?? "" : "";
       return (
         it.title.toLowerCase().includes(s) ||
         it.description.toLowerCase().includes(s) ||
+        prodName.toLowerCase().includes(s) ||
         (it.tags ?? []).some((t) => t.toLowerCase().includes(s))
       );
     });
-  }, [items, search, kindFilter]);
+  }, [items, search, kindFilter, prodMap]);
 
   async function removeItem(it: ArchiveItem) {
     if (!confirm("이 자료를 삭제할까요?")) return;
@@ -69,12 +99,18 @@ function ArchiveInner() {
     load();
   }
 
-  const canDelete = (it: ArchiveItem) => role === "admin" || it.createdBy === user?.uid;
+  async function changeProduction(it: ArchiveItem, pid: string) {
+    await setDoc(doc(db, "archives", it.id), { productionId: pid || null }, { merge: true });
+    load();
+  }
+
+  const canDelete = (it: ArchiveItem) => isAdmin || it.createdBy === user?.uid;
+  const prodLabel = (it: ArchiveItem) => (it.productionId ? prodMap.get(it.productionId)?.name ?? "삭제된 작품" : "미지정");
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">아카이빙</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">아카이빙</h1>
         <button onClick={() => setShowForm((v) => !v)} className="btn-accent">
           {showForm ? "닫기" : "+ 자료 등록"}
         </button>
@@ -82,6 +118,8 @@ function ArchiveInner() {
 
       {showForm && (
         <ArchiveForm
+          productions={productions}
+          isAdmin={isAdmin}
           onSaved={() => {
             setShowForm(false);
             load();
@@ -94,7 +132,7 @@ function ArchiveInner() {
       <div className="space-y-2">
         <input
           className="input"
-          placeholder="제목 · 설명 · 태그로 검색"
+          placeholder="제목 · 작품 · 설명 · 태그로 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -119,7 +157,11 @@ function ArchiveInner() {
       {loading ? (
         <p className="py-12 text-center text-slate-400">불러오는 중…</p>
       ) : filtered.length === 0 ? (
-        <p className="card py-12 text-center text-slate-400">자료가 없습니다.</p>
+        <p className="card py-12 text-center text-slate-400">
+          {!isAdmin && productions.length === 0
+            ? "참여 중인 작품이 없어 볼 수 있는 자료가 없습니다."
+            : "자료가 없습니다."}
+        </p>
       ) : view === "card" ? (
         /* ===== 카드 보기 ===== */
         <div className="grid gap-3 sm:grid-cols-2">
@@ -134,10 +176,11 @@ function ArchiveInner() {
               }}
               className="card flex cursor-pointer flex-col !p-4 transition hover:shadow-md hover:ring-1 hover:ring-accent/30"
             >
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
                   {ARCHIVE_KIND_LABEL[it.kind]}
                 </span>
+                <span className={`chip ${!it.productionId ? "bg-amber-100 text-amber-700" : ""}`}>{prodLabel(it)}</span>
                 <span className="text-xs text-slate-400">{it.date}</span>
                 <span className="ml-auto text-sm font-semibold text-accent">열기 ↗</span>
               </div>
@@ -150,15 +193,29 @@ function ArchiveInner() {
                   ))}
                 </div>
               )}
-              <div className="mt-3 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                <span className="text-xs text-slate-400">{it.createdByName}</span>
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                {isAdmin ? (
+                  <select
+                    value={it.productionId ?? ""}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => changeProduction(it, e.target.value)}
+                    className="max-w-[60%] rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600"
+                  >
+                    <option value="">미지정 (관리자만)</option>
+                    {productions.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs text-slate-400">{it.createdByName}</span>
+                )}
                 {canDelete(it) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       removeItem(it);
                     }}
-                    className="text-xs text-red-500 hover:underline"
+                    className="shrink-0 text-xs text-red-500 hover:underline"
                   >
                     삭제
                   </button>
@@ -187,9 +244,7 @@ function ArchiveInner() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{it.title}</p>
                 <p className="truncate text-xs text-slate-400">
-                  {[it.date, it.createdByName, (it.tags ?? []).map((t) => `#${t}`).join(" ")]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[prodLabel(it), it.date, it.createdByName].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <span className="shrink-0 text-sm font-semibold text-accent">열기 ↗</span>
@@ -213,13 +268,18 @@ function ArchiveInner() {
 }
 
 function ArchiveForm({
+  productions,
+  isAdmin,
   onSaved,
   author,
 }: {
+  productions: Production[];
+  isAdmin: boolean;
   onSaved: () => void;
   author: { uid: string; name: string };
 }) {
   const [title, setTitle] = useState("");
+  const [productionId, setProductionId] = useState("");
   const [kind, setKind] = useState<ArchiveKind>("performance");
   const [date, setDate] = useState("");
   const [url, setUrl] = useState("");
@@ -228,15 +288,20 @@ function ArchiveForm({
   const [busy, setBusy] = useState(false);
 
   async function save() {
-    if (!title || !url) {
-      alert("공연·연습명과 링크는 필수입니다.");
+    if (!title.trim() || !url.trim()) {
+      alert("제목과 링크는 필수입니다.");
+      return;
+    }
+    if (!isAdmin && !productionId) {
+      alert("작품을 선택해 주세요.");
       return;
     }
     setBusy(true);
     try {
       const id = crypto.randomUUID();
       const item: Omit<ArchiveItem, "id"> = {
-        title,
+        title: title.trim(),
+        productionId: productionId || null,
         kind,
         date: date || new Date().toISOString().slice(0, 10),
         url: url.startsWith("http") ? url : `https://${url}`,
@@ -257,8 +322,22 @@ function ArchiveForm({
     <div className="card space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label className="label">공연·연습명</label>
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 2026 정기공연 커튼콜" />
+          <label className="label">작품</label>
+          <select className="input" value={productionId} onChange={(e) => setProductionId(e.target.value)}>
+            <option value="">{isAdmin ? "미지정 (관리자만 볼 수 있음)" : "작품을 선택하세요"}</option>
+            {productions.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          {productions.length === 0 && (
+            <p className="mt-1 text-xs text-amber-600">
+              {isAdmin ? "작품 관리에서 작품을 먼저 만들어 주세요." : "참여 중인 작품이 없습니다."}
+            </p>
+          )}
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label">제목 (예: 커튼콜, 1막 런스루)</label>
+          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
         </div>
         <div>
           <label className="label">종류</label>

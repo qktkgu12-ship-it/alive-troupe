@@ -57,3 +57,10 @@ export function buildMonthGrid(year: number, month0: number): (Date | null)[] {
 }
 
 export const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
+
+// 배열을 size 단위로 쪼개기 (Firestore 'in' 쿼리는 최대 30개)
+export function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}

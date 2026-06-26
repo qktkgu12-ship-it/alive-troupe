@@ -30,6 +30,14 @@ service cloud.firestore {
       return isSignedIn() && (isAdmin() || myRole() == 'member');
     }
 
+    // 해당 작품의 참여 단원인지 (작품 명단으로 접근 제어)
+    function canAccessProduction(pid) {
+      return pid != null
+        && exists(/databases/$(database)/documents/productions/$(pid))
+        && get(/databases/$(database)/documents/productions/$(pid)).data.participants is list
+        && request.auth.uid in get(/databases/$(database)/documents/productions/$(pid)).data.participants;
+    }
+
     // ---------- 회원 ----------
     match /users/{userId} {
       // 본인 문서 또는 관리자만 읽기 (명단·연락처는 관리자 전용)
@@ -68,20 +76,26 @@ service cloud.firestore {
 
     // ---------- 아카이빙 ----------
     match /archives/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && request.resource.data.createdBy == request.auth.uid;
+      // 관리자 전체 / 정단원은 참여 작품 자료만 (미지정 자료는 관리자만)
+      allow read: if isAdmin() || (isMember() && canAccessProduction(resource.data.productionId));
+      allow create: if isMember() && request.resource.data.createdBy == request.auth.uid
+        && (isAdmin() || canAccessProduction(request.resource.data.productionId));
       // 작성자 본인 또는 관리자만 수정·삭제
       allow update, delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
     }
 
-    // ---------- 음원 자료실 ----------
+    // ---------- 작품(음원·아카이빙 공용) ----------
     match /productions/{id} {
-      allow read: if isMember();
+      // 관리자 전체 / 정단원은 자신이 참여한 작품만
+      allow read: if isAdmin()
+        || (isMember() && resource.data.participants is list
+            && request.auth.uid in resource.data.participants);
       allow create, update, delete: if isAdmin();
     }
     match /audio/{id} {
-      allow read: if isMember();
-      allow create: if isMember(); // 관리자 + 정단원 업로드
+      allow read: if isAdmin() || (isMember() && canAccessProduction(resource.data.productionId));
+      allow create: if isMember()
+        && (isAdmin() || canAccessProduction(request.resource.data.productionId));
       allow update, delete: if isAdmin();
     }
 

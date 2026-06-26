@@ -27,7 +27,8 @@ export const ARCHIVE_KIND_LABEL: Record<ArchiveKind, string> = {
 
 export interface ArchiveItem {
   id: string;
-  title: string; // 공연·연습명
+  title: string; // 제목 (예: 커튼콜, 1막 런스루)
+  productionId: string | null; // 소속 작품 (null = 미지정 = 관리자만)
   kind: ArchiveKind; // 종류
   date: string; // YYYY-MM-DD
   url: string; // 외부 링크 (유튜브/구글포토 등 사진·영상 모두)
@@ -60,10 +61,12 @@ export interface Availability {
   updatedAt: number;
 }
 
-// 음원 자료실: 작품(공연) = 폴더
+// 작품(공연) — 접근 제어의 중심 단위 (음원·아카이빙 공용)
 export interface Production {
   id: string;
   name: string; // 작품명 (예: 2026 정기공연 - 넥스트 투 노멀)
+  gisu: string; // 기수 (예: 5기)
+  participants: string[]; // 참여 단원 uid 목록 (이 작품 자료 접근 가능)
   order: number;
   createdAt: number;
 }

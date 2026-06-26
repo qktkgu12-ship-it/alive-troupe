@@ -30,7 +30,7 @@ function toDownloadUrl(url: string): string {
 }
 
 function AudioInner() {
-  const { profile, role } = useAuth();
+  const { user, profile, role } = useAuth();
   const isAdmin = role === "admin";
 
   const [productions, setProductions] = useState<Production[]>([]);
@@ -40,11 +40,17 @@ function AudioInner() {
   const [view, setView] = useState<ViewMode>("card");
 
   const loadProductions = useCallback(async () => {
-    const snap = await getDocs(query(collection(db, "productions"), orderBy("order", "asc")));
-    const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) }));
+    // 관리자는 전체 / 정단원은 자신이 참여한 작품만
+    const q = isAdmin
+      ? query(collection(db, "productions"), orderBy("order", "asc"))
+      : query(collection(db, "productions"), where("participants", "array-contains", user?.uid ?? "__none__"));
+    const snap = await getDocs(q);
+    const list = snap.docs
+      .map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) }))
+      .sort((a, b) => a.order - b.order);
     setProductions(list);
-    setActiveId((cur) => cur ?? list[0]?.id ?? null);
-  }, []);
+    setActiveId((cur) => (cur && list.some((p) => p.id === cur) ? cur : list[0]?.id ?? null));
+  }, [isAdmin, user?.uid]);
 
   const loadTracks = useCallback(async (pid: string) => {
     setLoadingTracks(true);
@@ -77,28 +83,6 @@ function AudioInner() {
     return Object.entries(map);
   }, [tracks]);
 
-  async function addProduction() {
-    const name = prompt("새 작품(공연) 이름을 입력하세요\n예: 2026 정기공연 - 넥스트 투 노멀");
-    if (!name) return;
-    const id = crypto.randomUUID();
-    await setDoc(doc(db, "productions", id), {
-      name,
-      order: productions.length,
-      createdAt: Date.now(),
-    });
-    await loadProductions();
-    setActiveId(id);
-  }
-
-  async function removeProduction(p: Production) {
-    if (!confirm(`'${p.name}' 폴더와 안의 모든 음원 링크를 삭제할까요?`)) return;
-    const snap = await getDocs(query(collection(db, "audio"), where("productionId", "==", p.id)));
-    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-    await deleteDoc(doc(db, "productions", p.id));
-    setActiveId(null);
-    await loadProductions();
-  }
-
   async function removeTrack(t: AudioTrack) {
     if (!confirm("이 음원 링크를 삭제할까요?")) return;
     await deleteDoc(doc(db, "audio", t.id));
@@ -108,10 +92,7 @@ function AudioInner() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">음원 자료실</h1>
-        {isAdmin && (
-          <button onClick={addProduction} className="btn-accent">+ 작품 폴더</button>
-        )}
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">음원 자료실</h1>
       </div>
 
       <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
@@ -119,10 +100,12 @@ function AudioInner() {
         드라이브 파일은 <b>‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요.
       </div>
 
-      {/* 작품(폴더) 탭 */}
+      {/* 작품(폴더) 탭 — 참여 중인 작품만 표시 */}
       {productions.length === 0 ? (
         <p className="card py-12 text-center text-slate-400">
-          아직 작품 폴더가 없습니다.{isAdmin ? " 위 버튼으로 추가하세요." : ""}
+          {isAdmin
+            ? "작품이 없습니다. 관리자 페이지 > 작품 관리에서 추가하세요."
+            : "참여 중인 작품이 없습니다. (관리자가 작품 참여명단에 추가하면 보여요)"}
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -142,11 +125,9 @@ function AudioInner() {
 
       {active && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <h2 className="font-bold text-slate-700">{active.name}</h2>
-            {isAdmin && (
-              <button onClick={() => removeProduction(active)} className="btn-danger">폴더 삭제</button>
-            )}
+            {active.gisu && <span className="chip">{active.gisu}</span>}
           </div>
 
           {/* 음원 링크 추가 (관리자 + 정단원) */}
