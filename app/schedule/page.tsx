@@ -31,16 +31,6 @@ const TAB_INFO: Record<Tab, { label: string; desc: string }> = {
   events: { label: "확정 일정", desc: "확정된 일정을 확인하세요." },
 };
 
-function MonthNav({ label, onPrev, onNext }: { label: string; onPrev: () => void; onNext: () => void }) {
-  return (
-    <div className="mb-3 flex items-center justify-center gap-4">
-      <button onClick={onPrev} className="btn-ghost !px-3">‹</button>
-      <span className="w-32 text-center text-lg font-bold">{label}</span>
-      <button onClick={onNext} className="btn-ghost !px-3">›</button>
-    </div>
-  );
-}
-
 function dateLabel(ds: string) {
   const d = new Date(ds + "T00:00:00");
   return { md: `${d.getMonth() + 1}/${d.getDate()}`, dow: WEEKDAYS_KO[d.getDay()] };
@@ -498,17 +488,17 @@ function ScheduleInner() {
 
       {/* ===== 확정 일정 ===== */}
       {tab === "events" && (
-        <div>
-          <MonthNav label={`${year}년 ${month0 + 1}월`} onPrev={() => changeMonth(-1)} onNext={() => changeMonth(1)} />
-          <EventsSection
-            yearMonth={yearMonth}
-            events={events}
-            eventsByDate={eventsByDate}
-            grid={grid}
-            isAdmin={role === "admin"}
-            onChanged={loadEvents}
-          />
-        </div>
+        <EventsSection
+          monthLabel={`${year}년 ${month0 + 1}월`}
+          onPrev={() => changeMonth(-1)}
+          onNext={() => changeMonth(1)}
+          yearMonth={yearMonth}
+          events={events}
+          eventsByDate={eventsByDate}
+          grid={grid}
+          isAdmin={role === "admin"}
+          onChanged={loadEvents}
+        />
       )}
     </div>
   );
@@ -617,6 +607,9 @@ function EventForm({
 
 // ---------- 확정 일정 (왼쪽 달력 + 오른쪽 리스트) ----------
 function EventsSection({
+  monthLabel,
+  onPrev,
+  onNext,
   yearMonth,
   events,
   eventsByDate,
@@ -624,6 +617,9 @@ function EventsSection({
   isAdmin,
   onChanged,
 }: {
+  monthLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
   yearMonth: string;
   events: ScheduleEvent[];
   eventsByDate: Record<string, ScheduleEvent[]>;
@@ -633,6 +629,7 @@ function EventsSection({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState(`${yearMonth}-01`);
+  const today = toDateStr(new Date());
 
   async function removeEvent(id: string) {
     if (!confirm("이 일정을 삭제할까요?")) return;
@@ -642,8 +639,15 @@ function EventsSection({
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {/* 왼쪽: 달력 */}
+      {/* 왼쪽: 달력 (월 선택 카드 안 + 일정 있는 날 동그라미) */}
       <div className="card h-full">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
+          <div className="flex gap-1">
+            <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
+            <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+          </div>
+        </div>
         <CalendarGrid
           grid={grid}
           renderCell={(d) => {
@@ -657,12 +661,11 @@ function EventsSection({
                     setShowForm(true);
                   }
                 }}
-                className={`flex h-full w-full flex-col items-center justify-center rounded-lg text-sm transition ${
-                  has ? "bg-accent-soft font-bold text-accent" : "text-slate-600"
-                } ${isAdmin ? "hover:bg-slate-100" : "cursor-default"}`}
+                className={`flex h-full w-full items-center justify-center rounded-full text-sm transition ${
+                  has ? "bg-accent font-bold text-accent-fg" : "text-slate-700"
+                } ${isAdmin && !has ? "hover:bg-slate-100" : ""} ${ds === today && !has ? "ring-1 ring-accent" : ""}`}
               >
-                <span>{d.getDate()}</span>
-                {has && <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-accent" />}
+                {d.getDate()}
               </button>
             );
           }}
