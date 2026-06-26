@@ -5,7 +5,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
   query,
   setDoc,
@@ -93,19 +92,21 @@ function ScheduleInner() {
   // 확정 일정
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
 
+  // 내 가능 일정: 월에 상관없이 전체를 한 번에 불러와 누적 유지 (제출 전까지 달을 넘겨도 유지)
   const loadMine = useCallback(async () => {
     if (!user) return;
-    const snap = await getDoc(doc(db, "availability", `${user.uid}_${yearMonth}`));
-    if (snap.exists()) {
-      const d = snap.data() as Availability;
-      setMyDates(d.dates ?? []);
-      setSlotsByDate(d.slots ?? {});
-    } else {
-      setMyDates([]);
-      setSlotsByDate({});
+    const snap = await getDocs(query(collection(db, "availability"), where("uid", "==", user.uid)));
+    const dates: string[] = [];
+    const slots: Record<string, string[]> = {};
+    for (const d of snap.docs) {
+      const a = d.data() as Availability;
+      for (const dt of a.dates ?? []) dates.push(dt);
+      if (a.slots) for (const k in a.slots) slots[k] = a.slots[k];
     }
+    setMyDates([...new Set(dates)].sort());
+    setSlotsByDate(slots);
     setDirty(false);
-  }, [user, yearMonth]);
+  }, [user]);
 
   const loadAll = useCallback(async () => {
     const snap = await getDocs(query(collection(db, "availability"), where("yearMonth", "==", yearMonth)));
@@ -123,20 +124,34 @@ function ScheduleInner() {
     );
   }, [yearMonth]);
 
+  // 내 일정은 한 번만 (달 넘겨도 선택 유지)
   useEffect(() => {
     loadMine();
+  }, [loadMine]);
+
+  // 다른 단원 현황·확정일정은 보는 달이 바뀌면 새로 로드
+  useEffect(() => {
     loadAll();
     loadEvents();
     setActiveDate(null);
     setRangeAnchor(null);
-  }, [loadMine, loadAll, loadEvents]);
+  }, [loadAll, loadEvents]);
 
   // ----- 내 가능 일정 편집 -----
-  function selectDate(ds: string) {
-    setMyDates((prev) => (prev.includes(ds) ? prev : [...prev, ds].sort()));
-    setActiveDate(ds);
-    setRangeAnchor(null);
-    setDirty(true);
+  // 탭: 미선택 → 선택+열기 / 선택&활성 → 해제 / 선택&비활성 → 열기(편집)
+  function tapDate(ds: string) {
+    const selected = myDates.includes(ds);
+    if (!selected) {
+      setMyDates((prev) => [...prev, ds].sort());
+      setActiveDate(ds);
+      setRangeAnchor(null);
+      setDirty(true);
+    } else if (activeDate === ds) {
+      removeDate(ds);
+    } else {
+      setActiveDate(ds);
+      setRangeAnchor(null);
+    }
   }
 
   function removeDate(ds: string) {
@@ -181,20 +196,34 @@ function ScheduleInner() {
     if (!user) return;
     setSaving(true);
     try {
-      const slots: Record<string, string[]> = {};
+      const name = profile?.name || profile?.displayName || "";
+      // 날짜를 월별로 묶어서 각 월 문서에 저장
+      const byMonth: Record<string, { dates: string[]; slots: Record<string, string[]> }> = {};
       for (const d of myDates) {
+        const ym = d.slice(0, 7);
+        (byMonth[ym] ??= { dates: [], slots: {} }).dates.push(d);
         const arr = slotsByDate[d];
-        if (arr && arr.length > 0) slots[d] = arr;
+        if (arr && arr.length > 0) byMonth[ym].slots[d] = arr;
       }
-      const payload: Availability = {
-        uid: user.uid,
-        name: profile?.name || profile?.displayName || "",
-        yearMonth,
-        dates: myDates,
-        slots,
-        updatedAt: Date.now(),
-      };
-      await setDoc(doc(db, "availability", `${user.uid}_${yearMonth}`), payload);
+      const existing = await getDocs(query(collection(db, "availability"), where("uid", "==", user.uid)));
+      await Promise.all(
+        Object.entries(byMonth).map(([ym, v]) =>
+          setDoc(doc(db, "availability", `${user.uid}_${ym}`), {
+            uid: user.uid,
+            name,
+            yearMonth: ym,
+            dates: v.dates,
+            slots: v.slots,
+            updatedAt: Date.now(),
+          })
+        )
+      );
+      // 이번에 날짜가 하나도 없는 달의 기존 문서는 삭제
+      await Promise.all(
+        existing.docs
+          .filter((d) => !byMonth[(d.data() as Availability).yearMonth])
+          .map((d) => deleteDoc(d.ref))
+      );
       setDirty(false);
       await loadAll();
     } finally {
@@ -311,14 +340,15 @@ function ScheduleInner() {
                   {recommendations.length === 0 ? (
                     <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="divide-y divide-slate-100">
                       {recommendations.map((r, i) => {
                         const { md, dow } = dateLabel(r.date);
+                        const tone = ["font-bold text-slate-900", "font-medium text-slate-600", "font-normal text-slate-400"][i] ?? "font-normal text-slate-400";
                         return (
-                          <div key={r.date} className="flex items-center gap-2 rounded-lg bg-accent-soft/50 px-2.5 py-1.5">
-                            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{i + 1}</span>
-                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{md}({dow}) {r.start}~{r.end}</span>
-                            <span className="shrink-0 text-xs font-semibold text-accent">{r.count}명</span>
+                          <div key={r.date} className={`flex items-center gap-2 py-2 text-sm ${tone}`}>
+                            <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
+                            <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
+                            <span className="shrink-0 text-xs">{r.count}명</span>
                           </div>
                         );
                       })}
@@ -356,7 +386,7 @@ function ScheduleInner() {
                     const active = activeDate === ds;
                     return (
                       <button
-                        onClick={() => selectDate(ds)}
+                        onClick={() => tapDate(ds)}
                         className={`flex h-full w-full items-center justify-center rounded-full text-sm transition ${
                           mine ? "bg-accent font-bold text-accent-fg" : "text-slate-700 hover:bg-slate-100"
                         } ${active ? "ring-2 ring-accent ring-offset-1" : !mine && ds === todayStr ? "ring-1 ring-accent" : ""}`}
@@ -366,7 +396,7 @@ function ScheduleInner() {
                     );
                   }}
                 />
-                <p className="mt-3 text-xs text-slate-400">가능한 날짜를 눌러 선택하세요. 단원 현황은 왼쪽에서 확인해요.</p>
+                <p className="mt-3 text-xs text-slate-400">날짜를 눌러 선택, 같은 날을 다시 누르면 해제돼요. 달을 넘겨도 선택은 유지됩니다.</p>
               </div>
             </div>
 
@@ -377,10 +407,7 @@ function ScheduleInner() {
                   <p className="py-10 text-center text-sm text-slate-400">날짜를 선택하면<br />시간을 고를 수 있어요.</p>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between">
-                      <h2 className="font-bold">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 시간</h2>
-                      <button onClick={() => removeDate(activeDate)} className="text-xs text-red-500 hover:underline">이 날 빼기</button>
-                    </div>
+                    <h2 className="font-bold">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 시간</h2>
                     <p className="mb-2 mt-1 text-xs text-slate-400">
                       {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
                     </p>
