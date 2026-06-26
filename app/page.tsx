@@ -68,14 +68,11 @@ function HomeInner() {
     <div className="space-y-8">
       {/* 인사 */}
       <header className="pt-1">
-        <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-400">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-          {todayLabel}
-        </p>
-        <h1 className="mt-2 text-[28px] font-bold leading-tight tracking-tight text-slate-900">
-          안녕하세요, <span className="text-accent">{profile?.name || profile?.displayName}</span>님 👋
+        <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
+        <h1 className="mt-1.5 text-[26px] font-bold leading-tight tracking-tight text-slate-900">
+          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
         </h1>
-        <p className="mt-1.5 text-lg font-bold italic tracking-tight text-accent">Today here, Right now!</p>
+        <p className="mt-1 text-sm font-semibold tracking-wide text-accent">Today here, Right now!</p>
       </header>
 
       {/* 다가오는 확정 일정 */}
