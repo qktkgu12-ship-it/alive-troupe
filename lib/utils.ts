@@ -58,6 +58,23 @@ export function buildMonthGrid(year: number, month0: number): (Date | null)[] {
 
 export const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
+// 가능 시간 30분 슬롯 (12:00 ~ 24:00, 시작시간 기준 24칸)
+export const TIME_SLOTS: string[] = (() => {
+  const out: string[] = [];
+  for (let h = 12; h < 24; h++) {
+    out.push(`${String(h).padStart(2, "0")}:00`);
+    out.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  return out;
+})();
+
+// 슬롯 시작시간 → 끝시간 (+30분)
+export function slotEnd(slot: string): string {
+  const [h, m] = slot.split(":").map(Number);
+  const t = h * 60 + m + 30;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
 // 상대 시간 표기 (방금 전 / N분 전 / N시간 전 / N일 전 / 날짜)
 export function relativeTime(ts: number): string {
   const diff = Date.now() - ts;

@@ -59,6 +59,8 @@ export interface Availability {
   name: string;
   yearMonth: string; // YYYY-MM
   dates: string[]; // 가능한 날짜 목록 (YYYY-MM-DD)
+  // 날짜별 가능 시간 슬롯(30분 단위, "HH:mm"). 비어있거나 없으면 그 날은 '아무때나 가능'
+  slots?: { [date: string]: string[] };
   updatedAt: number;
 }
 
