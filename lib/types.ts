@@ -40,6 +40,14 @@ export interface ArchiveItem {
   createdAt: number;
 }
 
+// 확정 일정 불참 의견 (events/{id}/absences/{uid})
+export interface Absence {
+  uid: string;
+  name: string;
+  reason: string;
+  createdAt: number;
+}
+
 // 확정 일정 (관리자 등록)
 export interface ScheduleEvent {
   id: string;

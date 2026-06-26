@@ -14,7 +14,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import Avatar from "@/components/Avatar";
-import type { Availability, ScheduleEvent } from "@/lib/types";
+import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
   slotEnd,
@@ -647,6 +647,20 @@ function EventsSection({
   const [formDate, setFormDate] = useState(`${yearMonth}-01`);
   const today = toDateStr(new Date());
 
+  const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
+  const loadAbsences = useCallback(async () => {
+    const entries = await Promise.all(
+      events.map(async (e) => {
+        const snap = await getDocs(collection(db, "events", e.id, "absences"));
+        return [e.id, snap.docs.map((d) => d.data() as Absence)] as const;
+      })
+    );
+    setAbsences(Object.fromEntries(entries));
+  }, [events]);
+  useEffect(() => {
+    loadAbsences();
+  }, [loadAbsences]);
+
   useEffect(() => {
     if (highlightId) {
       const el = document.getElementById(`ev-${highlightId}`);
@@ -739,6 +753,7 @@ function EventsSection({
                     {[e.startTime && `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}`, e.location].filter(Boolean).join(" · ") || "시간·장소 미정"}
                   </p>
                   {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
+                  <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
                 </div>
                 {isAdmin && <button onClick={() => removeEvent(e.id)} className="shrink-0 text-xs text-red-500 hover:underline">삭제</button>}
               </div>
@@ -746,6 +761,66 @@ function EventsSection({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------- 불참 의견 ('못 가요' + 사유) ----------
+function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: Absence[]; onChanged: () => void }) {
+  const { user, profile } = useAuth();
+  const mine = list.find((a) => a.uid === user?.uid);
+  const [editing, setEditing] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await setDoc(doc(db, "events", eventId, "absences", user.uid), {
+        uid: user.uid,
+        name: profile?.name || profile?.displayName || "",
+        reason: reason.trim(),
+        createdAt: Date.now(),
+      });
+      setEditing(false);
+      setReason("");
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancel() {
+    if (!user) return;
+    await deleteDoc(doc(db, "events", eventId, "absences", user.uid));
+    onChanged();
+  }
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2">
+      {list.length > 0 && (
+        <p className="mb-1.5 text-xs text-slate-500">
+          🚫 못 가요 {list.length}명 · {list.map((a) => a.name + (a.reason ? `(${a.reason})` : "")).join(", ")}
+        </p>
+      )}
+      {mine ? (
+        <button onClick={cancel} className="text-xs font-medium text-accent hover:underline">못 감 표시함 · 취소</button>
+      ) : editing ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="사유(선택)"
+            className="input flex-1 !py-1 !text-xs"
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          />
+          <button onClick={submit} disabled={busy} className="btn-accent !px-2.5 !py-1 !text-xs">확인</button>
+          <button onClick={() => setEditing(false)} className="btn-ghost !px-2.5 !py-1 !text-xs">취소</button>
+        </div>
+      ) : (
+        <button onClick={() => setEditing(true)} className="text-xs font-medium text-slate-500 hover:text-red-500">이 날 못 가요</button>
+      )}
     </div>
   );
 }
