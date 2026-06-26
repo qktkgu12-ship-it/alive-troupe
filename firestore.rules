@@ -111,13 +111,30 @@ service cloud.firestore {
       allow create: if isMember()
         && request.resource.data.authorUid == request.auth.uid
         && (request.resource.data.isNotice == false || isAdmin());
-      // 수정: 관리자, 또는 본인 글(작성자 변경 불가 + 공지로 바꾸는 것은 불가)
+      // 수정: 관리자 / 본인 글 / 또는 좋아요·댓글·조회수 카운트만 변경(전 단원)
       allow update: if isAdmin()
         || (isMember() && resource.data.authorUid == request.auth.uid
             && request.resource.data.authorUid == resource.data.authorUid
-            && request.resource.data.isNotice == false);
+            && request.resource.data.isNotice == false)
+        || (isMember()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['likeCount', 'commentCount', 'viewCount', 'updatedAt']));
       // 삭제: 관리자 또는 본인 글
       allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
+
+      // 댓글 (1단계)
+      match /comments/{cid} {
+        allow read: if isMember();
+        allow create: if isMember() && request.resource.data.authorUid == request.auth.uid;
+        allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
+      }
+    }
+
+    // 좋아요 (postLikes/{postId}_{uid})
+    match /postLikes/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isMember() && resource.data.uid == request.auth.uid;
     }
 
     // 게시글 첨부 사진 (별도 저장 → 목록 경량화)

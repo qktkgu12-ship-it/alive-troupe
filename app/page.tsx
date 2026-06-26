@@ -7,9 +7,8 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import { ArchiveIcon, CalendarIcon, MusicIcon } from "@/components/Icons";
-import Avatar from "@/components/Avatar";
 import { BOARD_LABEL, type Post, type ScheduleEvent } from "@/lib/types";
-import { toDateStr, WEEKDAYS_KO } from "@/lib/utils";
+import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -178,7 +177,7 @@ function HomeInner() {
             <ul className="divide-y divide-slate-100">
               {recentPosts.map((p) => (
                 <li key={p.id}>
-                  <Link href={`/board/${p.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
+                  <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-3 transition hover:bg-slate-50">
                     {p.isNotice ? (
                       <span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">공지</span>
                     ) : (
@@ -187,10 +186,11 @@ function HomeInner() {
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{p.title}</span>
-                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400">
-                      <Avatar src={p.authorAvatar} name={p.authorName} className="h-6 w-6 text-[10px]" />
-                      <span className="hidden sm:inline">{p.authorName}</span>
-                    </span>
+                    {(p.commentCount ?? 0) > 0 && (
+                      <span className="shrink-0 text-xs font-semibold text-accent">[{p.commentCount}]</span>
+                    )}
+                    <span className="hidden shrink-0 text-xs text-slate-400 sm:inline">{p.authorName}</span>
+                    <span className="shrink-0 text-xs text-slate-300">{relativeTime(p.createdAt)}</span>
                   </Link>
                 </li>
               ))}

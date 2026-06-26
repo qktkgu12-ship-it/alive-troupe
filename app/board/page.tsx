@@ -7,16 +7,12 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
-import Avatar from "@/components/Avatar";
+import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
+import { relativeTime } from "@/lib/utils";
 import { BOARD_LABEL, BOARD_ORDER, type BoardKey, type Post } from "@/lib/types";
 
 // Firestore 문서 1MB 제한 안전선
 const MAX_DOC_BYTES = 950_000;
-
-function fmtDate(ts: number) {
-  const d = new Date(ts);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function BoardInner() {
   const { user, profile, role } = useAuth();
@@ -108,7 +104,7 @@ function BoardInner() {
             >
               <span className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">공지</span>
               <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{p.title}</span>
-              <span className="shrink-0 text-xs text-slate-400">{fmtDate(p.createdAt)}</span>
+              <span className="shrink-0 text-xs text-slate-400">{relativeTime(p.createdAt)}</span>
             </Link>
           ))}
         </div>
@@ -122,20 +118,34 @@ function BoardInner() {
       ) : (
         <div className="card divide-y divide-slate-100 !p-0">
           {posts.map((p) => (
-            <Link
-              key={p.id}
-              href={`/board/${p.id}`}
-              className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-slate-50"
-            >
-              <Avatar src={p.authorAvatar} name={p.authorName} className="h-9 w-9 text-sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-slate-900">
-                  {p.title}
-                  {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="ml-1 text-xs text-slate-400">📷</span>}
-                </p>
-                <p className="truncate text-xs text-slate-400">{p.authorName}</p>
+            <Link key={p.id} href={`/board/${p.id}`} className="block px-4 py-3 transition hover:bg-slate-50">
+              <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
+                <span className="truncate">{p.title}</span>
+                {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="shrink-0 text-xs text-slate-400">📷</span>}
+                {(p.commentCount ?? 0) > 0 && (
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-accent">
+                    <CommentIcon className="h-3.5 w-3.5" />
+                    {p.commentCount}
+                  </span>
+                )}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                {(p.likeCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-slate-500">
+                    <HeartIcon className="h-3.5 w-3.5" />
+                    {p.likeCount}
+                  </span>
+                )}
+                <span className="chip !bg-slate-100 !px-1.5 !py-0">{BOARD_LABEL[p.board]}</span>
+                <span className="text-slate-500">{p.authorName}</span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <EyeIcon className="h-3.5 w-3.5" />
+                  {p.viewCount ?? 0}
+                </span>
+                <span>·</span>
+                <span>{relativeTime(p.createdAt)}</span>
               </div>
-              <span className="shrink-0 text-xs text-slate-400">{fmtDate(p.createdAt)}</span>
             </Link>
           ))}
         </div>
@@ -184,6 +194,9 @@ function PostForm({
         authorUid: author.uid,
         authorName: author.name,
         authorAvatar: author.avatar || "",
+        likeCount: 0,
+        commentCount: 0,
+        viewCount: 0,
         createdAt: now,
         updatedAt: now,
       };

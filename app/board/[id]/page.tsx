@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
 import Avatar from "@/components/Avatar";
-import { BOARD_LABEL, type Post, type PostMedia } from "@/lib/types";
+import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
+import { relativeTime } from "@/lib/utils";
+import { BOARD_LABEL, type Comment, type Post, type PostMedia } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
 
@@ -23,7 +25,7 @@ function fmtDateTime(ts: number) {
 
 function PostDetailInner() {
   const { id } = useParams<{ id: string }>();
-  const { user, role } = useAuth();
+  const { user, profile, role } = useAuth();
   const router = useRouter();
   const isAdmin = role === "admin";
 
@@ -37,6 +39,19 @@ function PostDetailInner() {
   const [busy, setBusy] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
 
+  const [likeCount, setLikeCount] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [views, setViews] = useState(0);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
+  const viewedRef = useRef(false);
+
+  const loadComments = useCallback(async () => {
+    const snap = await getDocs(query(collection(db, "posts", id, "comments"), orderBy("createdAt", "asc")));
+    setComments(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Comment, "id">) })));
+  }, [id]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -47,6 +62,8 @@ function PostDetailInner() {
         setTitle(p.title);
         setContent(p.content);
         setAsNotice(p.isNotice);
+        setLikeCount(p.likeCount ?? 0);
+        setViews(p.viewCount ?? 0);
         // 사진: 구버전은 글 문서 안(images), 신버전은 postMedia 문서에서
         if (p.images && p.images.length > 0) {
           setImages(p.images);
@@ -54,12 +71,66 @@ function PostDetailInner() {
           const m = await getDoc(doc(db, "postMedia", id));
           setImages(m.exists() ? (m.data() as PostMedia).images ?? [] : []);
         }
+        // 좋아요 상태
+        if (user) {
+          const lk = await getDoc(doc(db, "postLikes", `${id}_${user.uid}`));
+          setLiked(lk.exists());
+        }
+        await loadComments();
+        // 조회수 +1 (한 번만)
+        if (!viewedRef.current) {
+          viewedRef.current = true;
+          updateDoc(doc(db, "posts", id), { viewCount: increment(1) }).catch(() => {});
+          setViews((v) => v + 1);
+        }
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [id]);
+  }, [id, user, loadComments]);
+
+  async function toggleLike() {
+    if (!user || !post) return;
+    const ref = doc(db, "postLikes", `${id}_${user.uid}`);
+    if (liked) {
+      setLiked(false);
+      setLikeCount((c) => Math.max(0, c - 1));
+      await deleteDoc(ref).catch(() => {});
+      await updateDoc(doc(db, "posts", id), { likeCount: increment(-1) }).catch(() => {});
+    } else {
+      setLiked(true);
+      setLikeCount((c) => c + 1);
+      await setDoc(ref, { postId: id, uid: user.uid }).catch(() => {});
+      await updateDoc(doc(db, "posts", id), { likeCount: increment(1) }).catch(() => {});
+    }
+  }
+
+  async function addComment() {
+    if (!user || !commentText.trim()) return;
+    setCommentBusy(true);
+    try {
+      const cid = crypto.randomUUID();
+      await setDoc(doc(db, "posts", id, "comments", cid), {
+        authorUid: user.uid,
+        authorName: profile?.name || profile?.displayName || "",
+        content: commentText.trim(),
+        createdAt: Date.now(),
+      });
+      await updateDoc(doc(db, "posts", id), { commentCount: increment(1) }).catch(() => {});
+      setCommentText("");
+      await loadComments();
+    } finally {
+      setCommentBusy(false);
+    }
+  }
+
+  async function removeComment(c: Comment) {
+    if (!confirm("댓글을 삭제할까요?")) return;
+    await deleteDoc(doc(db, "posts", id, "comments", c.id));
+    await updateDoc(doc(db, "posts", id), { commentCount: increment(-1) }).catch(() => {});
+    await loadComments();
+  }
 
   const canEdit = post && (isAdmin || post.authorUid === user?.uid);
 
@@ -172,13 +243,76 @@ function PostDetailInner() {
             </div>
           )}
 
+          <div className="mt-5 flex items-center gap-3 border-t border-slate-100 pt-4">
+            <button
+              onClick={toggleLike}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+                liked ? "border-accent bg-accent-soft text-accent" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <HeartIcon className="h-4 w-4" /> 좋아요 {likeCount}
+            </button>
+            <span className="inline-flex items-center gap-1 text-sm text-slate-400">
+              <EyeIcon className="h-4 w-4" /> {views}
+            </span>
+            <span className="inline-flex items-center gap-1 text-sm text-slate-400">
+              <CommentIcon className="h-4 w-4" /> {comments.length}
+            </span>
+          </div>
+
           {canEdit && (
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setEditing(true)} className="btn-ghost !py-1.5">수정</button>
               <button onClick={remove} className="btn-danger">삭제</button>
             </div>
           )}
         </article>
+      )}
+
+      {/* 댓글 */}
+      {!editing && (
+        <section className="card">
+          <h2 className="mb-3 font-bold">댓글 {comments.length}</h2>
+          {comments.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-400">첫 댓글을 남겨보세요.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {comments.map((c) => (
+                <div key={c.id} className="flex items-start justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-800">{c.authorName}</span>
+                      <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
+                    </p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
+                      <Linkify text={c.content} />
+                    </p>
+                  </div>
+                  {(isAdmin || c.authorUid === user?.uid) && (
+                    <button onClick={() => removeComment(c)} className="shrink-0 text-xs text-red-500 hover:underline">삭제</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex gap-2">
+            <input
+              className="input flex-1"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="댓글을 입력하세요"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  addComment();
+                }
+              }}
+            />
+            <button onClick={addComment} disabled={commentBusy || !commentText.trim()} className="btn-accent">
+              등록
+            </button>
+          </div>
+        </section>
       )}
 
       {/* 사진 크게 보기 (라이트박스) */}

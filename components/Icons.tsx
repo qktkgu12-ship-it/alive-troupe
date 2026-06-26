@@ -67,6 +67,21 @@ export const AdminIcon = makeIcon(
   </>
 );
 
+export const HeartIcon = makeIcon(
+  <path d="M19.5 12.6 12 20l-7.5-7.4a4.6 4.6 0 0 1 6.5-6.5l1 1 1-1a4.6 4.6 0 0 1 6.5 6.5z" />
+);
+
+export const CommentIcon = makeIcon(
+  <path d="M20 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h3v3l4-3h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" />
+);
+
+export const EyeIcon = makeIcon(
+  <>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </>
+);
+
 export const BoardIcon = makeIcon(
   <>
     <rect x="4" y="3.5" width="16" height="17" rx="2.5" />

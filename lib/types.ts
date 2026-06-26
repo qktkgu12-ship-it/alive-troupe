@@ -111,6 +111,9 @@ export interface Post {
   authorUid: string;
   authorName: string;
   authorAvatar?: string; // 작성 시점의 글쓴이 프로필 사진
+  likeCount?: number;
+  commentCount?: number;
+  viewCount?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -119,6 +122,15 @@ export interface Post {
 export interface PostMedia {
   images: string[];
   authorUid: string;
+}
+
+// 댓글 (posts/{postId}/comments)
+export interface Comment {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  content: string;
+  createdAt: number;
 }
 
 // 사이트 설정 (현재 공연 + 테마색)
