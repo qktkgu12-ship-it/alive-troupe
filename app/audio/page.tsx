@@ -132,12 +132,14 @@ function AudioInner() {
             {active.gisu && <span className="chip">{active.gisu}</span>}
           </div>
 
-          {/* 음원 링크 추가 (관리자 + 정단원) */}
-          <AddTrackForm
-            productionId={active.id}
-            addedByName={profile?.name || profile?.displayName || ""}
-            onAdded={() => loadTracks(active.id)}
-          />
+          {/* 음원 링크 추가 (관리자만) */}
+          {isAdmin && (
+            <AddTrackForm
+              productionId={active.id}
+              addedByName={profile?.name || profile?.displayName || ""}
+              onAdded={() => loadTracks(active.id)}
+            />
+          )}
 
           {/* 곡별 음원 목록 */}
           <div className="flex items-center justify-between">

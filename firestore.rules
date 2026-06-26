@@ -100,9 +100,8 @@ service cloud.firestore {
     }
     match /audio/{id} {
       allow read: if isAdmin() || (isMember() && canAccessProduction(resource.data.productionId));
-      allow create: if isMember()
-        && (isAdmin() || canAccessProduction(request.resource.data.productionId));
-      allow update, delete: if isAdmin();
+      // 업로드·수정·삭제는 관리자만
+      allow create, update, delete: if isAdmin();
     }
 
     // ---------- 게시판 ----------

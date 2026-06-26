@@ -308,7 +308,7 @@ function ArchiveForm({
 }) {
   const [title, setTitle] = useState("");
   const [productionId, setProductionId] = useState("");
-  const [kind, setKind] = useState<ArchiveKind>("performance");
+  const [kind, setKind] = useState<ArchiveKind>("rehearsal");
   const [date, setDate] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
@@ -370,8 +370,8 @@ function ArchiveForm({
         <div>
           <label className="label">종류</label>
           <select className="input" value={kind} onChange={(e) => setKind(e.target.value as ArchiveKind)}>
-            <option value="performance">공연</option>
             <option value="rehearsal">연습</option>
+            <option value="performance">공연</option>
             <option value="etc">기타</option>
           </select>
         </div>
