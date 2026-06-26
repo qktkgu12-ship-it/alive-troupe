@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { ArchiveIcon, CalendarIcon, MusicIcon } from "@/components/Icons";
+import Avatar from "@/components/Avatar";
 import { BOARD_LABEL, type Post, type ScheduleEvent } from "@/lib/types";
 import { toDateStr } from "@/lib/utils";
 
@@ -142,7 +143,10 @@ function HomeInner() {
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{p.title}</span>
-                    <span className="shrink-0 text-xs text-slate-400">{p.authorName}</span>
+                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400">
+                      <Avatar src={p.authorAvatar} name={p.authorName} className="h-6 w-6 text-[10px]" />
+                      <span className="hidden sm:inline">{p.authorName}</span>
+                    </span>
                   </Link>
                 </li>
               ))}

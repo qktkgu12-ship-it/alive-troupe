@@ -15,6 +15,7 @@ export interface UserProfile {
   contact: string; // 연락처 (관리자만 열람)
   part: string; // 배역·파트(포지션)
   group: string; // 소속·기수
+  avatar?: string; // 프로필 사진 (압축된 data URL)
   createdAt: number;
 }
 
@@ -108,6 +109,7 @@ export interface Post {
   images?: string[]; // 첨부 사진 (압축된 data URL)
   authorUid: string;
   authorName: string;
+  authorAvatar?: string; // 작성 시점의 글쓴이 프로필 사진
   createdAt: number;
   updatedAt: number;
 }

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 // 사진을 작게 압축해 data URL로 변환 (Storage 없이 Firestore에 바로 저장하기 위함)
-async function compress(file: File, maxDim = 1024, quality = 0.6): Promise<string> {
+export async function compressImage(file: File, maxDim = 1024, quality = 0.6): Promise<string> {
   const dataUrl = await new Promise<string>((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result as string);
@@ -48,7 +48,7 @@ export default function ImagePicker({
     setBusy(true);
     try {
       const arr = Array.from(files).slice(0, max - images.length);
-      const compressed = await Promise.all(arr.map((f) => compress(f)));
+      const compressed = await Promise.all(arr.map((f) => compressImage(f)));
       onChange([...images, ...compressed]);
     } catch {
       alert("이미지를 불러오지 못했어요. 다른 사진으로 시도해 주세요.");

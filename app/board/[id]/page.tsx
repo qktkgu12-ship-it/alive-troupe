@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
+import Avatar from "@/components/Avatar";
 import { BOARD_LABEL, type Post } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -132,10 +133,12 @@ function PostDetailInner() {
             )}
           </div>
           <h1 className="text-xl font-bold text-slate-900">{post.title}</h1>
-          <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-400">
-            <span>{post.authorName}</span>
-            <span>·</span>
-            <span>{fmtDateTime(post.createdAt)}</span>
+          <div className="mt-3 flex items-center gap-2.5">
+            <Avatar src={post.authorAvatar} name={post.authorName} className="h-9 w-9 text-sm" />
+            <div className="leading-tight">
+              <p className="text-sm font-medium text-slate-700">{post.authorName}</p>
+              <p className="text-xs text-slate-400">{fmtDateTime(post.createdAt)}</p>
+            </div>
           </div>
           <div className="mt-5 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-slate-700">
             <Linkify text={post.content} />

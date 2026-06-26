@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import { NAV_ICON } from "@/components/Icons";
+import Avatar from "@/components/Avatar";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -99,9 +100,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* PC: 사용자 */}
           <div className="hidden items-center gap-3 md:flex">
-            <span className="text-sm font-medium text-slate-500">
-              {profile?.name || profile?.displayName}
-            </span>
+            <Link href="/profile" className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition hover:bg-slate-100">
+              <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
+              <span className="text-sm font-medium text-slate-600">
+                {profile?.name || profile?.displayName}
+              </span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
@@ -110,8 +114,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          {/* 모바일: 균형용 빈 공간 */}
-          <div className="h-10 w-10 md:hidden" />
+          {/* 모바일: 프로필 사진 (오른쪽 상단) */}
+          <Link href="/profile" className="grid h-10 w-10 place-items-center md:hidden">
+            <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
+          </Link>
         </div>
       </header>
 
@@ -170,9 +176,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-slate-100 p-4">
-          <p className="mb-2 truncate px-1 text-sm font-medium text-slate-500">
-            {profile?.name || profile?.displayName}
-          </p>
+          <Link href="/profile" className="mb-3 flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-50">
+            <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-10 w-10 text-base" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">
+                {profile?.name || profile?.displayName}
+              </p>
+              <p className="text-xs text-slate-400">내 프로필 설정</p>
+            </div>
+          </Link>
           <button onClick={handleSignOut} className="btn-ghost w-full">
             로그아웃
           </button>

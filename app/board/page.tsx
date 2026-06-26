@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
+import Avatar from "@/components/Avatar";
 import { BOARD_LABEL, BOARD_ORDER, type BoardKey, type Post } from "@/lib/types";
 
 // Firestore 문서 1MB 제한 안전선
@@ -87,7 +88,7 @@ function BoardInner() {
         <PostForm
           board={board}
           isAdmin={isAdmin}
-          author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "" }}
+          author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "", avatar: profile?.avatar || "" }}
           onSaved={() => {
             setShowForm(false);
             loadNotices();
@@ -126,6 +127,7 @@ function BoardInner() {
               href={`/board/${p.id}`}
               className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-slate-50"
             >
+              <Avatar src={p.authorAvatar} name={p.authorName} className="h-9 w-9 text-sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-slate-900">{p.title}</p>
                 <p className="truncate text-xs text-slate-400">{p.authorName}</p>
@@ -147,7 +149,7 @@ function PostForm({
 }: {
   board: BoardKey;
   isAdmin: boolean;
-  author: { uid: string; name: string };
+  author: { uid: string; name: string; avatar: string };
   onSaved: () => void;
 }) {
   const [title, setTitle] = useState("");
@@ -173,6 +175,7 @@ function PostForm({
         images,
         authorUid: author.uid,
         authorName: author.name,
+        authorAvatar: author.avatar || "",
         createdAt: now,
         updatedAt: now,
       };
