@@ -6,7 +6,7 @@ import { collection, getDocs, limit, orderBy, query, where } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
-import { ArchiveIcon, CalendarIcon, MusicIcon } from "@/components/Icons";
+import { ArchiveIcon, MusicIcon } from "@/components/Icons";
 import { BOARD_LABEL, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
 
@@ -31,7 +31,6 @@ function eventMeta(e: ScheduleEvent) {
 }
 
 const FEATURES = [
-  { href: "/schedule", title: "일정", desc: "가능일정 · 확정일정", Icon: CalendarIcon },
   { href: "/archive", title: "아카이브", desc: "공연 · 연습 기록", Icon: ArchiveIcon },
   { href: "/audio", title: "음원 자료실", desc: "MR · 가이드", Icon: MusicIcon },
 ];
@@ -143,7 +142,7 @@ function HomeInner() {
       {/* 바로가기 */}
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">바로가기</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {FEATURES.map(({ href, title, desc, Icon }) => (
             <Link
               key={href}
