@@ -41,6 +41,7 @@ function ArchiveInner() {
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [view, setView] = useState<ViewMode>("card");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   const prodMap = useMemo(() => new Map(productions.map((p) => [p.id, p])), [productions]);
 
@@ -96,6 +97,16 @@ function ArchiveInner() {
       );
     });
   }, [items, search, kindFilter, prodMap]);
+
+  // 날짜순(최신/오래된) 정렬 + 같은 날짜는 제목 가나다순
+  const sorted = useMemo(() => {
+    const dir = sortOrder === "newest" ? -1 : 1;
+    return [...filtered].sort((a, b) => {
+      const byDate = (a.date || "").localeCompare(b.date || "") * dir;
+      if (byDate !== 0) return byDate;
+      return (a.title || "").localeCompare(b.title || "", "ko");
+    });
+  }, [filtered, sortOrder]);
 
   async function removeItem(it: ArchiveItem) {
     if (!confirm("이 자료를 삭제할까요?")) return;
@@ -154,13 +165,26 @@ function ArchiveInner() {
               )
             )}
           </div>
-          <ViewToggle value={view} onChange={setView} />
+          <div className="flex items-center gap-2">
+            <div className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+              {([["newest", "최신순"], ["oldest", "오래된순"]] as ["newest" | "oldest", string][]).map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setSortOrder(v)}
+                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 transition ${sortOrder === v ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <ViewToggle value={view} onChange={setView} />
+          </div>
         </div>
       </div>
 
       {loading ? (
         <p className="py-12 text-center text-slate-400">불러오는 중…</p>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <p className="card py-12 text-center text-slate-400">
           {!isAdmin && productions.length === 0
             ? "참여 중인 작품이 없어 볼 수 있는 자료가 없습니다."
@@ -169,7 +193,7 @@ function ArchiveInner() {
       ) : view === "card" ? (
         /* ===== 카드 보기 ===== */
         <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((it) => (
+          {sorted.map((it) => (
             <div
               key={it.id}
               role="link"
@@ -231,7 +255,7 @@ function ArchiveInner() {
       ) : (
         /* ===== 리스트 보기 ===== */
         <div className="card divide-y divide-slate-100 !p-0">
-          {filtered.map((it) => (
+          {sorted.map((it) => (
             <div
               key={it.id}
               role="link"
