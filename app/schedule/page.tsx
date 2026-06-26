@@ -72,6 +72,7 @@ function ScheduleInner() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [tab, setTab] = useState<Tab>("coord");
+  const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
 
   const year = cursor.getFullYear();
   const month0 = cursor.getMonth();
@@ -355,6 +356,14 @@ function ScheduleInner() {
                             <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
                             <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
                             <span className="shrink-0 text-xs">{r.count}명</span>
+                            {role === "admin" && (
+                              <button
+                                onClick={() => setConfirmDraft({ date: r.date, start: r.start, end: r.end })}
+                                className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg"
+                              >
+                                확정
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -466,6 +475,24 @@ function ScheduleInner() {
               {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
             </button>
           </div>
+
+          {/* 추천 → 확정 등록 모달 (관리자) */}
+          {confirmDraft && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4" onClick={() => setConfirmDraft(null)}>
+              <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+                <p className="mb-2 px-1 text-sm font-semibold text-white">확정 일정 등록</p>
+                <EventForm
+                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end }}
+                  onSaved={() => {
+                    setConfirmDraft(null);
+                    loadEvents();
+                    setTab("events");
+                  }}
+                  onCancel={() => setConfirmDraft(null)}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -505,7 +532,90 @@ function CalendarGrid({ grid, renderCell }: { grid: (Date | null)[]; renderCell:
   );
 }
 
-// ---------- 확정 일정 ----------
+// ---------- 일정 등록 폼 (확정 탭 + 추천 확정 공용) ----------
+function EventForm({
+  initial,
+  onSaved,
+  onCancel,
+}: {
+  initial: { date: string; startTime: string; endTime: string; title?: string };
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(initial.title ?? "");
+  const [date, setDate] = useState(initial.date);
+  const [startTime, setStartTime] = useState(initial.startTime);
+  const [endTime, setEndTime] = useState(initial.endTime);
+  const [location, setLocation] = useState("");
+  const [memo, setMemo] = useState("");
+  const [more, setMore] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!title.trim() || !date) {
+      alert("제목과 날짜는 필수예요.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await setDoc(doc(db, "events", crypto.randomUUID()), {
+        title: title.trim(),
+        date,
+        startTime,
+        endTime,
+        location,
+        memo,
+        createdAt: Date.now(),
+      });
+      onSaved();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card space-y-3 border-dashed">
+      <div>
+        <label className="label">제목</label>
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 1막 런스루" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="label">날짜</label>
+          <input type="date" className="input !px-2" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">시작</label>
+          <input type="time" className="input !px-2" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">종료</label>
+          <input type="time" className="input !px-2" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+        </div>
+      </div>
+      {more ? (
+        <>
+          <div>
+            <label className="label">장소</label>
+            <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="연습실 등" />
+          </div>
+          <div>
+            <label className="label">메모·준비물</label>
+            <textarea className="input min-h-[60px]" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="준비물, 전달사항 등" />
+          </div>
+        </>
+      ) : (
+        <button onClick={() => setMore(true)} className="text-xs font-medium text-slate-500 hover:underline">+ 장소·메모 추가</button>
+      )}
+      <div className="flex gap-2">
+        <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? "등록 중…" : "등록"}</button>
+        <button onClick={onCancel} className="btn-ghost">취소</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- 확정 일정 (왼쪽 달력 + 오른쪽 리스트) ----------
 function EventsSection({
   yearMonth,
   events,
@@ -522,22 +632,7 @@ function EventsSection({
   onChanged: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const blank = { title: "", date: `${yearMonth}-01`, startTime: "", endTime: "", location: "", memo: "" };
-  const [form, setForm] = useState(blank);
-  const [busy, setBusy] = useState(false);
-
-  async function addEvent() {
-    if (!form.title || !form.date) return;
-    setBusy(true);
-    try {
-      await setDoc(doc(db, "events", crypto.randomUUID()), { ...form, createdAt: Date.now() });
-      setForm({ ...blank });
-      setShowForm(false);
-      onChanged();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [formDate, setFormDate] = useState(`${yearMonth}-01`);
 
   async function removeEvent(id: string) {
     if (!confirm("이 일정을 삭제할까요?")) return;
@@ -546,84 +641,79 @@ function EventsSection({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="card">
+    <div className="grid gap-4 md:grid-cols-2">
+      {/* 왼쪽: 달력 */}
+      <div className="card h-full">
         <CalendarGrid
           grid={grid}
           renderCell={(d) => {
             const ds = toDateStr(d);
             const has = (eventsByDate[ds] ?? []).length > 0;
             return (
-              <div className={`flex h-full w-full flex-col items-center justify-center rounded-lg text-sm ${has ? "bg-accent-soft font-bold text-accent" : "text-slate-600"}`}>
+              <button
+                onClick={() => {
+                  if (isAdmin) {
+                    setFormDate(ds);
+                    setShowForm(true);
+                  }
+                }}
+                className={`flex h-full w-full flex-col items-center justify-center rounded-lg text-sm transition ${
+                  has ? "bg-accent-soft font-bold text-accent" : "text-slate-600"
+                } ${isAdmin ? "hover:bg-slate-100" : "cursor-default"}`}
+              >
                 <span>{d.getDate()}</span>
                 {has && <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-accent" />}
-              </div>
+              </button>
             );
           }}
         />
+        {isAdmin && <p className="mt-3 text-xs text-slate-400">날짜를 누르면 그 날로 등록 폼이 열려요.</p>}
       </div>
 
-      {isAdmin && (
-        <div>
-          {showForm ? (
-            <div className="card space-y-3">
-              <div>
-                <label className="label">제목</label>
-                <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="예: 1막 런스루" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">날짜</label>
-                  <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">장소</label>
-                  <input className="input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="연습실 등" />
-                </div>
-                <div>
-                  <label className="label">시작 시간</label>
-                  <input type="time" className="input" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">종료 시간</label>
-                  <input type="time" className="input" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
-                </div>
-              </div>
-              <div>
-                <label className="label">메모·준비물</label>
-                <textarea className="input min-h-[72px]" value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} placeholder="준비물, 전달사항 등" />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={addEvent} disabled={busy} className="btn-accent flex-1">{busy ? "등록 중…" : "일정 등록"}</button>
-                <button onClick={() => setShowForm(false)} className="btn-ghost">취소</button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setShowForm(true)} className="btn-accent w-full">+ 확정 일정 등록</button>
+      {/* 오른쪽: 일정 리스트 */}
+      <div className="card h-full">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-bold">이번 달 일정</h2>
+          {isAdmin && (
+            <button onClick={() => setShowForm((v) => !v)} className="btn-accent !py-1.5">{showForm ? "닫기" : "+ 추가"}</button>
           )}
         </div>
-      )}
 
-      <div className="space-y-2">
+        {isAdmin && showForm && (
+          <div className="mb-3">
+            <EventForm
+              key={formDate}
+              initial={{ date: formDate, startTime: "", endTime: "" }}
+              onSaved={() => {
+                setShowForm(false);
+                onChanged();
+              }}
+              onCancel={() => setShowForm(false)}
+            />
+          </div>
+        )}
+
         {events.length === 0 ? (
-          <p className="card text-center text-sm text-slate-400">이번 달 확정 일정이 없습니다.</p>
+          <p className="py-8 text-center text-sm text-slate-400">이번 달 확정 일정이 없습니다.</p>
         ) : (
-          events.map((e) => (
-            <div key={e.id} className="card flex items-start gap-3 !p-4">
-              <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft leading-none text-accent">
-                <span className="text-[10px] font-semibold">{Number(e.date.slice(5, 7))}월</span>
-                <span className="text-lg font-extrabold">{Number(e.date.slice(8, 10))}</span>
+          <div className="space-y-2">
+            {events.map((e) => (
+              <div key={e.id} className="flex items-start gap-3 rounded-xl border border-slate-200/70 p-3">
+                <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft leading-none text-accent">
+                  <span className="text-[10px] font-semibold">{Number(e.date.slice(5, 7))}월</span>
+                  <span className="text-base font-extrabold">{Number(e.date.slice(8, 10))}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{e.title}</p>
+                  <p className="text-sm text-slate-500">
+                    {[e.startTime && `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}`, e.location].filter(Boolean).join(" · ") || "시간·장소 미정"}
+                  </p>
+                  {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
+                </div>
+                {isAdmin && <button onClick={() => removeEvent(e.id)} className="shrink-0 text-xs text-red-500 hover:underline">삭제</button>}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold">{e.title}</p>
-                <p className="text-sm text-slate-500">
-                  {[e.startTime && `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}`, e.location].filter(Boolean).join(" · ") || "시간·장소 미정"}
-                </p>
-                {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
-              </div>
-              {isAdmin && <button onClick={() => removeEvent(e.id)} className="btn-danger shrink-0">삭제</button>}
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
