@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -37,6 +37,25 @@ function dateLabel(ds: string) {
   return { md: `${d.getMonth() + 1}/${d.getDate()}`, dow: WEEKDAYS_KO[d.getDay()] };
 }
 
+// 선택된 슬롯들을 연속 구간 문자열로 ("18:00~22:00")
+function slotRanges(slots: string[]): string[] {
+  const set = new Set(slots);
+  const out: string[] = [];
+  let i = 0;
+  while (i < TIME_SLOTS.length) {
+    if (set.has(TIME_SLOTS[i])) {
+      let j = i;
+      while (j + 1 < TIME_SLOTS.length && set.has(TIME_SLOTS[j + 1])) j++;
+      out.push(`${TIME_SLOTS[i]}~${slotEnd(TIME_SLOTS[j])}`);
+      i = j + 1;
+    } else i++;
+  }
+  return out;
+}
+
+const AFTERNOON = TIME_SLOTS.slice(0, 12); // 12:00~18:00
+const EVENING = TIME_SLOTS.slice(12); // 18:00~24:00
+
 function ScheduleInner() {
   const { user, profile, role } = useAuth();
   const [cursor, setCursor] = useState(() => {
@@ -54,6 +73,8 @@ function ScheduleInner() {
   // 내 가능 일정
   const [myDates, setMyDates] = useState<string[]>([]);
   const [slotsByDate, setSlotsByDate] = useState<Record<string, string[]>>({});
+  const [activeDate, setActiveDate] = useState<string | null>(null);
+  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -99,55 +120,53 @@ function ScheduleInner() {
     loadAll();
     loadEvents();
     setSelectedDay(null);
+    setActiveDate(null);
+    setRangeAnchor(null);
   }, [loadMine, loadAll, loadEvents]);
 
   // ----- 내 가능 일정 편집 -----
-  function toggleMyDate(ds: string) {
-    setMyDates((prev) => {
-      if (prev.includes(ds)) {
-        setSlotsByDate((s) => {
-          const n = { ...s };
-          delete n[ds];
-          return n;
-        });
-        return prev.filter((d) => d !== ds);
-      }
-      return [...prev, ds].sort();
-    });
+  function selectDate(ds: string) {
+    setMyDates((prev) => (prev.includes(ds) ? prev : [...prev, ds].sort()));
+    setActiveDate(ds);
+    setRangeAnchor(null);
     setDirty(true);
   }
 
-  function toggleSlot(date: string, slot: string) {
-    setSlotsByDate((prev) => {
-      const set = new Set(prev[date] ?? []);
-      if (set.has(slot)) set.delete(slot);
-      else set.add(slot);
-      return { ...prev, [date]: [...set] };
-    });
-    setDirty(true);
-  }
-
-  function toggleColumn(date: string) {
-    setSlotsByDate((prev) => {
-      const cur = prev[date] ?? [];
-      return { ...prev, [date]: cur.length === TIME_SLOTS.length ? [] : [...TIME_SLOTS] };
-    });
-    setDirty(true);
-  }
-
-  function toggleRow(slot: string) {
-    const sortedDates = [...myDates].sort();
-    const allHave = sortedDates.every((d) => (slotsByDate[d] ?? []).includes(slot));
-    setSlotsByDate((prev) => {
-      const n = { ...prev };
-      for (const d of sortedDates) {
-        const set = new Set(n[d] ?? []);
-        if (allHave) set.delete(slot);
-        else set.add(slot);
-        n[d] = [...set];
-      }
+  function removeDate(ds: string) {
+    setMyDates((prev) => prev.filter((d) => d !== ds));
+    setSlotsByDate((s) => {
+      const n = { ...s };
+      delete n[ds];
       return n;
     });
+    if (activeDate === ds) setActiveDate(null);
+    setDirty(true);
+  }
+
+  // 시작→끝 두 번 탭하면 사이를 채움
+  function pickSlot(slot: string) {
+    if (!activeDate) return;
+    if (rangeAnchor === null) {
+      setRangeAnchor(slot);
+      return;
+    }
+    const a = TIME_SLOTS.indexOf(rangeAnchor);
+    const b = TIME_SLOTS.indexOf(slot);
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    const range = TIME_SLOTS.slice(lo, hi + 1);
+    setSlotsByDate((prev) => {
+      const set = new Set(prev[activeDate] ?? []);
+      range.forEach((s) => set.add(s));
+      return { ...prev, [activeDate]: [...set] };
+    });
+    setRangeAnchor(null);
+    setDirty(true);
+  }
+
+  function setPreset(slots: string[]) {
+    if (!activeDate) return;
+    setSlotsByDate((prev) => ({ ...prev, [activeDate]: slots }));
+    setRangeAnchor(null);
     setDirty(true);
   }
 
@@ -350,75 +369,99 @@ function ScheduleInner() {
 
       {/* ===== 내 가능 일정 ===== */}
       {tab === "mine" && (
-        <div className="space-y-4">
-          <div className="card">
-            <p className="mb-3 text-sm text-slate-500">
-              <b className="text-slate-700">1단계.</b> 참여 가능한 날짜를 모두 눌러주세요.
-            </p>
-            <CalendarGrid
-              grid={grid}
-              renderCell={(d) => {
-                const ds = toDateStr(d);
-                const on = myDates.includes(ds);
-                return (
-                  <button
-                    onClick={() => toggleMyDate(ds)}
-                    className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition ${on ? "bg-accent font-bold text-accent-fg" : "hover:bg-slate-100"} ${ds === todayStr && !on ? "ring-1 ring-accent" : ""}`}
-                  >
-                    {d.getDate()}
-                  </button>
-                );
-              }}
-            />
-          </div>
-
-          {sortedMyDates.length > 0 && (
-            <div className="card">
-              <p className="mb-1 text-sm text-slate-500">
-                <b className="text-slate-700">2단계.</b> 가능한 시간을 칠해주세요. (칸·시간·날짜 머리글을 눌러 한번에 선택)
-              </p>
-              <p className="mb-3 text-xs text-slate-400">시간을 안 칠한 날은 ‘아무때나 가능’으로 처리돼요.</p>
-              <div className="overflow-x-auto">
-                <div
-                  className="inline-grid gap-px bg-slate-100"
-                  style={{ gridTemplateColumns: `3.2rem repeat(${sortedMyDates.length}, minmax(2.6rem, 1fr))` }}
-                >
-                  <div className="bg-white" />
+        <div className="grid gap-4 md:grid-cols-[0.95fr_1.15fr_0.95fr]">
+          {/* 요약 + 제출 (PC 왼쪽 / 모바일 맨 아래) */}
+          <div className="order-3 md:order-1">
+            <div className="card md:sticky md:top-20">
+              <h2 className="font-bold">내 가능 일정</h2>
+              <p className="mb-3 mt-0.5 text-xs text-slate-400">선택한 날짜 {myDates.length}일</p>
+              {sortedMyDates.length === 0 ? (
+                <p className="py-4 text-center text-sm text-slate-400">달력에서 가능한 날짜를 골라주세요.</p>
+              ) : (
+                <div className="space-y-1.5">
                   {sortedMyDates.map((d) => {
+                    const ranges = slotRanges(slotsByDate[d] ?? []);
                     const { md, dow } = dateLabel(d);
                     return (
-                      <button key={d} onClick={() => toggleColumn(d)} className="bg-white py-1 text-center text-[11px] font-semibold leading-tight text-slate-600 hover:bg-slate-50">
-                        {md}<br /><span className="text-slate-400">{dow}</span>
-                      </button>
+                      <div key={d} className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm ${activeDate === d ? "bg-accent-soft" : "bg-slate-50"}`}>
+                        <button onClick={() => { setActiveDate(d); setRangeAnchor(null); }} className="min-w-0 flex-1 text-left">
+                          <span className="font-medium text-slate-800">{md}({dow})</span>
+                          <span className="ml-1 text-xs text-slate-500">{ranges.length ? ranges.join(", ") : "아무때나"}</span>
+                        </button>
+                        <button onClick={() => removeDate(d)} aria-label="삭제" className="shrink-0 text-base leading-none text-slate-400 hover:text-red-500">×</button>
+                      </div>
                     );
                   })}
-                  {TIME_SLOTS.map((slot) => (
-                    <Fragment key={slot}>
-                      <button onClick={() => toggleRow(slot)} className="bg-white pr-1 text-right text-[10px] tabular-nums text-slate-400 hover:bg-slate-50">
-                        {slot}
-                      </button>
-                      {sortedMyDates.map((d) => {
-                        const on = (slotsByDate[d] ?? []).includes(slot);
-                        return (
-                          <button
-                            key={d + slot}
-                            onClick={() => toggleSlot(d, slot)}
-                            className={`h-6 transition ${on ? "bg-accent" : "bg-white hover:bg-accent-soft"}`}
-                          />
-                        );
-                      })}
-                    </Fragment>
-                  ))}
                 </div>
-              </div>
+              )}
+              <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent mt-4 w-full">
+                {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
+              </button>
             </div>
-          )}
+          </div>
 
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-500">선택한 날짜 <b className="text-accent">{myDates.length}</b>일</span>
-            <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent">
-              {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
-            </button>
+          {/* 달력 (가운데) */}
+          <div className="order-1 md:order-2">
+            <div className="card">
+              <p className="mb-3 text-sm text-slate-500">가능한 <b className="text-slate-700">날짜</b>를 선택하세요.</p>
+              <CalendarGrid
+                grid={grid}
+                renderCell={(d) => {
+                  const ds = toDateStr(d);
+                  const on = myDates.includes(ds);
+                  const active = activeDate === ds;
+                  return (
+                    <button
+                      onClick={() => selectDate(ds)}
+                      className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition ${on ? "bg-accent font-bold text-accent-fg" : "hover:bg-slate-100"} ${active ? "ring-2 ring-accent ring-offset-1" : ds === todayStr && !on ? "ring-1 ring-accent" : ""}`}
+                    >
+                      {d.getDate()}
+                    </button>
+                  );
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 시간 선택 (오른쪽) */}
+          <div className="order-2 md:order-3">
+            <div className="card md:sticky md:top-20">
+              {!activeDate ? (
+                <p className="py-10 text-center text-sm text-slate-400">날짜를 선택하면<br />시간을 고를 수 있어요.</p>
+              ) : (
+                <>
+                  <h2 className="font-bold">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 시간 선택</h2>
+                  <p className="mb-2 mt-1 text-xs text-slate-400">
+                    {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
+                  </p>
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {([["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
+                      <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
+                    {TIME_SLOTS.map((s) => {
+                      const sel = (slotsByDate[activeDate] ?? []).includes(s);
+                      const isAnchor = rangeAnchor === s;
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => pickSlot(s)}
+                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                            isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="tabular-nums">{s} ~ {slotEnd(s)}</span>
+                          {isAnchor ? <span className="text-xs">시작</span> : sel ? <span className="text-xs">✓</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
