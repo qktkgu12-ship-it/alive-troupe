@@ -770,6 +770,7 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
   const { user, profile } = useAuth();
   const mine = list.find((a) => a.uid === user?.uid);
   const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -800,14 +801,21 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
   return (
     <div className="mt-2 border-t border-slate-100 pt-2">
       {list.length > 0 && (
-        <div className="mb-2 space-y-1">
-          <p className="text-xs font-semibold text-red-500">못 가요 {list.length}명</p>
-          {list.map((a) => (
-            <div key={a.uid} className="flex items-baseline gap-2 text-xs">
-              <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-600">{a.name}</span>
-              {a.reason && <span className="min-w-0 break-words text-slate-500">{a.reason}</span>}
+        <div className="mb-2">
+          <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700">
+            🚫 못 가요 {list.length}명
+            <span className="text-[10px] text-slate-400">{open ? "▲" : "▼"}</span>
+          </button>
+          {open && (
+            <div className="mt-1.5 space-y-1">
+              {list.map((a) => (
+                <div key={a.uid} className="flex items-baseline gap-2 text-xs">
+                  <span className="shrink-0 font-medium text-slate-700">{a.name}</span>
+                  {a.reason && <span className="min-w-0 break-words text-slate-400">{a.reason}</span>}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
       {mine ? (
