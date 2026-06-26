@@ -24,13 +24,22 @@ import {
   WEEKDAYS_KO,
 } from "@/lib/utils";
 
-type Tab = "mine" | "all" | "events";
+type Tab = "coord" | "events";
 
 const TAB_INFO: Record<Tab, { label: string; desc: string }> = {
-  mine: { label: "내 가능 일정", desc: "가능한 날짜를 고르고, 시간을 칠해 제출하세요." },
-  all: { label: "전체 가능 현황", desc: "단원들이 가장 많이 겹치는 날·시간을 확인하세요." },
+  coord: { label: "일정 조율", desc: "내 가능 시간을 제출하고, 단원들과 겹치는 시간을 한눈에 확인하세요." },
   events: { label: "확정 일정", desc: "확정된 일정을 확인하세요." },
 };
+
+function MonthNav({ label, onPrev, onNext }: { label: string; onPrev: () => void; onNext: () => void }) {
+  return (
+    <div className="mb-3 flex items-center justify-center gap-4">
+      <button onClick={onPrev} className="btn-ghost !px-3">‹</button>
+      <span className="w-32 text-center text-lg font-bold">{label}</span>
+      <button onClick={onNext} className="btn-ghost !px-3">›</button>
+    </div>
+  );
+}
 
 function dateLabel(ds: string) {
   const d = new Date(ds + "T00:00:00");
@@ -62,7 +71,7 @@ function ScheduleInner() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>("coord");
 
   const year = cursor.getFullYear();
   const month0 = cursor.getMonth();
@@ -80,7 +89,6 @@ function ScheduleInner() {
 
   // 전체 현황
   const [allAvail, setAllAvail] = useState<Availability[]>([]);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // 확정 일정
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
@@ -119,7 +127,6 @@ function ScheduleInner() {
     loadMine();
     loadAll();
     loadEvents();
-    setSelectedDay(null);
     setActiveDate(null);
     setRangeAnchor(null);
   }, [loadMine, loadAll, loadEvents]);
@@ -246,6 +253,25 @@ function ScheduleInner() {
     return recs.slice(0, 3);
   }, [slotCount]);
 
+  // 활성 날짜에서 '나 말고' 시간대별 가능 인원
+  const othersBySlot = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (!activeDate) return m;
+    for (const a of allAvail) {
+      if (a.uid === user?.uid) continue;
+      if (!(a.dates ?? []).includes(activeDate)) continue;
+      const specific = a.slots?.[activeDate];
+      const list = specific && specific.length > 0 ? specific : TIME_SLOTS;
+      for (const s of list) m[s] = (m[s] ?? 0) + 1;
+    }
+    return m;
+  }, [activeDate, allAvail, user?.uid]);
+
+  const namesForActive = useMemo(
+    () => (activeDate ? [...new Set(Object.values(slotNames[activeDate] ?? {}).flat())] : []),
+    [activeDate, slotNames]
+  );
+
   const eventsByDate = useMemo(() => {
     const map: Record<string, ScheduleEvent[]> = {};
     for (const e of events) (map[e.date] ??= []).push(e);
@@ -256,22 +282,13 @@ function ScheduleInner() {
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
   }
 
-  const sortedMyDates = useMemo(() => [...myDates].sort(), [myDates]);
-
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">일정</h1>
 
-      {/* 월 이동 */}
-      <div className="flex items-center justify-center gap-4">
-        <button onClick={() => changeMonth(-1)} className="btn-ghost !px-3">‹</button>
-        <span className="w-32 text-center text-lg font-bold">{year}년 {month0 + 1}월</span>
-        <button onClick={() => changeMonth(1)} className="btn-ghost !px-3">›</button>
-      </div>
-
       {/* 탭 */}
       <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
-        {(["all", "mine", "events"] as Tab[]).map((t) => (
+        {(["coord", "events"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -283,199 +300,151 @@ function ScheduleInner() {
       </div>
       <p className="-mt-2 text-center text-xs text-slate-400">{TAB_INFO[tab].desc}</p>
 
-      {/* ===== 전체 가능 현황 ===== */}
-      {tab === "all" && (
+      {/* ===== 일정 조율 (전체현황 + 내 가능 일정 통합) ===== */}
+      {tab === "coord" && (
         <div className="space-y-4">
-          {/* 추천 */}
-          <div className="card bg-accent-soft/40">
-            <h2 className="mb-2 text-sm font-bold text-slate-700">🏆 가장 많이 겹치는 시간 (제출 {submitters}명)</h2>
-            {recommendations.length === 0 ? (
-              <p className="py-2 text-sm text-slate-400">아직 제출된 가능 일정이 없습니다.</p>
-            ) : (
-              <div className="space-y-2">
-                {recommendations.map((r, i) => {
-                  const { md, dow } = dateLabel(r.date);
-                  return (
-                    <div key={r.date} className="flex items-center gap-3 rounded-lg bg-white p-3">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-accent-fg">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">{md} ({dow}) · {r.start}~{r.end}</p>
-                        <p className="text-xs text-slate-400">{r.count}명 가능</p>
-                      </div>
+          <div className="grid gap-4 md:grid-cols-[0.9fr_1.2fr_1fr]">
+            {/* 왼쪽: 전체 가능 현황 */}
+            <div className="order-3 md:order-1">
+              <div className="card space-y-4 md:sticky md:top-20">
+                <div>
+                  <h2 className="font-bold">전체 가능 현황</h2>
+                  <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-slate-500">🏆 가장 많이 겹치는 시간</p>
+                  {recommendations.length === 0 ? (
+                    <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {recommendations.map((r, i) => {
+                        const { md, dow } = dateLabel(r.date);
+                        return (
+                          <div key={r.date} className="flex items-center gap-2 rounded-lg bg-accent-soft/50 px-2.5 py-1.5">
+                            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{i + 1}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{md}({dow}) {r.start}~{r.end}</span>
+                            <span className="shrink-0 text-xs font-semibold text-accent">{r.count}명</span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+                {activeDate && (
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="mb-1.5 text-xs font-semibold text-slate-500">{dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원</p>
+                    {namesForActive.length === 0 ? (
+                      <p className="text-sm text-slate-400">아직 없어요.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">{namesForActive.map((n) => <span key={n} className="chip">{n}</span>)}</div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* 히트맵 달력 */}
-          <div className="card">
-            <p className="mb-3 text-sm text-slate-500">색이 진할수록 가능한 단원이 많은 날이에요. 날짜를 누르면 시간대별 인원이 보여요.</p>
-            <CalendarGrid
-              grid={grid}
-              renderCell={(d) => {
-                const ds = toDateStr(d);
-                const cnt = dayMax[ds] ?? 0;
-                const ratio = submitters ? cnt / submitters : 0;
-                const isSel = selectedDay === ds;
-                return (
-                  <button
-                    onClick={() => setSelectedDay(isSel ? null : ds)}
-                    className={`flex h-full w-full flex-col items-center justify-center rounded-lg text-sm transition ${isSel ? "ring-2 ring-accent" : "hover:bg-slate-100"}`}
-                    style={cnt ? { backgroundColor: `rgb(var(--accent) / ${0.15 + ratio * 0.7})`, color: ratio > 0.5 ? "rgb(var(--accent-fg))" : undefined } : undefined}
-                  >
-                    <span>{d.getDate()}</span>
-                    {cnt > 0 && <span className="text-[10px] font-bold leading-none">{cnt}</span>}
-                  </button>
-                );
-              }}
-            />
-          </div>
+            {/* 가운데: 달력 (월 선택 + 히트맵 + 내 선택) */}
+            <div className="order-1 md:order-2">
+              <MonthNav label={`${year}년 ${month0 + 1}월`} onPrev={() => changeMonth(-1)} onNext={() => changeMonth(1)} />
+              <div className="card">
+                <p className="mb-3 text-sm text-slate-500">
+                  가능한 <b className="text-slate-700">날짜</b>를 선택하세요. 색이 진할수록 가능한 단원이 많아요.
+                </p>
+                <CalendarGrid
+                  grid={grid}
+                  renderCell={(d) => {
+                    const ds = toDateStr(d);
+                    const cnt = dayMax[ds] ?? 0;
+                    const ratio = submitters ? cnt / submitters : 0;
+                    const mine = myDates.includes(ds);
+                    const active = activeDate === ds;
+                    return (
+                      <button
+                        onClick={() => selectDate(ds)}
+                        style={cnt > 0 ? { backgroundColor: `rgb(var(--accent) / ${(0.1 + ratio * 0.55).toFixed(3)})`, color: ratio > 0.6 ? "rgb(var(--accent-fg))" : undefined } : undefined}
+                        className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition hover:brightness-95 ${mine ? "font-bold" : ""} ${
+                          active ? "ring-2 ring-accent ring-offset-1" : mine ? "ring-2 ring-accent" : ds === todayStr ? "ring-1 ring-accent" : ""
+                        }`}
+                      >
+                        {d.getDate()}
+                      </button>
+                    );
+                  }}
+                />
+                <p className="mt-3 text-xs text-slate-400">테두리 = 내가 고른 날 · 색 농도 = 가능 인원</p>
+              </div>
+            </div>
 
-          {/* 선택한 날 시간대별 상세 */}
-          {selectedDay && (
-            <div className="card">
-              <h3 className="mb-2 font-semibold">
-                {dateLabel(selectedDay).md} ({dateLabel(selectedDay).dow}) 시간대별 가능 인원
-              </h3>
-              {(() => {
-                const sc = slotCount[selectedDay] ?? {};
-                const active = TIME_SLOTS.filter((s) => (sc[s] ?? 0) > 0);
-                if (active.length === 0) return <p className="py-3 text-sm text-slate-400">이 날 가능한 단원이 없습니다.</p>;
-                return (
-                  <div className="space-y-1.5">
-                    {active.map((s) => (
-                      <div key={s} className="flex items-center gap-3 text-sm">
-                        <span className="w-24 shrink-0 tabular-nums text-slate-500">{s}~{slotEnd(s)}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full bg-accent" style={{ width: `${submitters ? ((sc[s] ?? 0) / submitters) * 100 : 0}%` }} />
-                        </div>
-                        <span className="w-10 shrink-0 text-right font-medium text-slate-600">{sc[s] ?? 0}명</span>
-                      </div>
-                    ))}
-                    <div className="mt-2 flex flex-wrap gap-1 border-t border-slate-100 pt-2">
-                      {[...new Set(Object.values(slotNames[selectedDay] ?? {}).flat())].map((n) => (
-                        <span key={n} className="chip">{n}</span>
+            {/* 오른쪽: 내 시간 선택 */}
+            <div className="order-2 md:order-3">
+              <div className="card md:sticky md:top-20">
+                {!activeDate ? (
+                  <p className="py-10 text-center text-sm text-slate-400">날짜를 선택하면<br />시간을 고를 수 있어요.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-bold">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 시간</h2>
+                      <button onClick={() => removeDate(activeDate)} className="text-xs text-red-500 hover:underline">이 날 빼기</button>
+                    </div>
+                    <p className="mb-2 mt-1 text-xs text-slate-400">
+                      {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
+                    </p>
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {([["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
+                        <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">{label}</button>
                       ))}
                     </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ===== 내 가능 일정 ===== */}
-      {tab === "mine" && (
-        <div className="grid gap-4 md:grid-cols-[0.95fr_1.15fr_0.95fr]">
-          {/* 요약 + 제출 (PC 왼쪽 / 모바일 맨 아래) */}
-          <div className="order-3 md:order-1">
-            <div className="card md:sticky md:top-20">
-              <h2 className="font-bold">내 가능 일정</h2>
-              <p className="mb-3 mt-0.5 text-xs text-slate-400">선택한 날짜 {myDates.length}일</p>
-              {sortedMyDates.length === 0 ? (
-                <p className="py-4 text-center text-sm text-slate-400">달력에서 가능한 날짜를 골라주세요.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {sortedMyDates.map((d) => {
-                    const ranges = slotRanges(slotsByDate[d] ?? []);
-                    const { md, dow } = dateLabel(d);
-                    return (
-                      <div key={d} className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm ${activeDate === d ? "bg-accent-soft" : "bg-slate-50"}`}>
-                        <button onClick={() => { setActiveDate(d); setRangeAnchor(null); }} className="min-w-0 flex-1 text-left">
-                          <span className="font-medium text-slate-800">{md}({dow})</span>
-                          <span className="ml-1 text-xs text-slate-500">{ranges.length ? ranges.join(", ") : "아무때나"}</span>
-                        </button>
-                        <button onClick={() => removeDate(d)} aria-label="삭제" className="shrink-0 text-base leading-none text-slate-400 hover:text-red-500">×</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent mt-4 w-full">
-                {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
-              </button>
+                    <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
+                      {TIME_SLOTS.map((s) => {
+                        const sel = (slotsByDate[activeDate] ?? []).includes(s);
+                        const isAnchor = rangeAnchor === s;
+                        const others = othersBySlot[s] ?? 0;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => pickSlot(s)}
+                            className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                              isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="tabular-nums">{s} ~ {slotEnd(s)}</span>
+                            <span className="flex items-center gap-2">
+                              {others > 0 && <span className={`text-xs ${isAnchor ? "opacity-80" : "text-slate-400"}`}>{others}명</span>}
+                              {isAnchor ? <span className="text-xs">시작</span> : sel ? <span className="text-xs">✓</span> : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 달력 (가운데) */}
-          <div className="order-1 md:order-2">
-            <div className="card">
-              <p className="mb-3 text-sm text-slate-500">가능한 <b className="text-slate-700">날짜</b>를 선택하세요.</p>
-              <CalendarGrid
-                grid={grid}
-                renderCell={(d) => {
-                  const ds = toDateStr(d);
-                  const on = myDates.includes(ds);
-                  const active = activeDate === ds;
-                  return (
-                    <button
-                      onClick={() => selectDate(ds)}
-                      className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition ${on ? "bg-accent font-bold text-accent-fg" : "hover:bg-slate-100"} ${active ? "ring-2 ring-accent ring-offset-1" : ds === todayStr && !on ? "ring-1 ring-accent" : ""}`}
-                    >
-                      {d.getDate()}
-                    </button>
-                  );
-                }}
-              />
-            </div>
-          </div>
-
-          {/* 시간 선택 (오른쪽) */}
-          <div className="order-2 md:order-3">
-            <div className="card md:sticky md:top-20">
-              {!activeDate ? (
-                <p className="py-10 text-center text-sm text-slate-400">날짜를 선택하면<br />시간을 고를 수 있어요.</p>
-              ) : (
-                <>
-                  <h2 className="font-bold">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 시간 선택</h2>
-                  <p className="mb-2 mt-1 text-xs text-slate-400">
-                    {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
-                  </p>
-                  <div className="mb-2 flex flex-wrap gap-1.5">
-                    {([["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
-                      <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
-                    {TIME_SLOTS.map((s) => {
-                      const sel = (slotsByDate[activeDate] ?? []).includes(s);
-                      const isAnchor = rangeAnchor === s;
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => pickSlot(s)}
-                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
-                            isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 hover:bg-slate-50"
-                          }`}
-                        >
-                          <span className="tabular-nums">{s} ~ {slotEnd(s)}</span>
-                          {isAnchor ? <span className="text-xs">시작</span> : sel ? <span className="text-xs">✓</span> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
+          {/* 제출 바 */}
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <span className="text-sm text-slate-500">선택한 날짜 <b className="text-accent">{myDates.length}</b>일</span>
+            <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent">
+              {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
+            </button>
           </div>
         </div>
       )}
 
       {/* ===== 확정 일정 ===== */}
       {tab === "events" && (
-        <EventsSection
-          yearMonth={yearMonth}
-          events={events}
-          eventsByDate={eventsByDate}
-          grid={grid}
-          isAdmin={role === "admin"}
-          onChanged={loadEvents}
-        />
+        <div>
+          <MonthNav label={`${year}년 ${month0 + 1}월`} onPrev={() => changeMonth(-1)} onNext={() => changeMonth(1)} />
+          <EventsSection
+            yearMonth={yearMonth}
+            events={events}
+            eventsByDate={eventsByDate}
+            grid={grid}
+            isAdmin={role === "admin"}
+            onChanged={loadEvents}
+          />
+        </div>
       )}
     </div>
   );
