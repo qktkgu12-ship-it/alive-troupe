@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import Avatar from "@/components/Avatar";
 import type { Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -197,6 +198,7 @@ function ScheduleInner() {
     setSaving(true);
     try {
       const name = profile?.name || profile?.displayName || "";
+      const avatar = profile?.avatar || "";
       // 날짜를 월별로 묶어서 각 월 문서에 저장
       const byMonth: Record<string, { dates: string[]; slots: Record<string, string[]> }> = {};
       for (const d of myDates) {
@@ -211,6 +213,7 @@ function ScheduleInner() {
           setDoc(doc(db, "availability", `${user.uid}_${ym}`), {
             uid: user.uid,
             name,
+            avatar,
             yearMonth: ym,
             dates: v.dates,
             slots: v.slots,
@@ -232,23 +235,17 @@ function ScheduleInner() {
   }
 
   // ----- 전체 현황 집계 -----
-  const { slotCount, slotNames, submitters } = useMemo(() => {
+  const { slotCount, submitters } = useMemo(() => {
     const slotCount: Record<string, Record<string, number>> = {};
-    const slotNames: Record<string, Record<string, string[]>> = {};
     for (const a of allAvail) {
-      const name = a.name || "이름없음";
       for (const date of a.dates ?? []) {
         const specific = a.slots?.[date];
         const list = specific && specific.length > 0 ? specific : TIME_SLOTS; // 아무때나 → 전체
         slotCount[date] ??= {};
-        slotNames[date] ??= {};
-        for (const s of list) {
-          slotCount[date][s] = (slotCount[date][s] ?? 0) + 1;
-          (slotNames[date][s] ??= []).push(name);
-        }
+        for (const s of list) slotCount[date][s] = (slotCount[date][s] ?? 0) + 1;
       }
     }
-    return { slotCount, slotNames, submitters: allAvail.length };
+    return { slotCount, submitters: allAvail.length };
   }, [allAvail]);
 
   const recommendations = useMemo(() => {
@@ -291,10 +288,17 @@ function ScheduleInner() {
     return m;
   }, [activeDate, allAvail, user?.uid]);
 
-  const namesForActive = useMemo(
-    () => (activeDate ? [...new Set(Object.values(slotNames[activeDate] ?? {}).flat())] : []),
-    [activeDate, slotNames]
-  );
+  // 활성 날짜에 가능한 단원 (사진·이름, 이름 내림차순)
+  const membersForActive = useMemo(() => {
+    if (!activeDate) return [];
+    const map = new Map<string, { uid: string; name: string; avatar?: string }>();
+    for (const a of allAvail) {
+      if ((a.dates ?? []).includes(activeDate)) {
+        map.set(a.uid, { uid: a.uid, name: a.name || "이름없음", avatar: a.avatar });
+      }
+    }
+    return [...map.values()].sort((x, y) => y.name.localeCompare(x.name, "ko"));
+  }, [activeDate, allAvail]);
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, ScheduleEvent[]> = {};
@@ -357,11 +361,20 @@ function ScheduleInner() {
                 </div>
                 {activeDate && (
                   <div className="border-t border-slate-100 pt-3">
-                    <p className="mb-1.5 text-xs font-semibold text-slate-500">{dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원</p>
-                    {namesForActive.length === 0 ? (
+                    <p className="mb-2 text-xs font-semibold text-slate-500">
+                      {dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원 {membersForActive.length}명
+                    </p>
+                    {membersForActive.length === 0 ? (
                       <p className="text-sm text-slate-400">아직 없어요.</p>
                     ) : (
-                      <div className="flex flex-wrap gap-1">{namesForActive.map((n) => <span key={n} className="chip">{n}</span>)}</div>
+                      <div className="space-y-1.5">
+                        {membersForActive.map((m) => (
+                          <div key={m.uid} className="flex items-center gap-2">
+                            <Avatar src={m.avatar} name={m.name} className="h-7 w-7 text-xs" />
+                            <span className="text-sm text-slate-700">{m.name}</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}

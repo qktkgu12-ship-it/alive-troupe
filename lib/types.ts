@@ -57,6 +57,7 @@ export interface ScheduleEvent {
 export interface Availability {
   uid: string;
   name: string;
+  avatar?: string; // 제출 시점의 프로필 사진 (명단 표시용)
   yearMonth: string; // YYYY-MM
   dates: string[]; // 가능한 날짜 목록 (YYYY-MM-DD)
   // 날짜별 가능 시간 슬롯(30분 단위, "HH:mm"). 비어있거나 없으면 그 날은 '아무때나 가능'
