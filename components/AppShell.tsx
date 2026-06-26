@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useTheme } from "@/lib/theme-context";
 import { NAV_ICON } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 
@@ -20,7 +19,6 @@ const NAV = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, role, signOut } = useAuth();
-  const { settings } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -67,14 +65,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {/* 로고 (모바일 가운데 / PC 왼쪽) */}
           <Link
             href="/"
-            className="flex flex-1 items-center justify-center gap-2.5 md:flex-none md:justify-start"
+            className="flex flex-1 items-center justify-center md:flex-none md:justify-start"
           >
             <Wordmark />
-            {settings.currentProduction && (
-              <span className="hidden rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent lg:inline">
-                {settings.currentProduction}
-              </span>
-            )}
           </Link>
 
           {/* PC: 가로 메뉴 */}
@@ -147,14 +140,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
         </div>
-
-        {settings.currentProduction && (
-          <div className="px-5 pt-4">
-            <span className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
-              현재 공연 · {settings.currentProduction}
-            </span>
-          </div>
-        )}
 
         <nav className="flex-1 overflow-y-auto p-3">
           {links.map((n) => {

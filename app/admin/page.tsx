@@ -87,9 +87,6 @@ function AdminInner() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold">관리자</h1>
 
-      {/* 사이트 설정 */}
-      <SettingsCard />
-
       {/* 승인 대기 */}
       <section className="card">
         <h2 className="mb-1 font-bold">
@@ -170,6 +167,9 @@ function AdminInner() {
           {cleaning ? "정리 중…" : "탈퇴 단원의 잔여 가능일정 정리"}
         </button>
       </section>
+
+      {/* 사이트·테마 설정 (맨 아래) */}
+      <SettingsCard />
     </div>
   );
 }
@@ -339,21 +339,19 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
 function SettingsCard() {
   const { settings, saveSettings } = useTheme();
   const [troupeName, setTroupeName] = useState(settings.troupeName);
-  const [currentProduction, setCurrentProduction] = useState(settings.currentProduction);
   const [accentColor, setAccentColor] = useState(settings.accentColor);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setTroupeName(settings.troupeName);
-    setCurrentProduction(settings.currentProduction);
     setAccentColor(settings.accentColor);
   }, [settings]);
 
   async function save() {
     setBusy(true);
     try {
-      await saveSettings({ troupeName, currentProduction, accentColor });
+      await saveSettings({ troupeName, accentColor });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -365,17 +363,12 @@ function SettingsCard() {
     <section className="card space-y-4">
       <div>
         <h2 className="font-bold">사이트 · 테마 설정</h2>
-        <p className="text-sm text-slate-500">현재 공연에 맞춰 강조색을 자유롭게 바꿀 수 있어요. (전 단원에게 즉시 반영)</p>
+        <p className="text-sm text-slate-500">강조색을 자유롭게 바꿀 수 있어요. (전 단원에게 즉시 반영)</p>
       </div>
 
       <div>
         <label className="label">극단 이름</label>
         <input className="input" value={troupeName} onChange={(e) => setTroupeName(e.target.value)} />
-      </div>
-
-      <div>
-        <label className="label">현재 공연명 (상단에 표시)</label>
-        <input className="input" value={currentProduction} onChange={(e) => setCurrentProduction(e.target.value)} placeholder="예: 넥스트 투 노멀" />
       </div>
 
       <div>
@@ -400,7 +393,7 @@ function SettingsCard() {
       {/* 미리보기 */}
       <div className="flex items-center gap-3 rounded-xl p-4" style={{ backgroundColor: accentColor }}>
         <span className="font-bold" style={{ color: parseInt(accentColor.replace("#", ""), 16) > 0x888888 ? "#111" : "#fff" }}>
-          {troupeName} {currentProduction && `· ${currentProduction}`}
+          {troupeName}
         </span>
       </div>
 

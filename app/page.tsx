@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { ArchiveIcon, CalendarIcon, MusicIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
@@ -40,7 +39,6 @@ const FEATURES = [
 
 function HomeInner() {
   const { profile, role } = useAuth();
-  const { settings } = useTheme();
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
 
@@ -69,18 +67,11 @@ function HomeInner() {
   return (
     <div className="space-y-8">
       {/* 인사 */}
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            안녕하세요, {profile?.name || profile?.displayName}님
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500">오늘의 일정과 자료를 확인해 보세요.</p>
-        </div>
-        {settings.currentProduction && (
-          <span className="rounded-full border border-accent/20 bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent">
-            현재 공연 · {settings.currentProduction}
-          </span>
-        )}
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          안녕하세요, {profile?.name || profile?.displayName}님
+        </h1>
+        <p className="mt-1.5 text-sm text-slate-500">오늘의 일정과 자료를 확인해 보세요.</p>
       </header>
 
       {/* 다가오는 확정 일정 */}
