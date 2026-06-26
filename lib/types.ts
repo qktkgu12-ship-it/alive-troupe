@@ -106,12 +106,19 @@ export interface Post {
   isNotice: boolean; // 공지 (관리자만 작성, 모든 게시판 상단 고정)
   title: string;
   content: string;
-  images?: string[]; // 첨부 사진 (압축된 data URL)
+  hasImages?: boolean; // 첨부 사진 존재 여부 (실제 사진은 postMedia 문서에 별도 저장)
+  images?: string[]; // (구버전 호환) 예전 글은 사진이 글 문서 안에 들어있을 수 있음
   authorUid: string;
   authorName: string;
   authorAvatar?: string; // 작성 시점의 글쓴이 프로필 사진
   createdAt: number;
   updatedAt: number;
+}
+
+// 게시글 첨부 사진 (별도 저장 → 목록 쿼리 경량화)
+export interface PostMedia {
+  images: string[];
+  authorUid: string;
 }
 
 // 사이트 설정 (현재 공연 + 테마색)

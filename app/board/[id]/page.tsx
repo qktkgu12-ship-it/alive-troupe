@@ -10,7 +10,7 @@ import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
 import Avatar from "@/components/Avatar";
-import { BOARD_LABEL, type Post } from "@/lib/types";
+import { BOARD_LABEL, type Post, type PostMedia } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
 
@@ -38,39 +38,55 @@ function PostDetailInner() {
   const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
-    getDoc(doc(db, "posts", id))
-      .then((snap) => {
-        if (snap.exists()) {
-          const p = { id: snap.id, ...(snap.data() as Omit<Post, "id">) };
-          setPost(p);
-          setTitle(p.title);
-          setContent(p.content);
-          setImages(p.images ?? []);
-          setAsNotice(p.isNotice);
+    async function load() {
+      try {
+        const snap = await getDoc(doc(db, "posts", id));
+        if (!snap.exists()) return;
+        const p = { id: snap.id, ...(snap.data() as Omit<Post, "id">) };
+        setPost(p);
+        setTitle(p.title);
+        setContent(p.content);
+        setAsNotice(p.isNotice);
+        // 사진: 구버전은 글 문서 안(images), 신버전은 postMedia 문서에서
+        if (p.images && p.images.length > 0) {
+          setImages(p.images);
+        } else if (p.hasImages) {
+          const m = await getDoc(doc(db, "postMedia", id));
+          setImages(m.exists() ? (m.data() as PostMedia).images ?? [] : []);
         }
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, [id]);
 
   const canEdit = post && (isAdmin || post.authorUid === user?.uid);
 
   async function save() {
     if (!post || !title.trim() || !content.trim()) return;
-    const update = {
-      title: title.trim(),
-      content: content.trim(),
-      images,
-      isNotice: isAdmin ? asNotice : post.isNotice,
-      updatedAt: Date.now(),
-    };
-    if (JSON.stringify(update).length > MAX_DOC_BYTES) {
+    if (images.length > 0 && JSON.stringify(images).length > MAX_DOC_BYTES) {
       alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
       return;
     }
     setBusy(true);
     try {
+      const update = {
+        title: title.trim(),
+        content: content.trim(),
+        isNotice: isAdmin ? asNotice : post.isNotice,
+        hasImages: images.length > 0,
+        images: null, // 구버전 인라인 사진 제거(분리 저장으로 이전)
+        updatedAt: Date.now(),
+      };
       await setDoc(doc(db, "posts", post.id), update, { merge: true });
-      setPost({ ...post, ...update });
+      // 사진은 별도 문서에 저장/갱신/삭제
+      if (images.length > 0) {
+        await setDoc(doc(db, "postMedia", post.id), { images, authorUid: post.authorUid });
+      } else {
+        await deleteDoc(doc(db, "postMedia", post.id)).catch(() => {});
+      }
+      setPost({ ...post, title: update.title, content: update.content, isNotice: update.isNotice, hasImages: update.hasImages, images: undefined });
       setEditing(false);
     } finally {
       setBusy(false);
@@ -80,6 +96,7 @@ function PostDetailInner() {
   async function remove() {
     if (!post || !confirm("이 글을 삭제할까요?")) return;
     await deleteDoc(doc(db, "posts", post.id));
+    await deleteDoc(doc(db, "postMedia", post.id)).catch(() => {});
     router.replace("/board");
   }
 
@@ -144,12 +161,12 @@ function PostDetailInner() {
             <Linkify text={post.content} />
           </div>
 
-          {(post.images ?? []).length > 0 && (
+          {images.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {(post.images ?? []).map((src, i) => (
+              {images.map((src, i) => (
                 <button key={i} type="button" onClick={() => setZoom(src)} className="block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="aspect-square w-full cursor-zoom-in rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
+                  <img src={src} alt="" loading="lazy" className="aspect-square w-full cursor-zoom-in rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
                 </button>
               ))}
             </div>

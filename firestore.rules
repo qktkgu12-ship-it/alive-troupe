@@ -114,6 +114,15 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
     }
 
+    // 게시글 첨부 사진 (별도 저장 → 목록 경량화)
+    match /postMedia/{id} {
+      allow read: if isMember();
+      allow create: if isAdmin()
+        || (isMember() && request.resource.data.authorUid == request.auth.uid);
+      allow update, delete: if isAdmin()
+        || (isMember() && resource.data.authorUid == request.auth.uid);
+    }
+
     // ---------- 사이트 설정(테마) ----------
     match /settings/{id} {
       // 로그인 화면에서도 극단명·색을 보여주므로 읽기는 공개

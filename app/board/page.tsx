@@ -129,7 +129,10 @@ function BoardInner() {
             >
               <Avatar src={p.authorAvatar} name={p.authorName} className="h-9 w-9 text-sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-slate-900">{p.title}</p>
+                <p className="truncate font-medium text-slate-900">
+                  {p.title}
+                  {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="ml-1 text-xs text-slate-400">📷</span>}
+                </p>
                 <p className="truncate text-xs text-slate-400">{p.authorName}</p>
               </div>
               <span className="shrink-0 text-xs text-slate-400">{fmtDate(p.createdAt)}</span>
@@ -163,6 +166,11 @@ function PostForm({
       alert("제목과 내용을 입력해 주세요.");
       return;
     }
+    // 사진은 별도 문서(postMedia)에 저장 → 목록 쿼리가 가벼워짐
+    if (images.length > 0 && JSON.stringify(images).length > MAX_DOC_BYTES) {
+      alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
+      return;
+    }
     setBusy(true);
     try {
       const id = crypto.randomUUID();
@@ -172,19 +180,17 @@ function PostForm({
         isNotice: isAdmin ? asNotice : false,
         title: title.trim(),
         content: content.trim(),
-        images,
+        hasImages: images.length > 0,
         authorUid: author.uid,
         authorName: author.name,
         authorAvatar: author.avatar || "",
         createdAt: now,
         updatedAt: now,
       };
-      if (JSON.stringify(post).length > MAX_DOC_BYTES) {
-        alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
-        setBusy(false);
-        return;
-      }
       await setDoc(doc(db, "posts", id), post);
+      if (images.length > 0) {
+        await setDoc(doc(db, "postMedia", id), { images, authorUid: author.uid });
+      }
       onSaved();
     } finally {
       setBusy(false);

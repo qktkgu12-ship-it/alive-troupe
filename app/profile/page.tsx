@@ -35,7 +35,8 @@ function ProfileInner() {
     if (!file) return;
     setImgBusy(true);
     try {
-      const data = await compressImage(file, 256, 0.7);
+      // 프로필 사진은 글마다 붙어다니므로 더 작게 압축 (128px)
+      const data = await compressImage(file, 128, 0.7);
       setAvatar(data);
     } catch {
       alert("이미지를 불러오지 못했어요.");

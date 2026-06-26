@@ -10,7 +10,7 @@ export default function Avatar({
 }) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt="" className={`shrink-0 rounded-full border border-slate-200 object-cover ${className}`} />;
+    return <img src={src} alt="" loading="lazy" className={`shrink-0 rounded-full border border-slate-200 object-cover ${className}`} />;
   }
   const initial = (name || "?").trim().charAt(0) || "?";
   return (
