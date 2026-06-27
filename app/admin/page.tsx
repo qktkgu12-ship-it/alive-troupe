@@ -285,11 +285,15 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newGisu, setNewGisu] = useState("");
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null); // 이름·기수 인라인 수정
   const [eName, setEName] = useState("");
   const [eGisu, setEGisu] = useState("");
-  const [eParts, setEParts] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+
+  // 참여명단 모달
+  const [partProd, setPartProd] = useState<Production | null>(null);
+  const [mParts, setMParts] = useState<Set<string>>(new Set());
+  const [mBusy, setMBusy] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -323,31 +327,50 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
     setEditId(p.id);
     setEName(p.name);
     setEGisu(p.gisu || "");
-    setEParts(new Set(p.participants || []));
-  }
-
-  function toggle(uid: string) {
-    setEParts((prev) => {
-      const n = new Set(prev);
-      if (n.has(uid)) n.delete(uid);
-      else n.add(uid);
-      return n;
-    });
   }
 
   async function saveEdit() {
     if (!editId) return;
     setBusy(true);
     try {
-      await setDoc(
-        doc(db, "productions", editId),
-        { name: eName.trim(), gisu: eGisu.trim(), participants: [...eParts] },
-        { merge: true }
-      );
+      // 참여명단은 건드리지 않도록 이름·기수만 merge
+      await setDoc(doc(db, "productions", editId), { name: eName.trim(), gisu: eGisu.trim() }, { merge: true });
       setEditId(null);
       load();
     } finally {
       setBusy(false);
+    }
+  }
+
+  // ----- 참여명단 모달 -----
+  function openParts(p: Production) {
+    setPartProd(p);
+    setMParts(new Set(p.participants || []));
+  }
+  function closeParts() {
+    setPartProd(null);
+  }
+  function toggleM(uid: string) {
+    setMParts((prev) => {
+      const n = new Set(prev);
+      if (n.has(uid)) n.delete(uid);
+      else n.add(uid);
+      return n;
+    });
+  }
+  const allSelected = members.length > 0 && members.every((m) => mParts.has(m.uid));
+  function toggleAll() {
+    setMParts(allSelected ? new Set() : new Set(members.map((m) => m.uid)));
+  }
+  async function saveParts() {
+    if (!partProd) return;
+    setMBusy(true);
+    try {
+      await setDoc(doc(db, "productions", partProd.id), { participants: [...mParts] }, { merge: true });
+      closeParts();
+      load();
+    } finally {
+      setMBusy(false);
     }
   }
 
@@ -359,6 +382,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
     await Promise.all(arc.docs.map((d) => setDoc(d.ref, { productionId: null }, { merge: true })));
     await deleteDoc(doc(db, "productions", p.id));
     if (editId === p.id) setEditId(null);
+    if (partProd?.id === p.id) closeParts();
     load();
   }
 
@@ -392,8 +416,9 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
                   <p className="text-xs text-slate-400">참여 {p.participants?.length || 0}명</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
+                  <button onClick={() => openParts(p)} className="btn-ghost !py-1.5">참여명단</button>
                   <button onClick={() => (editId === p.id ? setEditId(null) : startEdit(p))} className="btn-ghost !py-1.5">
-                    {editId === p.id ? "접기" : "참여명단"}
+                    {editId === p.id ? "접기" : "수정"}
                   </button>
                   <button onClick={() => remove(p)} className="btn-danger">삭제</button>
                 </div>
@@ -405,29 +430,6 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
                     <input className="input" value={eName} onChange={(e) => setEName(e.target.value)} placeholder="작품명" />
                     <input className="input" value={eGisu} onChange={(e) => setEGisu(e.target.value)} placeholder="기수" />
                   </div>
-                  <div>
-                    <p className="label">참여 단원 (체크한 사람만 접근 가능)</p>
-                    {members.length === 0 ? (
-                      <p className="text-sm text-slate-400">승인된 단원이 없습니다.</p>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-                        {members.map((m) => (
-                          <label key={m.uid} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
-                            <input
-                              type="checkbox"
-                              checked={eParts.has(m.uid)}
-                              onChange={() => toggle(m.uid)}
-                              className="h-4 w-4 accent-[rgb(var(--accent))]"
-                            />
-                            <span className="truncate">
-                              {m.name || m.displayName}
-                              {m.group ? ` · ${m.group}` : ""}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                   <button onClick={saveEdit} disabled={busy} className="btn-accent w-full">
                     {busy ? "저장 중…" : "저장"}
                   </button>
@@ -435,6 +437,73 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 참여명단 모달 */}
+      {partProd && (
+        <div
+          onClick={closeParts}
+          className="fixed inset-0 z-[60] grid place-items-end bg-slate-900/40 backdrop-blur-sm sm:place-items-center sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:rounded-2xl"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4">
+              <div className="min-w-0">
+                <p className="truncate font-bold text-slate-900">{partProd.name} 참여명단</p>
+                <p className="text-xs text-slate-400">{mParts.size}명 선택됨</p>
+              </div>
+              <button
+                onClick={toggleAll}
+                disabled={members.length === 0}
+                className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                {allSelected ? "전체 해제" : "전체 선택"}
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {members.length === 0 ? (
+                <p className="py-10 text-center text-sm text-slate-400">승인된 단원이 없습니다.</p>
+              ) : (
+                members.map((m) => {
+                  const checked = mParts.has(m.uid);
+                  return (
+                    <button
+                      key={m.uid}
+                      onClick={() => toggleM(m.uid)}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50"
+                    >
+                      <span
+                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition ${
+                          checked ? "border-accent bg-accent text-accent-fg" : "border-slate-300"
+                        }`}
+                      >
+                        {checked && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m5 12 5 5 9-10" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        <span className="font-medium text-slate-800">{m.name || m.displayName}</span>
+                        {m.group && <span className="ml-1.5 text-xs text-slate-400">{m.group}</span>}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex gap-2 border-t border-slate-100 p-4">
+              <button onClick={closeParts} className="btn-ghost flex-1">닫기</button>
+              <button onClick={saveParts} disabled={mBusy} className="btn-accent flex-1">
+                {mBusy ? "저장 중…" : "저장"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
