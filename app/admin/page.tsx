@@ -426,9 +426,9 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
       ) : productions.length === 0 ? (
         <p className="py-4 text-center text-sm text-slate-400">아직 작품이 없습니다.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="divide-y divide-slate-100">
           {productions.map((p) => (
-            <div key={p.id} className="rounded-xl bg-surface p-3">
+            <div key={p.id} className="py-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <button
