@@ -15,6 +15,7 @@ import { hexToRgbTriplet, readableTextColor } from "./utils";
 const DEFAULT_SETTINGS: SiteSettings = {
   troupeName: "ALIVE 얼라이브",
   currentProduction: "",
+  currentProductionId: "",
   accentColor: "#7c3aed", // 기본: 보라
 };
 

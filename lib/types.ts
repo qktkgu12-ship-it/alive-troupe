@@ -166,6 +166,7 @@ export interface Comment {
 // 사이트 설정 (현재 공연 + 테마색)
 export interface SiteSettings {
   troupeName: string;
-  currentProduction: string; // 현재 진행 중인 공연명
+  currentProduction: string; // (구버전) 현재 진행 중인 공연명 텍스트
+  currentProductionId?: string; // 현재 진행 작품의 productions 문서 id (자료등록 기본값)
   accentColor: string; // HEX 예: #7c3aed
 }

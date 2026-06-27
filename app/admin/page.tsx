@@ -295,6 +295,13 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
   const [mParts, setMParts] = useState<Set<string>>(new Set());
   const [mBusy, setMBusy] = useState(false);
 
+  // 현재 진행 작품 (자료등록 기본값)
+  const { settings, saveSettings } = useTheme();
+  const currentId = settings.currentProductionId || "";
+  function setCurrent(pid: string) {
+    saveSettings({ currentProductionId: currentId === pid ? "" : pid });
+  }
+
   async function load() {
     setLoading(true);
     try {
@@ -390,6 +397,8 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
     <div>
       <p className="mb-3 text-sm text-slate-500">
         작품마다 참여 단원을 지정하면, 그 작품의 영상·음원을 참여 단원만 보고 받을 수 있어요.
+        <br />
+        ★를 누르면 ‘현재 진행 작품’이 되어, 아카이브 자료 등록 시 기본으로 선택돼요.
       </p>
 
       {/* 새 작품 추가 */}
@@ -408,12 +417,25 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
           {productions.map((p) => (
             <div key={p.id} className="rounded-xl border border-slate-200 p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-900">
-                    {p.name}
-                    {p.gisu && <span className="chip ml-1.5">{p.gisu}</span>}
-                  </p>
-                  <p className="text-xs text-slate-400">참여 {p.participants?.length || 0}명</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <button
+                    onClick={() => setCurrent(p.id)}
+                    title="현재 진행 작품으로 설정"
+                    aria-label="현재 진행 작품으로 설정"
+                    className={`shrink-0 text-lg leading-none transition ${currentId === p.id ? "text-accent" : "text-slate-300 hover:text-slate-400"}`}
+                  >
+                    {currentId === p.id ? "★" : "☆"}
+                  </button>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">
+                      {p.name}
+                      {p.gisu && <span className="chip ml-1.5">{p.gisu}</span>}
+                      {currentId === p.id && (
+                        <span className="ml-1.5 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">진행 중</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-400">참여 {p.participants?.length || 0}명</p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button onClick={() => openParts(p)} className="btn-ghost !py-1.5">참여명단</button>

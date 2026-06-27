@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
@@ -22,6 +23,13 @@ function openLink(url: string) {
   const safe = safeExternalUrl(url);
   if (safe) window.open(safe, "_blank", "noreferrer");
   else alert("열 수 없는 링크입니다. (http/https 주소만 지원)");
+}
+
+// 오늘 날짜(YYYY-MM-DD, 로컬 기준)
+function todayStr() {
+  const d = new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
 }
 
 // 자료의 영상 목록 (구버전: url 하나 → 단일 클립으로 변환)
@@ -428,10 +436,17 @@ function ArchiveForm({
   author: { uid: string; name: string };
   edit?: ArchiveItem;
 }) {
+  const { settings } = useTheme();
+  // 새 자료: 현재 진행 작품을 기본 선택(접근 가능한 작품일 때만), 날짜는 오늘
+  const defaultPid =
+    settings.currentProductionId && productions.some((p) => p.id === settings.currentProductionId)
+      ? settings.currentProductionId
+      : "";
+
   const [title, setTitle] = useState(edit?.title ?? "");
-  const [productionId, setProductionId] = useState(edit?.productionId ?? "");
+  const [productionId, setProductionId] = useState(edit ? edit.productionId ?? "" : defaultPid);
   const [kind, setKind] = useState<ArchiveKind>(edit?.kind ?? "rehearsal");
-  const [date, setDate] = useState(edit?.date ?? "");
+  const [date, setDate] = useState(edit ? edit.date : todayStr());
   const [clips, setClips] = useState<ArchiveClip[]>(edit ? itemClips(edit) : [{ label: "", url: "" }]);
   const [description, setDescription] = useState(edit?.description ?? "");
   const [tags, setTags] = useState((edit?.tags ?? []).join(" "));
