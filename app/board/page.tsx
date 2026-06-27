@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
-import { BOARD_LABEL, BOARD_ORDER, type BoardKey, type Post } from "@/lib/types";
+import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
 // Firestore 문서 1MB 제한 안전선
 const MAX_DOC_BYTES = 950_000;
@@ -17,12 +18,19 @@ const MAX_DOC_BYTES = 950_000;
 function BoardInner() {
   const { user, profile, role } = useAuth();
   const isAdmin = role === "admin";
+  const { settings, saveSettings } = useTheme();
+  const categories =
+    settings.boardCategories && settings.boardCategories.length > 0
+      ? settings.boardCategories
+      : DEFAULT_BOARD_CATEGORIES;
 
-  const [tab, setTab] = useState<BoardKey | "all">("all");
+  const [tab, setTab] = useState<string>("all"); // "all" 또는 카테고리 이름
   const [posts, setPosts] = useState<Post[]>([]);
   const [notices, setNotices] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [manageCats, setManageCats] = useState(false);
+  const [newCat, setNewCat] = useState("");
 
   const PAGE = 20;
   const [page, setPage] = useState(1);
@@ -42,14 +50,11 @@ function BoardInner() {
     );
   }, []);
 
-  const loadBoard = useCallback(async (t: BoardKey | "all") => {
+  // 글은 한 번에 모두 불러오고, 탭/검색은 화면에서 거름 (카테고리가 동적이라 단순·안전)
+  const loadBoard = useCallback(async () => {
     setLoading(true);
     try {
-      // "전체"는 모든 게시판 글을 한 번에, 나머지는 해당 게시판만
-      const snap =
-        t === "all"
-          ? await getDocs(collection(db, "posts"))
-          : await getDocs(query(collection(db, "posts"), where("board", "==", t)));
+      const snap = await getDocs(collection(db, "posts"));
       setPosts(
         snap.docs
           .map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))
@@ -63,32 +68,54 @@ function BoardInner() {
 
   useEffect(() => {
     loadNotices();
-  }, [loadNotices]);
+    loadBoard();
+  }, [loadNotices, loadBoard]);
 
   // 글 상세의 '목록' 버튼 등에서 ?cat=무대 로 들어오면 해당 탭으로 시작
   useEffect(() => {
     const cat = new URLSearchParams(window.location.search).get("cat");
-    if (cat && (BOARD_ORDER as readonly string[]).includes(cat)) {
-      setTab(cat as BoardKey);
-    }
+    if (cat) setTab(cat);
   }, []);
 
   useEffect(() => {
-    loadBoard(tab);
     setPage(1);
-  }, [tab, loadBoard]);
+  }, [tab]);
 
-  // 검색어/탭이 바뀐 결과로 거른 목록
+  // 탭(카테고리) + 검색어로 거른 목록
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return posts;
     return posts.filter((p) => {
+      if (tab !== "all" && boardCategoryLabel(p.board) !== tab) return false;
+      if (!q) return true;
       if (searchField === "title") return p.title.toLowerCase().includes(q);
       if (searchField === "author") return (p.authorName || "").toLowerCase().includes(q);
-      // 제목 + 내용
       return p.title.toLowerCase().includes(q) || (p.content || "").toLowerCase().includes(q);
     });
-  }, [posts, searchQuery, searchField]);
+  }, [posts, tab, searchQuery, searchField]);
+
+  const countByCat = (c: string) => posts.filter((p) => boardCategoryLabel(p.board) === c).length;
+
+  async function addCategory() {
+    const name = newCat.trim();
+    if (!name) return;
+    if (categories.includes(name)) {
+      alert("이미 있는 종류예요.");
+      return;
+    }
+    await saveSettings({ boardCategories: [...categories, name] });
+    setNewCat("");
+    setTab(name);
+  }
+  async function removeCategory(c: string) {
+    const cnt = countByCat(c);
+    const msg =
+      cnt > 0
+        ? `'${c}' 종류에 글 ${cnt}개가 있어요. 탭을 지우면 그 글들은 '전체'에서만 보이게 됩니다(삭제는 아님). 계속할까요?`
+        : `'${c}' 종류를 삭제할까요?`;
+    if (!confirm(msg)) return;
+    await saveSettings({ boardCategories: categories.filter((x) => x !== c) });
+    if (tab === c) setTab("all");
+  }
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE));
   const curPage = Math.min(page, pageCount);
@@ -109,29 +136,70 @@ function BoardInner() {
       </div>
 
       {/* 탭 (카테고리가 늘어나면 가로로 스크롤) */}
-      <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 text-sm font-medium">
-        {(["all", ...BOARD_ORDER] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 transition ${
-              tab === t ? "bg-white text-accent shadow-sm" : "text-slate-500"
-            }`}
-          >
-            {t === "all" ? "전체" : BOARD_LABEL[t]}
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 text-sm font-medium">
+          {["all", ...categories].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 transition ${
+                tab === t ? "bg-white text-accent shadow-sm" : "text-slate-500"
+              }`}
+            >
+              {t === "all" ? "전체" : t}
+            </button>
+          ))}
+        </div>
+        {isAdmin && (
+          <button onClick={() => setManageCats((v) => !v)} className="shrink-0 text-xs font-medium text-slate-500 hover:underline">
+            {manageCats ? "완료" : "종류 편집"}
           </button>
-        ))}
+        )}
       </div>
+
+      {/* 종류 편집 패널 (관리자만) */}
+      {isAdmin && manageCats && (
+        <div className="card space-y-3 border-dashed">
+          <div className="flex flex-wrap gap-2">
+            {categories.map((c) => (
+              <span key={c} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
+                {c}
+                <button
+                  onClick={() => removeCategory(c)}
+                  disabled={categories.length <= 1}
+                  aria-label={`${c} 삭제`}
+                  className="text-slate-400 transition hover:text-red-500 disabled:opacity-30"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              value={newCat}
+              onChange={(e) => setNewCat(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addCategory();
+              }}
+              placeholder="새 종류 이름 (예: 회계, 홍보)"
+            />
+            <button onClick={addCategory} className="btn-accent shrink-0">추가</button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <PostForm
-          defaultBoard={tab === "all" ? "free" : tab}
+          categories={categories}
+          defaultBoard={tab !== "all" && categories.includes(tab) ? tab : categories[0]}
           isAdmin={isAdmin}
           author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "", avatar: profile?.avatar || "" }}
           onSaved={() => {
             setShowForm(false);
             loadNotices();
-            loadBoard(tab);
+            loadBoard();
           }}
         />
       )}
@@ -181,7 +249,7 @@ function BoardInner() {
                     {p.likeCount}
                   </span>
                 )}
-                <span className="chip !bg-slate-100 !px-1.5 !py-0">{BOARD_LABEL[p.board]}</span>
+                <span className="chip !bg-slate-100 !px-1.5 !py-0">{boardCategoryLabel(p.board)}</span>
                 <span className="text-slate-500">{p.authorName}</span>
                 <span>·</span>
                 <span className="inline-flex items-center gap-0.5">
@@ -287,17 +355,19 @@ function Pagination({
 }
 
 function PostForm({
+  categories,
   defaultBoard,
   isAdmin,
   author,
   onSaved,
 }: {
-  defaultBoard: BoardKey;
+  categories: string[];
+  defaultBoard: string;
   isAdmin: boolean;
   author: { uid: string; name: string; avatar: string };
   onSaved: () => void;
 }) {
-  const [board, setBoard] = useState<BoardKey>(defaultBoard);
+  const [board, setBoard] = useState<string>(defaultBoard);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -347,17 +417,17 @@ function PostForm({
     <div className="card space-y-3">
       <div>
         <label className="label">게시판(카테고리)</label>
-        <select className="input" value={board} onChange={(e) => setBoard(e.target.value as BoardKey)}>
-          {BOARD_ORDER.map((b) => (
+        <select className="input" value={board} onChange={(e) => setBoard(e.target.value)}>
+          {categories.map((b) => (
             <option key={b} value={b}>
-              {BOARD_LABEL[b]}
+              {b}
             </option>
           ))}
         </select>
       </div>
       <div>
         <label className="label">제목</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`${BOARD_LABEL[board]}에 글쓰기`} />
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`${board}에 글쓰기`} />
       </div>
       <div>
         <label className="label">내용</label>

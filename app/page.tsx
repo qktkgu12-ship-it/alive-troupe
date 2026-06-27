@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
-import { BOARD_LABEL, type Post, type ScheduleEvent } from "@/lib/types";
+import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
 
 function parseDate(s: string) {
@@ -183,7 +183,7 @@ function HomeInner() {
                       <span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">공지</span>
                     ) : (
                       <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-                        {BOARD_LABEL[p.board]}
+                        {boardCategoryLabel(p.board)}
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{p.title}</span>

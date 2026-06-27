@@ -12,7 +12,7 @@ import Linkify from "@/components/Linkify";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
-import { BOARD_LABEL, type Comment, type Post, type PostMedia } from "@/lib/types";
+import { boardCategoryLabel, type Comment, type Post, type PostMedia } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
 
@@ -254,7 +254,7 @@ function PostDetailInner() {
             {post.isNotice ? (
               <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">공지</span>
             ) : (
-              <span className="chip">{BOARD_LABEL[post.board]}</span>
+              <span className="chip">{boardCategoryLabel(post.board)}</span>
             )}
           </div>
           <h1 className="text-xl font-bold text-slate-900">{post.title}</h1>
@@ -322,7 +322,7 @@ function PostDetailInner() {
             </span>
           )}
           <Link
-            href={`/board?cat=${post.board}`}
+            href={`/board?cat=${encodeURIComponent(boardCategoryLabel(post.board))}`}
             className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             목록

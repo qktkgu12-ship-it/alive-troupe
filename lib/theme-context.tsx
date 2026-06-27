@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   currentProduction: "",
   currentProductionId: "",
   resourceCategories: ["음원", "기타"],
+  boardCategories: ["자유게시판", "의상·소품", "무대"],
   accentColor: "#7c3aed", // 기본: 보라
 };
 

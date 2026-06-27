@@ -125,7 +125,7 @@ export interface AudioTrack {
 }
 
 // 게시판
-export type BoardKey = "free" | "costume" | "stage";
+export type BoardKey = "free" | "costume" | "stage"; // (구버전 키)
 export const BOARD_LABEL: Record<BoardKey, string> = {
   free: "자유게시판",
   costume: "의상·소품",
@@ -133,9 +133,16 @@ export const BOARD_LABEL: Record<BoardKey, string> = {
 };
 export const BOARD_ORDER: BoardKey[] = ["free", "costume", "stage"];
 
+// 게시판 종류 기본값(관리자가 추가/삭제). 카테고리는 '이름' 문자열로 저장됨.
+export const DEFAULT_BOARD_CATEGORIES = ["자유게시판", "의상·소품", "무대"];
+// 구버전 글은 board가 키(free/costume/stage)로 저장돼 있어 이름으로 변환
+export function boardCategoryLabel(board: string): string {
+  return (BOARD_LABEL as Record<string, string>)[board] ?? board;
+}
+
 export interface Post {
   id: string;
-  board: BoardKey;
+  board: string; // 카테고리 이름(신규) 또는 구버전 키(free/costume/stage)
   isNotice: boolean; // 공지 (관리자만 작성, 모든 게시판 상단 고정)
   title: string;
   content: string;
@@ -173,5 +180,6 @@ export interface SiteSettings {
   currentProduction: string; // (구버전) 현재 진행 중인 공연명 텍스트
   currentProductionId?: string; // 현재 진행 작품의 productions 문서 id (자료등록 기본값)
   resourceCategories?: string[]; // 자료실 종류(탭) 목록 — 관리자가 추가/삭제
+  boardCategories?: string[]; // 게시판 종류(탭) 목록 — 관리자가 추가/삭제
   accentColor: string; // HEX 예: #7c3aed
 }
