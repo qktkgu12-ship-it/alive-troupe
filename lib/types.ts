@@ -21,6 +21,15 @@ export interface UserProfile {
   notifReads?: Record<string, number>; // 읽은 알림 ID → 읽은 시각
 }
 
+// 단원끼리 볼 수 있는 공개 프로필 (연락처 등 민감정보 제외)
+// users 문서는 본인·관리자만 읽을 수 있어, 명단/댓글에서 서로 프로필을 보려면 별도 공개본이 필요
+export interface PublicProfile {
+  name: string;
+  part: string; // 배역·파트
+  group: string; // 소속·기수
+  avatar?: string;
+}
+
 export type ArchiveKind = "performance" | "rehearsal" | "etc";
 export const ARCHIVE_KIND_LABEL: Record<ArchiveKind, string> = {
   performance: "공연",

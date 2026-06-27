@@ -89,6 +89,21 @@ export const BoardIcon = makeIcon(
   </>
 );
 
+export const MegaphoneIcon = makeIcon(
+  <>
+    <path d="M3 10v4a1 1 0 0 0 1 1h3l5 4V5L7 9H4a1 1 0 0 0-1 1z" />
+    <path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" />
+  </>
+);
+
+export const UserPlusIcon = makeIcon(
+  <>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3.8 20a5.2 5.2 0 0 1 10.4 0" />
+    <path d="M18 8v6M21 11h-6" />
+  </>
+);
+
 // 경로(href) → 아이콘 매핑 (헤더/사이드바 공용)
 export const NAV_ICON: Record<string, FC<IconProps>> = {
   "/": HomeIcon,

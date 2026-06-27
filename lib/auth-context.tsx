@@ -34,6 +34,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 단원끼리 볼 수 있는 공개 프로필(이름·배역·기수·사진) 동기화. 연락처 등 민감정보는 제외.
+  function syncPublicProfile(p: UserProfile) {
+    setDoc(
+      doc(db, "publicProfiles", p.uid),
+      {
+        name: p.name || p.displayName || "",
+        part: p.part || "",
+        group: p.group || "",
+        avatar: p.avatar || "",
+      },
+      { merge: true }
+    ).catch(() => {});
+  }
+
   async function loadProfile(u: User) {
     const ref = doc(db, "users", u.uid);
     const snap = await getDoc(ref);
@@ -55,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       await setDoc(ref, newProfile);
       setProfile(newProfile);
+      syncPublicProfile(newProfile);
       return;
     }
 
@@ -65,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.role = "admin";
     }
     setProfile(data);
+    syncPublicProfile(data);
   }
 
   useEffect(() => {

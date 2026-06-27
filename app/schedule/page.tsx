@@ -13,7 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
-import Avatar from "@/components/Avatar";
+import { ProfileAvatar } from "@/components/ProfileViewer";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -390,7 +390,7 @@ function ScheduleInner() {
                       <div className="space-y-1.5">
                         {membersForActive.map((m) => (
                           <div key={m.uid} className="flex items-center gap-2">
-                            <Avatar src={m.avatar} name={m.name} className="h-7 w-7 text-xs" />
+                            <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
                             <span className="text-sm text-slate-700">{m.name}</span>
                           </div>
                         ))}

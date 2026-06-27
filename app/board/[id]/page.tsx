@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
-import Avatar from "@/components/Avatar";
+import { ProfileAvatar } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
 import { BOARD_LABEL, type Comment, type Post, type PostMedia } from "@/lib/types";
@@ -259,7 +259,7 @@ function PostDetailInner() {
           </div>
           <h1 className="text-xl font-bold text-slate-900">{post.title}</h1>
           <div className="mt-3 flex items-center gap-2.5">
-            <Avatar src={post.authorAvatar} name={post.authorName} className="h-9 w-9 text-sm" />
+            <ProfileAvatar uid={post.authorUid} name={post.authorName} avatar={post.authorAvatar} className="h-9 w-9 text-sm" />
             <div className="leading-tight">
               <p className="text-sm font-medium text-slate-700">{post.authorName}</p>
               <p className="text-xs text-slate-400">{fmtDateTime(post.createdAt)}</p>
@@ -352,7 +352,7 @@ function PostDetailInner() {
             <div className="divide-y divide-slate-100">
               {comments.slice(0, visibleC).map((c) => (
                 <div key={c.id} className="flex items-start gap-2.5 py-3">
-                  <Avatar src={c.authorAvatar} name={c.authorName} className="h-8 w-8 shrink-0 text-xs" />
+                  <ProfileAvatar uid={c.authorUid} name={c.authorName} avatar={c.authorAvatar} className="h-8 w-8 text-xs" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">
                       <span className="font-medium text-slate-800">{c.authorName}</span>

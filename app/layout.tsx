@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import NotificationBell from "@/components/NotificationBell";
+import { ProfileViewerProvider } from "@/components/ProfileViewer";
 
 export const metadata: Metadata = {
   title: "ALIVE 얼라이브",
@@ -37,8 +38,10 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <ThemeProvider>
-            {children}
-            <NotificationBell />
+            <ProfileViewerProvider>
+              {children}
+              <NotificationBell />
+            </ProfileViewerProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

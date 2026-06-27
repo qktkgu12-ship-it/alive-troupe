@@ -7,15 +7,24 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { fetchNotifications, type AppNotification, type NotifType } from "@/lib/notifications";
 import { relativeTime } from "@/lib/utils";
+import {
+  ArchiveIcon,
+  CalendarIcon,
+  CommentIcon,
+  HeartIcon,
+  MegaphoneIcon,
+  MusicIcon,
+  UserPlusIcon,
+} from "@/components/Icons";
 
-const ICON: Record<NotifType, string> = {
-  event: "📅",
-  archive: "📷",
-  audio: "🎵",
-  like: "❤️",
-  comment: "💬",
-  notice: "📢",
-  approval: "🙋",
+const ICON: Record<NotifType, React.FC<{ className?: string }>> = {
+  event: CalendarIcon,
+  archive: ArchiveIcon,
+  audio: MusicIcon,
+  like: HeartIcon,
+  comment: CommentIcon,
+  notice: MegaphoneIcon,
+  approval: UserPlusIcon,
 };
 
 function BellIcon() {
@@ -89,7 +98,9 @@ export default function NotificationBell() {
 
   if (!user || !isMember) return null;
 
-  const unreadCount = items.filter((n) => !reads[n.id]).length;
+  // 클릭(읽음)한 알림은 목록에서 사라짐 → 안 읽은 것만 표시
+  const visibleItems = items.filter((n) => !reads[n.id]);
+  const unreadCount = visibleItems.length;
 
   function persistReads(next: Record<string, number>) {
     setReads(next); // 낙관적 갱신
@@ -135,28 +146,27 @@ export default function NotificationBell() {
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto">
-              {loading && items.length === 0 ? (
+              {loading && visibleItems.length === 0 ? (
                 <p className="py-12 text-center text-sm text-slate-400">불러오는 중…</p>
-              ) : items.length === 0 ? (
+              ) : visibleItems.length === 0 ? (
                 <p className="py-12 text-center text-sm text-slate-400">새로운 알림이 없어요.</p>
               ) : (
-                items.map((n) => {
-                  const isUnread = !reads[n.id];
+                visibleItems.map((n) => {
+                  const Icon = ICON[n.type];
                   return (
                     <button
                       key={n.id}
                       onClick={() => openItem(n)}
-                      className={`flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3 text-left transition hover:bg-slate-50 ${
-                        isUnread ? "bg-accent-soft/40" : ""
-                      }`}
+                      className="flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3 text-left transition hover:bg-slate-50"
                     >
-                      <span className="mt-0.5 shrink-0 text-lg leading-none">{ICON[n.type]}</span>
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+                        <Icon className="h-5 w-5" />
+                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-slate-800">{n.title}</span>
                         {n.sub && <span className="mt-0.5 block truncate text-xs text-slate-500">{n.sub}</span>}
                         <span className="mt-0.5 block text-[11px] text-slate-400">{relativeTime(n.time)}</span>
                       </span>
-                      {isUnread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
                     </button>
                   );
                 })
