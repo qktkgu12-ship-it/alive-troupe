@@ -113,15 +113,13 @@ function HomeInner() {
               const dt = parseDate(e.date);
               const meta = eventMeta(e);
               return (
-                <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-                  <DateBadge month={dt.getMonth() + 1} day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-fg">{ddayLabel(e.date)}</span>
-                      <span className="text-xs text-slate-400">
-                        {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-                      </span>
-                    </div>
+                <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
+                  <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
+                  <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
+                  <div className="min-w-0 flex-1 pr-12">
+                    <p className="mb-0.5 text-xs text-slate-400">
+                      {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
+                    </p>
                     <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
                     <p className="mt-0.5 text-sm text-slate-500">{meta || "시간·장소 미정"}</p>
                     {e.memo && (

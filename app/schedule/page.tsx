@@ -766,7 +766,7 @@ function EventsSection({
         {events.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">이번 달 확정 일정이 없습니다.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-slate-100">
             {sortedEvents.map((e) => {
               const past = eventPassed(e);
               const dow = WEEKDAYS_KO[new Date(e.date + "T00:00:00").getDay()];
@@ -774,11 +774,11 @@ function EventsSection({
               <div
                 key={e.id}
                 id={`ev-${e.id}`}
-                className={`flex items-start gap-3 rounded-xl bg-surface p-3 transition ${
-                  highlightId === e.id ? "ring-2 ring-accent" : ""
+                className={`flex items-start gap-3 py-3 transition ${
+                  highlightId === e.id ? "-mx-2 rounded-xl bg-accent-soft px-2" : ""
                 } ${past ? "opacity-60" : ""}`}
               >
-                <DateBadge month={Number(e.date.slice(5, 7))} day={Number(e.date.slice(8, 10))} weekday={dow} size="sm" />
+                <DateBadge day={Number(e.date.slice(8, 10))} weekday={dow} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{e.title}</p>
                   <p className="text-sm text-slate-500">
