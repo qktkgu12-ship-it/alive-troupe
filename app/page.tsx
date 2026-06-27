@@ -6,7 +6,7 @@ import { collection, getDocs, limit, orderBy, query, where } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
-import { ArchiveIcon, MusicIcon } from "@/components/Icons";
+import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import { BOARD_LABEL, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ function eventMeta(e: ScheduleEvent) {
 
 const FEATURES = [
   { href: "/archive", title: "아카이브", desc: "공연 · 연습 기록", Icon: ArchiveIcon },
-  { href: "/audio", title: "음원 자료실", desc: "MR · 가이드", Icon: MusicIcon },
+  { href: "/audio", title: "자료실", desc: "음원 · 악보 · 문서", Icon: FolderIcon },
 ];
 
 function HomeInner() {

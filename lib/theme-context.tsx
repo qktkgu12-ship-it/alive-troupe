@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   troupeName: "ALIVE 얼라이브",
   currentProduction: "",
   currentProductionId: "",
+  resourceCategories: ["음원", "기타"],
   accentColor: "#7c3aed", // 기본: 보라
 };
 

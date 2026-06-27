@@ -11,7 +11,7 @@ const NAV = [
   { href: "/", label: "홈", admin: false },
   { href: "/schedule", label: "일정", admin: false },
   { href: "/archive", label: "아카이브", admin: false },
-  { href: "/audio", label: "음원 자료실", admin: false },
+  { href: "/audio", label: "자료실", admin: false },
   { href: "/board", label: "게시판", admin: false },
   { href: "/admin", label: "관리", admin: true },
 ];

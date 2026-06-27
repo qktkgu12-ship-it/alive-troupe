@@ -5,9 +5,7 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./firebase";
 import {
-  AUDIO_KIND_LABEL,
   type ArchiveItem,
-  type AudioKind,
   type AudioTrack,
   type Comment,
   type Post,
@@ -142,8 +140,8 @@ export async function fetchNotifications({
       out.push({
         id: `audio_${id}`,
         type: "audio",
-        title: `음원 자료실에 새 곡: ${a.song}`,
-        sub: AUDIO_KIND_LABEL[a.kind as AudioKind],
+        title: `자료실에 새 자료: ${a.title || a.song || ""}`,
+        sub: a.category || "음원",
         time: a.createdAt,
         href: "/audio",
       });

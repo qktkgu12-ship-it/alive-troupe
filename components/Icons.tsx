@@ -91,6 +91,10 @@ export const BoardIcon = makeIcon(
 
 export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
 
+export const FolderIcon = makeIcon(
+  <path d="M3.5 7.5a2 2 0 0 1 2-2h3l2 2.2h6a2 2 0 0 1 2 2v6.3a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z" />
+);
+
 export const MegaphoneIcon = makeIcon(
   <>
     <path d="M3 10v4a1 1 0 0 0 1 1h3l5 4V5L7 9H4a1 1 0 0 0-1 1z" />
@@ -111,7 +115,7 @@ export const NAV_ICON: Record<string, FC<IconProps>> = {
   "/": HomeIcon,
   "/schedule": CalendarIcon,
   "/archive": ArchiveIcon,
-  "/audio": MusicIcon,
+  "/audio": FolderIcon,
   "/board": BoardIcon,
   "/members": MembersIcon,
   "/admin": AdminIcon,

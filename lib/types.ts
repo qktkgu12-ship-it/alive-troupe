@@ -101,23 +101,27 @@ export interface Production {
   createdAt: number;
 }
 
-export type AudioKind = "mr" | "guide" | "etc";
+export type AudioKind = "mr" | "guide" | "etc"; // (구버전 호환용)
 export const AUDIO_KIND_LABEL: Record<AudioKind, string> = {
   mr: "MR",
   guide: "가이드",
   etc: "기타",
 };
 
-// 곡별 음원 (구글 드라이브 등 외부 링크 연동)
+// 자료실 항목 (구글 드라이브 등 외부 링크 연동). 컬렉션명은 호환을 위해 'audio' 유지.
 export interface AudioTrack {
   id: string;
   productionId: string;
-  song: string; // 곡명
-  kind: AudioKind; // MR / 가이드 / 기타
-  label: string; // 표시용 이름(선택) 예: "MR 2키 다운"
+  category?: string; // 자료 종류 (음원/기타/…). 없으면 '음원'으로 취급
+  title?: string; // 제목·넘버명·문서명 (구버전: song)
+  memo?: string; // 메모(선택)
   url: string; // 구글 드라이브 등 외부 링크
   addedByName: string;
   createdAt: number;
+  // ----- 구버전 호환 -----
+  song?: string;
+  kind?: AudioKind;
+  label?: string;
 }
 
 // 게시판
@@ -168,5 +172,6 @@ export interface SiteSettings {
   troupeName: string;
   currentProduction: string; // (구버전) 현재 진행 중인 공연명 텍스트
   currentProductionId?: string; // 현재 진행 작품의 productions 문서 id (자료등록 기본값)
+  resourceCategories?: string[]; // 자료실 종류(탭) 목록 — 관리자가 추가/삭제
   accentColor: string; // HEX 예: #7c3aed
 }
