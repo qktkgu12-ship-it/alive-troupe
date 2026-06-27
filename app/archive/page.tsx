@@ -15,13 +15,40 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
-import { ARCHIVE_KIND_LABEL, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
+import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
 function openLink(url: string) {
   const safe = safeExternalUrl(url);
   if (safe) window.open(safe, "_blank", "noreferrer");
   else alert("열 수 없는 링크입니다. (http/https 주소만 지원)");
+}
+
+// 자료의 영상 목록 (구버전: url 하나 → 단일 클립으로 변환)
+function itemClips(it: ArchiveItem): ArchiveClip[] {
+  if (it.clips && it.clips.length > 0) return it.clips;
+  if (it.url) return [{ label: "", url: it.url }];
+  return [];
+}
+
+// 영상 칩들 (라벨이 비면 '영상 N')
+function ClipChips({ clips }: { clips: ArchiveClip[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {clips.map((c, i) => (
+        <button
+          key={i}
+          onClick={(e) => {
+            e.stopPropagation();
+            openLink(c.url);
+          }}
+          className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent transition hover:brightness-95"
+        >
+          {c.label || `영상 ${i + 1}`} ↗
+        </button>
+      ))}
+    </div>
+  );
 }
 
 const KIND_STYLE: Record<ArchiveKind, string> = {
@@ -200,16 +227,21 @@ function ArchiveInner() {
         /* ===== 카드 보기 ===== */
         <div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {sorted.slice(0, visible).map((it) => (
+          {sorted.slice(0, visible).map((it) => {
+            const clips = itemClips(it);
+            const multi = clips.length > 1;
+            return (
             <div
               key={it.id}
-              role="link"
-              tabIndex={0}
-              onClick={() => openLink(it.url)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") openLink(it.url);
+              role={multi ? undefined : "link"}
+              tabIndex={multi ? undefined : 0}
+              onClick={() => {
+                if (!multi && clips[0]) openLink(clips[0].url);
               }}
-              className="card flex cursor-pointer flex-col !p-4 transition hover:shadow-md hover:ring-1 hover:ring-accent/30"
+              onKeyDown={(e) => {
+                if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url);
+              }}
+              className={`card flex flex-col !p-4 transition ${multi ? "" : "cursor-pointer hover:shadow-md hover:ring-1 hover:ring-accent/30"}`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
@@ -217,7 +249,11 @@ function ArchiveInner() {
                 </span>
                 <span className={`chip ${!it.productionId ? "bg-amber-100 text-amber-700" : ""}`}>{prodLabel(it)}</span>
                 <span className="text-xs text-slate-400">{it.date}</span>
-                <span className="ml-auto text-sm font-semibold text-accent">열기 ↗</span>
+                {multi ? (
+                  <span className="ml-auto text-xs font-semibold text-slate-400">영상 {clips.length}개</span>
+                ) : (
+                  <span className="ml-auto text-sm font-semibold text-accent">열기 ↗</span>
+                )}
               </div>
               <h3 className="font-semibold">{it.title}</h3>
               {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
@@ -226,6 +262,11 @@ function ArchiveInner() {
                   {it.tags.map((t) => (
                     <span key={t} className="chip">#{t}</span>
                   ))}
+                </div>
+              )}
+              {multi && (
+                <div className="mt-3">
+                  <ClipChips clips={clips} />
                 </div>
               )}
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
@@ -257,7 +298,8 @@ function ArchiveInner() {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
         {sorted.length > visible && (
           <button onClick={() => setVisible((v) => v + PAGE)} className="btn-ghost mt-3 w-full">
@@ -268,16 +310,21 @@ function ArchiveInner() {
       ) : (
         /* ===== 리스트 보기 ===== */
         <div className="card divide-y divide-slate-100 !p-0">
-          {sorted.slice(0, visible).map((it) => (
+          {sorted.slice(0, visible).map((it) => {
+            const clips = itemClips(it);
+            const multi = clips.length > 1;
+            return (
             <div
               key={it.id}
-              role="link"
-              tabIndex={0}
-              onClick={() => openLink(it.url)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") openLink(it.url);
+              role={multi ? undefined : "link"}
+              tabIndex={multi ? undefined : 0}
+              onClick={() => {
+                if (!multi && clips[0]) openLink(clips[0].url);
               }}
-              className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-50"
+              onKeyDown={(e) => {
+                if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url);
+              }}
+              className={`flex items-center gap-3 px-4 py-3 transition ${multi ? "" : "cursor-pointer hover:bg-slate-50"}`}
             >
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
                 {ARCHIVE_KIND_LABEL[it.kind]}
@@ -287,8 +334,13 @@ function ArchiveInner() {
                 <p className="truncate text-xs text-slate-400">
                   {[prodLabel(it), it.date, it.createdByName].filter(Boolean).join(" · ")}
                 </p>
+                {multi && (
+                  <div className="mt-1.5">
+                    <ClipChips clips={clips} />
+                  </div>
+                )}
               </div>
-              <span className="shrink-0 text-sm font-semibold text-accent">열기 ↗</span>
+              {!multi && <span className="shrink-0 text-sm font-semibold text-accent">열기 ↗</span>}
               {canDelete(it) && (
                 <button
                   onClick={(e) => {
@@ -301,7 +353,8 @@ function ArchiveInner() {
                 </button>
               )}
             </div>
-          ))}
+            );
+          })}
           {sorted.length > visible && (
             <button onClick={() => setVisible((v) => v + PAGE)} className="w-full py-3 text-sm font-medium text-accent hover:bg-slate-50">
               더 보기 ({sorted.length - visible}개)
@@ -328,14 +381,31 @@ function ArchiveForm({
   const [productionId, setProductionId] = useState("");
   const [kind, setKind] = useState<ArchiveKind>("rehearsal");
   const [date, setDate] = useState("");
-  const [url, setUrl] = useState("");
+  const [clips, setClips] = useState<ArchiveClip[]>([{ label: "", url: "" }]);
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [busy, setBusy] = useState(false);
 
+  function updateClip(i: number, field: keyof ArchiveClip, val: string) {
+    setClips((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: val } : c)));
+  }
+  function addClip() {
+    setClips((prev) => [...prev, { label: "", url: "" }]);
+  }
+  function removeClip(i: number) {
+    setClips((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
+  }
+
   async function save() {
-    if (!title.trim() || !url.trim()) {
-      alert("제목과 링크는 필수입니다.");
+    const cleaned = clips
+      .map((c) => ({
+        label: c.label.trim(),
+        url: c.url.trim() ? (c.url.trim().startsWith("http") ? c.url.trim() : `https://${c.url.trim()}`) : "",
+      }))
+      .filter((c) => c.url);
+
+    if (!title.trim() || cleaned.length === 0) {
+      alert("제목과 링크(최소 1개)는 필수입니다.");
       return;
     }
     if (!isAdmin && !productionId) {
@@ -350,7 +420,8 @@ function ArchiveForm({
         productionId: productionId || null,
         kind,
         date: date || new Date().toISOString().slice(0, 10),
-        url: url.startsWith("http") ? url : `https://${url}`,
+        url: cleaned[0].url, // 대표 링크(구버전 호환)
+        clips: cleaned,
         description,
         tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
         createdBy: author.uid,
@@ -398,8 +469,38 @@ function ArchiveForm({
           <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">링크 (유튜브·구글포토 등 사진/영상 주소)</label>
-          <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtu.be/..." />
+          <label className="label">링크 (유튜브·구글포토 등) — 같은 장면 영상이 여러 개면 아래에 추가하세요</label>
+          <div className="space-y-2">
+            {clips.map((c, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  className="input w-28 shrink-0"
+                  value={c.label}
+                  onChange={(e) => updateClip(i, "label", e.target.value)}
+                  placeholder={`라벨 (예: ${i + 1}차)`}
+                />
+                <input
+                  className="input flex-1"
+                  value={c.url}
+                  onChange={(e) => updateClip(i, "url", e.target.value)}
+                  placeholder="https://youtu.be/..."
+                />
+                {clips.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeClip(i)}
+                    aria-label="링크 삭제"
+                    className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 transition hover:bg-slate-50 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={addClip} className="mt-2 text-sm font-medium text-accent hover:underline">
+            + 링크 추가
+          </button>
         </div>
         <div className="sm:col-span-2">
           <label className="label">설명·메모</label>

@@ -37,13 +37,20 @@ export const ARCHIVE_KIND_LABEL: Record<ArchiveKind, string> = {
   etc: "기타",
 };
 
+// 한 자료 안의 개별 영상/링크 (라벨로 구분해 골라봄)
+export interface ArchiveClip {
+  label: string; // 예: 1차, 2차, 정면캠
+  url: string;
+}
+
 export interface ArchiveItem {
   id: string;
   title: string; // 제목 (예: 커튼콜, 1막 런스루)
   productionId: string | null; // 소속 작품 (null = 미지정 = 관리자만)
   kind: ArchiveKind; // 종류
   date: string; // YYYY-MM-DD
-  url: string; // 외부 링크 (유튜브/구글포토 등 사진·영상 모두)
+  url: string; // 대표 링크 (= clips[0].url, 구버전 호환용)
+  clips?: ArchiveClip[]; // 여러 영상(라벨+링크). 없으면 url 하나만 있는 구버전 자료
   description: string; // 설명·메모
   tags: string[]; // 검색용 키워드
   createdBy: string; // uid
