@@ -13,8 +13,7 @@ const NAV = [
   { href: "/archive", label: "아카이브", admin: false },
   { href: "/audio", label: "음원 자료실", admin: false },
   { href: "/board", label: "게시판", admin: false },
-  { href: "/members", label: "단원 명단", admin: true },
-  { href: "/admin", label: "관리자", admin: true },
+  { href: "/admin", label: "관리", admin: true },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

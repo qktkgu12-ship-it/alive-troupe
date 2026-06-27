@@ -1,12 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { arrayRemove, collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
+import { ChevronDownIcon } from "@/components/Icons";
 import type { Production, Role, UserProfile } from "@/lib/types";
+
+// 접기/펼치기 섹션 (열림/접힘 상태를 localStorage에 저장 → 페이지 이동해도 유지)
+function CollapsibleSection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: ReactNode;
+  children: ReactNode;
+}) {
+  const key = `admin-collapse-${id}`;
+  const [open, setOpen] = useState(true); // 기본은 펼침
+
+  useEffect(() => {
+    const v = localStorage.getItem(key);
+    if (v !== null) setOpen(v === "1");
+  }, [key]);
+
+  function toggle() {
+    setOpen((o) => {
+      const n = !o;
+      localStorage.setItem(key, n ? "1" : "0");
+      return n;
+    });
+  }
+
+  return (
+    <section className="card">
+      <button onClick={toggle} className="flex w-full items-center justify-between gap-2 text-left">
+        <h2 className="font-bold">{title}</h2>
+        <ChevronDownIcon className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </section>
+  );
+}
 
 const PRESET_COLORS = [
   { name: "보라 (넥스트 투 노멀)", hex: "#7c3aed" },
@@ -40,6 +78,18 @@ function AdminInner() {
 
   const pending = users.filter((u) => u.role === "guest");
   const approved = users.filter((u) => u.role !== "guest");
+
+  // 회원 관리 검색 (이름·배역·기수·연락처)
+  const [memberSearch, setMemberSearch] = useState("");
+  const approvedFiltered = useMemo(() => {
+    const s = memberSearch.trim().toLowerCase();
+    if (!s) return approved;
+    return approved.filter((u) =>
+      [u.name, u.displayName, u.part, u.group, u.contact, u.email]
+        .filter(Boolean)
+        .some((v) => (v as string).toLowerCase().includes(s))
+    );
+  }, [approved, memberSearch]);
 
   async function changeRole(uid: string, role: Role) {
     await setDoc(doc(db, "users", uid), { role }, { merge: true });
@@ -115,7 +165,7 @@ function AdminInner() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">관리자</h1>
+      <h1 className="text-xl font-bold">관리</h1>
 
       {/* 승인 대기 */}
       <section className="card">
@@ -147,14 +197,27 @@ function AdminInner() {
         )}
       </section>
 
-      {/* 회원 등급 관리 */}
-      <section className="card">
-        <h2 className="mb-3 font-bold">회원 등급 관리 <span className="text-slate-400">{approved.length}명</span></h2>
+      {/* 회원 관리 (단원 명단 + 등급 관리 통합) */}
+      <CollapsibleSection
+        id="members"
+        title={<>회원 관리 <span className="font-normal text-slate-400">{approved.length}명</span></>}
+      >
+        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          🔒 연락처 등 단원 정보는 관리자만 볼 수 있어요.
+        </p>
+        <input
+          className="input mb-3"
+          placeholder="이름 · 배역 · 기수 · 연락처로 검색"
+          value={memberSearch}
+          onChange={(e) => setMemberSearch(e.target.value)}
+        />
         {approved.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">아직 승인된 단원이 없습니다.</p>
+        ) : approvedFiltered.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">검색 결과가 없습니다.</p>
         ) : (
           <div className="space-y-2">
-            {approved.map((u) => {
+            {approvedFiltered.map((u) => {
               const isMe = u.uid === user?.uid;
               return (
                 <div key={u.uid} className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-3">
@@ -162,7 +225,8 @@ function AdminInner() {
                     <p className="font-medium">
                       {u.name || u.displayName} {isMe && <span className="text-xs text-slate-400">(나)</span>}
                     </p>
-                    <p className="text-xs text-slate-500">{[u.email, u.part, u.group].filter(Boolean).join(" · ")}</p>
+                    <p className="text-xs text-slate-500">{[u.part, u.group, u.email].filter(Boolean).join(" · ")}</p>
+                    {u.contact && <p className="text-xs text-slate-500">📞 {u.contact}</p>}
                   </div>
                   <select
                     value={u.role}
@@ -182,14 +246,16 @@ function AdminInner() {
             })}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* 작품 관리 */}
-      <ProductionManager members={approved} />
+      <CollapsibleSection id="productions" title="작품 관리">
+        <ProductionManager members={approved} />
+      </CollapsibleSection>
 
-      {/* 데이터 정리 */}
-      <section className="card">
-        <h2 className="mb-1 font-bold">데이터 정리</h2>
+      {/* 데이터 정리 · 설정 */}
+      <CollapsibleSection id="misc" title="데이터 정리 · 설정">
+        <p className="mb-1 text-sm font-semibold text-slate-700">데이터 정리</p>
         <p className="mb-3 text-sm text-slate-500">
           탈퇴한 단원이 남긴 가능 일정 데이터를 한 번에 정리합니다.
         </p>
@@ -197,7 +263,7 @@ function AdminInner() {
           {cleaning ? "정리 중…" : "탈퇴 단원의 잔여 가능일정 정리"}
         </button>
 
-        <div className="mt-4 border-t border-slate-100 pt-4">
+        <div className="mt-4">
           <p className="mb-3 text-sm text-slate-500">
             프로필 팝업에 배역·기수가 비어 보이면, 전 단원의 공개 프로필을 한 번에 채울 수 있어요.
           </p>
@@ -205,10 +271,11 @@ function AdminInner() {
             {syncing ? "동기화 중…" : "전 단원 공개 프로필 동기화"}
           </button>
         </div>
-      </section>
 
-      {/* 사이트·테마 설정 (맨 아래) */}
-      <SettingsCard />
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <SettingsCard />
+        </div>
+      </CollapsibleSection>
     </div>
   );
 }
@@ -296,8 +363,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
   }
 
   return (
-    <section className="card">
-      <h2 className="mb-1 font-bold">작품 관리</h2>
+    <div>
       <p className="mb-3 text-sm text-slate-500">
         작품마다 참여 단원을 지정하면, 그 작품의 영상·음원을 참여 단원만 보고 받을 수 있어요.
       </p>
@@ -371,7 +437,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
           ))}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -399,9 +465,9 @@ function SettingsCard() {
   }
 
   return (
-    <section className="card space-y-4">
+    <div className="space-y-4">
       <div>
-        <h2 className="font-bold">사이트 · 테마 설정</h2>
+        <p className="text-sm font-semibold text-slate-700">사이트 · 테마 설정</p>
         <p className="text-sm text-slate-500">강조색을 자유롭게 바꿀 수 있어요. (전 단원에게 즉시 반영)</p>
       </div>
 
@@ -439,7 +505,7 @@ function SettingsCard() {
       <button onClick={save} disabled={busy} className="btn-accent">
         {busy ? "저장 중…" : saved ? "저장됐어요 ✓" : "설정 저장"}
       </button>
-    </section>
+    </div>
   );
 }
 

@@ -89,6 +89,8 @@ export const BoardIcon = makeIcon(
   </>
 );
 
+export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
+
 export const MegaphoneIcon = makeIcon(
   <>
     <path d="M3 10v4a1 1 0 0 0 1 1h3l5 4V5L7 9H4a1 1 0 0 0-1 1z" />
