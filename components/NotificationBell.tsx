@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -45,7 +45,6 @@ function BellIcon() {
 export default function NotificationBell() {
   const { user, profile, role } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -91,10 +90,12 @@ export default function NotificationBell() {
     [user, isMember, role, profile?.notifSince]
   );
 
-  // 최초 + 페이지 이동 시(쓰로틀 적용)
+  // 최초 1회 + 3분 간격 백그라운드 갱신 (페이지 이동마다 조회하지 않아 읽기 횟수 절약)
   useEffect(() => {
     refresh();
-  }, [refresh, pathname]);
+    const t = setInterval(() => refresh(), 180_000);
+    return () => clearInterval(t);
+  }, [refresh]);
 
   if (!user || !isMember) return null;
 

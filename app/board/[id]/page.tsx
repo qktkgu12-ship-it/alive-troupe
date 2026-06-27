@@ -274,7 +274,7 @@ function PostDetailInner() {
               {images.map((src, i) => (
                 <button key={i} type="button" onClick={() => setZoom(src)} className="block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" loading="lazy" className="aspect-square w-full cursor-zoom-in rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
+                  <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full cursor-zoom-in rounded-lg border border-slate-200 object-cover transition hover:opacity-90" />
                 </button>
               ))}
             </div>

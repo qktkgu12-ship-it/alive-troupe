@@ -16,6 +16,7 @@ import { safeExternalUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
+import { SkeletonList } from "@/components/Skeleton";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
@@ -248,7 +249,7 @@ function AudioInner() {
 
           {/* 자료 목록 */}
           {loadingItems ? (
-            <p className="py-8 text-center text-slate-400">불러오는 중…</p>
+            <SkeletonList rows={4} />
           ) : catItems.length === 0 ? (
             <p className="card py-8 text-center text-slate-400">‘{activeCat}’ 자료가 없습니다.</p>
           ) : (

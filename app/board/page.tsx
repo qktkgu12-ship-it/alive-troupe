@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
+import { SkeletonList } from "@/components/Skeleton";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
@@ -223,7 +224,7 @@ function BoardInner() {
 
       {/* 게시글 목록 */}
       {loading ? (
-        <p className="py-12 text-center text-slate-400">불러오는 중…</p>
+        <SkeletonList />
       ) : filtered.length === 0 ? (
         <p className="card py-12 text-center text-slate-400">
           {searchQuery ? "검색 결과가 없습니다." : "아직 글이 없습니다. 첫 글을 남겨보세요!"}

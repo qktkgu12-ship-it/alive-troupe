@@ -165,7 +165,7 @@ function AdminInner() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">관리</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">관리</h1>
 
       {/* 승인 대기 */}
       <section className="card">

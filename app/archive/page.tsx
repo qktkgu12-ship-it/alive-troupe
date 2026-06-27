@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
+import { SkeletonCards } from "@/components/Skeleton";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
@@ -245,7 +246,7 @@ function ArchiveInner() {
       </div>
 
       {loading ? (
-        <p className="py-12 text-center text-slate-400">불러오는 중…</p>
+        <SkeletonCards />
       ) : sorted.length === 0 ? (
         <p className="card py-12 text-center text-slate-400">
           {!isAdmin && productions.length === 0
