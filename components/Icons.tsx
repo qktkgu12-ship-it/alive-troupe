@@ -91,6 +91,22 @@ export const BoardIcon = makeIcon(
 
 export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
 
+export const TrashIcon = makeIcon(
+  <>
+    <path d="M4 7h16" />
+    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    <path d="M6.5 7l.8 12a1 1 0 0 0 1 .95h7.4a1 1 0 0 0 1-.95l.8-12" />
+    <path d="M10 11v5M14 11v5" />
+  </>
+);
+
+export const PencilIcon = makeIcon(
+  <>
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+    <path d="m14.5 5.5 3 3" />
+  </>
+);
+
 export const FolderIcon = makeIcon(
   <path d="M3.5 7.5a2 2 0 0 1 2-2h3l2 2.2h6a2 2 0 0 1 2 2v6.3a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z" />
 );

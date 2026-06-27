@@ -68,6 +68,8 @@ function HomeInner() {
         const list = snap.docs
           .map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) }))
           .filter((e) => !eventPassed(e, nowMs)) // 시간이 지난 일정은 제외
+          // 날짜순, 같은 날짜는 시작시간 빠른 순
+          .sort((a, b) => (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || "")))
           .slice(0, 4);
         setUpcoming(list);
       })

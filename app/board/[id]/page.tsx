@@ -10,7 +10,7 @@ import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
 import { ProfileAvatar } from "@/components/ProfileViewer";
-import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
+import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, type Comment, type Post, type PostMedia } from "@/lib/types";
 
@@ -299,8 +299,12 @@ function PostDetailInner() {
 
           {canEdit && (
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setEditing(true)} className="btn-ghost !py-1.5">수정</button>
-              <button onClick={remove} className="btn-danger">삭제</button>
+              <button onClick={() => setEditing(true)} aria-label="수정" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50">
+                <PencilIcon className="h-4 w-4" />
+              </button>
+              <button onClick={remove} aria-label="삭제" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-red-50 hover:text-red-500">
+                <TrashIcon className="h-4 w-4" />
+              </button>
             </div>
           )}
         </article>
@@ -363,7 +367,9 @@ function PostDetailInner() {
                     </p>
                   </div>
                   {(isAdmin || c.authorUid === user?.uid) && (
-                    <button onClick={() => removeComment(c)} className="shrink-0 text-xs text-red-500 hover:underline">삭제</button>
+                    <button onClick={() => removeComment(c)} aria-label="댓글 삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
               ))}

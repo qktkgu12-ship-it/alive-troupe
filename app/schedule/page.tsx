@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import DateBadge from "@/components/DateBadge";
+import { TrashIcon } from "@/components/Icons";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -786,7 +787,11 @@ function EventsSection({
                   {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
                   <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
                 </div>
-                {isAdmin && <button onClick={() => removeEvent(e.id)} className="shrink-0 text-xs text-red-500 hover:underline">삭제</button>}
+                {isAdmin && (
+                  <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               );
             })}

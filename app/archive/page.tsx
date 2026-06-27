@@ -17,6 +17,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
+import { PencilIcon, TrashIcon } from "@/components/Icons";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
@@ -324,18 +325,20 @@ function ArchiveInner() {
                         setEditItem(it);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
-                      className="text-xs text-slate-500 hover:underline"
+                      aria-label="수정"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                     >
-                      수정
+                      <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         removeItem(it);
                       }}
-                      className="text-xs text-red-500 hover:underline"
+                      aria-label="삭제"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
                     >
-                      삭제
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
                 )}
@@ -393,18 +396,20 @@ function ArchiveInner() {
                       setEditItem(it);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="text-xs text-slate-500 hover:underline"
+                    aria-label="수정"
+                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                   >
-                    수정
+                    <PencilIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       removeItem(it);
                     }}
-                    className="text-xs text-red-500 hover:underline"
+                    aria-label="삭제"
+                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
                   >
-                    삭제
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
               )}

@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { SkeletonList } from "@/components/Skeleton";
+import { TrashIcon } from "@/components/Icons";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
@@ -266,8 +267,8 @@ function AudioInner() {
                     열기 ↗
                   </button>
                   {isAdmin && (
-                    <button onClick={() => removeItem(t)} className="shrink-0 text-xs text-red-500 hover:underline">
-                      삭제
+                    <button onClick={() => removeItem(t)} aria-label="삭제" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500">
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   )}
                 </div>

@@ -6,8 +6,16 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
-import { ChevronDownIcon } from "@/components/Icons";
+import Avatar from "@/components/Avatar";
+import { ChevronDownIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import type { Production, Role, UserProfile } from "@/lib/types";
+
+// 역할 드롭다운 색상 (관리자=강조색 / 정단원=초록 / 대기=주황)
+const ROLE_SELECT_CLASS: Record<Role, string> = {
+  admin: "border-accent/20 bg-accent-soft text-accent",
+  member: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  guest: "border-amber-200 bg-amber-50 text-amber-700",
+};
 
 // 접기/펼치기 섹션 (열림/접힘 상태를 localStorage에 저장 → 페이지 이동해도 유지)
 function CollapsibleSection({
@@ -202,12 +210,9 @@ function AdminInner() {
         id="members"
         title={<>회원 관리 <span className="font-normal text-slate-400">{approved.length}명</span></>}
       >
-        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          🔒 연락처 등 단원 정보는 관리자만 볼 수 있어요.
-        </p>
         <input
           className="input mb-3"
-          placeholder="이름 · 배역 · 기수 · 연락처로 검색"
+          placeholder="이름 · 기수로 검색"
           value={memberSearch}
           onChange={(e) => setMemberSearch(e.target.value)}
         />
@@ -216,30 +221,38 @@ function AdminInner() {
         ) : approvedFiltered.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">검색 결과가 없습니다.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-slate-100">
             {approvedFiltered.map((u) => {
               const isMe = u.uid === user?.uid;
               return (
-                <div key={u.uid} className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-3">
+                <div key={u.uid} className="flex items-center gap-3 py-3">
+                  <Avatar src={u.avatar} name={u.name || u.displayName} className="h-10 w-10 text-sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {u.name || u.displayName} {isMe && <span className="text-xs text-slate-400">(나)</span>}
+                    <p className="truncate font-medium text-slate-900">
+                      {u.name || u.displayName} {isMe && <span className="text-xs font-normal text-slate-400">(나)</span>}
                     </p>
-                    <p className="text-xs text-slate-500">{[u.part, u.group, u.email].filter(Boolean).join(" · ")}</p>
-                    {u.contact && <p className="text-xs text-slate-500">📞 {u.contact}</p>}
+                    {u.group && <p className="truncate text-xs text-slate-400">{u.group}</p>}
                   </div>
                   <select
                     value={u.role}
                     disabled={isMe}
                     onChange={(e) => changeRole(u.uid, e.target.value as Role)}
-                    className="input !w-auto !py-1.5 text-sm disabled:opacity-50"
+                    className={`shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold outline-none transition disabled:cursor-default disabled:opacity-70 ${ROLE_SELECT_CLASS[u.role]}`}
                   >
                     <option value="member">정단원</option>
                     <option value="admin">관리자</option>
                     <option value="guest">준단원·게스트(대기)</option>
                   </select>
-                  {!isMe && (
-                    <button onClick={() => rejectUser(u.uid)} className="btn-danger">삭제</button>
+                  {!isMe ? (
+                    <button
+                      onClick={() => rejectUser(u.uid)}
+                      aria-label="삭제"
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <span className="w-8 shrink-0" />
                   )}
                 </div>
               );
@@ -437,12 +450,24 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
                     <p className="text-xs text-slate-400">참여 {p.participants?.length || 0}명</p>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <button onClick={() => openParts(p)} className="btn-ghost !py-1.5">참여명단</button>
-                  <button onClick={() => (editId === p.id ? setEditId(null) : startEdit(p))} className="btn-ghost !py-1.5">
-                    {editId === p.id ? "접기" : "수정"}
+                  <button
+                    onClick={() => (editId === p.id ? setEditId(null) : startEdit(p))}
+                    aria-label="수정"
+                    className={`grid h-9 w-9 place-items-center rounded-lg border transition ${
+                      editId === p.id ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <PencilIcon className="h-4 w-4" />
                   </button>
-                  <button onClick={() => remove(p)} className="btn-danger">삭제</button>
+                  <button
+                    onClick={() => remove(p)}
+                    aria-label="삭제"
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
 
