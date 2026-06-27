@@ -219,8 +219,7 @@ function HomeInner() {
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">관리</h2>
           <div className="flex flex-wrap gap-3">
-            <Link href="/admin" className="btn-accent">관리자 페이지</Link>
-            <Link href="/members" className="btn-ghost">단원 명단</Link>
+            <Link href="/admin" className="btn-accent">관리 페이지</Link>
           </div>
         </section>
       )}

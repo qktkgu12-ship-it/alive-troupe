@@ -600,7 +600,7 @@ function EventForm({
   }
 
   return (
-    <div className="rounded-2xl bg-surface p-4 space-y-3">
+    <div className="card space-y-3">
       <div>
         <label className="label">제목</label>
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 1막 런스루" />
