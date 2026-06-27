@@ -31,7 +31,7 @@ function itemClips(it: ArchiveItem): ArchiveClip[] {
   return [];
 }
 
-// 영상 칩들 (라벨이 비면 '영상 N')
+// 영상 칩들 (라벨이 비면 '영상 N') — ▶ 재생 아이콘으로 '눌러서 보기' 표시
 function ClipChips({ clips }: { clips: ArchiveClip[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -42,9 +42,12 @@ function ClipChips({ clips }: { clips: ArchiveClip[] }) {
             e.stopPropagation();
             openLink(c.url);
           }}
-          className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent transition hover:brightness-95"
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
         >
-          {c.label || `영상 ${i + 1}`} ↗
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+            <path d="M3 2l7 4-7 4z" />
+          </svg>
+          {c.label || `영상 ${i + 1}`}
         </button>
       ))}
     </div>
@@ -67,6 +70,7 @@ function ArchiveInner() {
   const [search, setSearch] = useState("");
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState<ArchiveItem | null>(null);
   const [view, setView] = useState<ViewMode>("card");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const PAGE = 30;
@@ -159,18 +163,35 @@ function ArchiveInner() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">아카이브</h1>
-        <button onClick={() => setShowForm((v) => !v)} className="btn-accent">
-          {showForm ? "닫기" : "+ 자료 등록"}
+        <button
+          onClick={() => {
+            if (showForm || editItem) {
+              setShowForm(false);
+              setEditItem(null);
+            } else {
+              setShowForm(true);
+            }
+          }}
+          className="btn-accent"
+        >
+          {showForm || editItem ? "닫기" : "+ 자료 등록"}
         </button>
       </div>
 
-      {showForm && (
+      {(showForm || editItem) && (
         <ArchiveForm
+          key={editItem?.id ?? "new"}
+          edit={editItem ?? undefined}
           productions={productions}
           isAdmin={isAdmin}
           onSaved={() => {
             setShowForm(false);
+            setEditItem(null);
             load();
+          }}
+          onCancel={() => {
+            setShowForm(false);
+            setEditItem(null);
           }}
           author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "" }}
         />
@@ -286,15 +307,28 @@ function ArchiveInner() {
                   <span className="text-xs text-slate-400">{it.createdByName}</span>
                 )}
                 {canDelete(it) && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeItem(it);
-                    }}
-                    className="shrink-0 text-xs text-red-500 hover:underline"
-                  >
-                    삭제
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowForm(false);
+                        setEditItem(it);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="text-xs text-slate-500 hover:underline"
+                    >
+                      수정
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeItem(it);
+                      }}
+                      className="text-xs text-red-500 hover:underline"
+                    >
+                      삭제
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -342,15 +376,28 @@ function ArchiveInner() {
               </div>
               {!multi && <span className="shrink-0 text-sm font-semibold text-accent">열기 ↗</span>}
               {canDelete(it) && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeItem(it);
-                  }}
-                  className="shrink-0 text-xs text-red-500 hover:underline"
-                >
-                  삭제
-                </button>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowForm(false);
+                      setEditItem(it);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="text-xs text-slate-500 hover:underline"
+                  >
+                    수정
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeItem(it);
+                    }}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    삭제
+                  </button>
+                </div>
               )}
             </div>
             );
@@ -370,20 +417,24 @@ function ArchiveForm({
   productions,
   isAdmin,
   onSaved,
+  onCancel,
   author,
+  edit,
 }: {
   productions: Production[];
   isAdmin: boolean;
   onSaved: () => void;
+  onCancel: () => void;
   author: { uid: string; name: string };
+  edit?: ArchiveItem;
 }) {
-  const [title, setTitle] = useState("");
-  const [productionId, setProductionId] = useState("");
-  const [kind, setKind] = useState<ArchiveKind>("rehearsal");
-  const [date, setDate] = useState("");
-  const [clips, setClips] = useState<ArchiveClip[]>([{ label: "", url: "" }]);
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
+  const [title, setTitle] = useState(edit?.title ?? "");
+  const [productionId, setProductionId] = useState(edit?.productionId ?? "");
+  const [kind, setKind] = useState<ArchiveKind>(edit?.kind ?? "rehearsal");
+  const [date, setDate] = useState(edit?.date ?? "");
+  const [clips, setClips] = useState<ArchiveClip[]>(edit ? itemClips(edit) : [{ label: "", url: "" }]);
+  const [description, setDescription] = useState(edit?.description ?? "");
+  const [tags, setTags] = useState((edit?.tags ?? []).join(" "));
   const [busy, setBusy] = useState(false);
 
   function updateClip(i: number, field: keyof ArchiveClip, val: string) {
@@ -414,8 +465,7 @@ function ArchiveForm({
     }
     setBusy(true);
     try {
-      const id = crypto.randomUUID();
-      const item: Omit<ArchiveItem, "id"> = {
+      const fields = {
         title: title.trim(),
         productionId: productionId || null,
         kind,
@@ -424,11 +474,18 @@ function ArchiveForm({
         clips: cleaned,
         description,
         tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
-        createdBy: author.uid,
-        createdByName: author.name,
-        createdAt: Date.now(),
       };
-      await setDoc(doc(db, "archives", id), item);
+      if (edit) {
+        // 수정: 작성자·작성일은 유지
+        await setDoc(doc(db, "archives", edit.id), fields, { merge: true });
+      } else {
+        await setDoc(doc(db, "archives", crypto.randomUUID()), {
+          ...fields,
+          createdBy: author.uid,
+          createdByName: author.name,
+          createdAt: Date.now(),
+        });
+      }
       onSaved();
     } finally {
       setBusy(false);
@@ -437,6 +494,7 @@ function ArchiveForm({
 
   return (
     <div className="card space-y-3">
+      <p className="font-bold text-slate-900">{edit ? "자료 수정" : "자료 등록"}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className="label">작품</label>
@@ -511,9 +569,12 @@ function ArchiveForm({
           <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="커튼콜 메이킹 1막" />
         </div>
       </div>
-      <button onClick={save} disabled={busy} className="btn-accent w-full">
-        {busy ? "등록 중…" : "자료 등록"}
-      </button>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="btn-ghost">취소</button>
+        <button onClick={save} disabled={busy} className="btn-accent flex-1">
+          {busy ? "저장 중…" : edit ? "수정 저장" : "자료 등록"}
+        </button>
+      </div>
     </div>
   );
 }
