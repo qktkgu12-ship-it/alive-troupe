@@ -142,6 +142,7 @@ export interface Comment {
   id: string;
   authorUid: string;
   authorName: string;
+  authorAvatar?: string; // 작성 시점의 프로필 사진(압축 data URL) — 다른 사람 프로필은 못 읽으므로 denormalize
   content: string;
   createdAt: number;
 }

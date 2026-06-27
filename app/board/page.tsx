@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -23,8 +23,15 @@ function BoardInner() {
   const [notices, setNotices] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const PAGE = 30;
-  const [visible, setVisible] = useState(PAGE);
+
+  const PAGE = 20;
+  const [page, setPage] = useState(1);
+
+  // 검색
+  type SearchField = "title" | "titleContent" | "author";
+  const [searchField, setSearchField] = useState<SearchField>("title");
+  const [searchInput, setSearchInput] = useState(""); // 입력 중인 값
+  const [searchQuery, setSearchQuery] = useState(""); // 적용된 검색어
 
   const loadNotices = useCallback(async () => {
     const snap = await getDocs(query(collection(db, "posts"), where("isNotice", "==", true)));
@@ -58,10 +65,39 @@ function BoardInner() {
     loadNotices();
   }, [loadNotices]);
 
+  // 글 상세의 '목록' 버튼 등에서 ?cat=무대 로 들어오면 해당 탭으로 시작
+  useEffect(() => {
+    const cat = new URLSearchParams(window.location.search).get("cat");
+    if (cat && (BOARD_ORDER as readonly string[]).includes(cat)) {
+      setTab(cat as BoardKey);
+    }
+  }, []);
+
   useEffect(() => {
     loadBoard(tab);
-    setVisible(PAGE);
+    setPage(1);
   }, [tab, loadBoard]);
+
+  // 검색어/탭이 바뀐 결과로 거른 목록
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return posts;
+    return posts.filter((p) => {
+      if (searchField === "title") return p.title.toLowerCase().includes(q);
+      if (searchField === "author") return (p.authorName || "").toLowerCase().includes(q);
+      // 제목 + 내용
+      return p.title.toLowerCase().includes(q) || (p.content || "").toLowerCase().includes(q);
+    });
+  }, [posts, searchQuery, searchField]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const curPage = Math.min(page, pageCount);
+  const pageItems = filtered.slice((curPage - 1) * PAGE, curPage * PAGE);
+
+  function runSearch() {
+    setSearchQuery(searchInput);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-5">
@@ -120,11 +156,13 @@ function BoardInner() {
       {/* 게시글 목록 */}
       {loading ? (
         <p className="py-12 text-center text-slate-400">불러오는 중…</p>
-      ) : posts.length === 0 ? (
-        <p className="card py-12 text-center text-slate-400">아직 글이 없습니다. 첫 글을 남겨보세요!</p>
+      ) : filtered.length === 0 ? (
+        <p className="card py-12 text-center text-slate-400">
+          {searchQuery ? "검색 결과가 없습니다." : "아직 글이 없습니다. 첫 글을 남겨보세요!"}
+        </p>
       ) : (
         <div className="card divide-y divide-slate-100 !p-0">
-          {posts.slice(0, visible).map((p) => (
+          {pageItems.map((p) => (
             <Link key={p.id} href={`/board/${p.id}`} className="block px-4 py-3 transition hover:bg-slate-50">
               <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
@@ -155,13 +193,95 @@ function BoardInner() {
               </div>
             </Link>
           ))}
-          {posts.length > visible && (
-            <button onClick={() => setVisible((v) => v + PAGE)} className="w-full py-3 text-sm font-medium text-accent hover:bg-slate-50">
-              더 보기 ({posts.length - visible}개)
-            </button>
-          )}
         </div>
       )}
+
+      {/* 페이지 번호 */}
+      {!loading && pageCount > 1 && (
+        <Pagination
+          page={curPage}
+          pageCount={pageCount}
+          onChange={(p) => {
+            setPage(p);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      )}
+
+      {/* 검색 */}
+      {!loading && (
+        <div className="flex gap-2">
+          <select
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value as SearchField)}
+            className="input w-28 shrink-0"
+          >
+            <option value="title">제목</option>
+            <option value="titleContent">제목+내용</option>
+            <option value="author">글쓴이</option>
+          </select>
+          <input
+            className="input flex-1"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") runSearch();
+            }}
+            placeholder="검색할 단어 입력"
+          />
+          <button onClick={runSearch} className="btn-accent shrink-0">
+            검색
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (p: number) => void;
+}) {
+  const WINDOW = 5;
+  let start = Math.max(1, page - Math.floor(WINDOW / 2));
+  const end = Math.min(pageCount, start + WINDOW - 1);
+  start = Math.max(1, end - WINDOW + 1);
+  const nums: number[] = [];
+  for (let i = start; i <= end; i++) nums.push(i);
+
+  const base = "grid h-9 min-w-[36px] place-items-center rounded-lg px-3 text-sm font-medium transition";
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      <button
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+        className={`${base} border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40`}
+      >
+        이전
+      </button>
+      {nums.map((n) => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          className={`${base} ${
+            n === page ? "bg-accent text-accent-fg" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {n}
+        </button>
+      ))}
+      <button
+        disabled={page >= pageCount}
+        onClick={() => onChange(page + 1)}
+        className={`${base} border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40`}
+      >
+        다음
+      </button>
     </div>
   );
 }

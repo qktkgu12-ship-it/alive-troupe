@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
@@ -48,6 +48,10 @@ function PostDetailInner() {
   const [visibleC, setVisibleC] = useState(10);
   const viewedRef = useRef(false);
 
+  // 같은 게시판 안에서의 이전/다음 글
+  const [prevPost, setPrevPost] = useState<{ id: string; title: string } | null>(null);
+  const [nextPost, setNextPost] = useState<{ id: string; title: string } | null>(null);
+
   const loadComments = useCallback(async () => {
     const snap = await getDocs(query(collection(db, "posts", id, "comments"), orderBy("createdAt", "asc")));
     setComments(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Comment, "id">) })));
@@ -91,6 +95,32 @@ function PostDetailInner() {
     load();
   }, [id, user, loadComments]);
 
+  // 같은 게시판 글 목록에서 현재 글의 앞뒤를 찾아 이전/다음 글 링크 구성
+  useEffect(() => {
+    if (!post) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "posts"), where("board", "==", post.board)));
+        const list = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))
+          .filter((p) => !p.isNotice)
+          .sort((a, b) => b.createdAt - a.createdAt); // 최신순
+        const idx = list.findIndex((p) => p.id === post.id);
+        if (cancelled || idx === -1) return;
+        const older = list[idx + 1]; // 먼저 쓴 글 = 이전글
+        const newer = list[idx - 1]; // 나중에 쓴 글 = 다음글
+        setPrevPost(older ? { id: older.id, title: older.title } : null);
+        setNextPost(newer ? { id: newer.id, title: newer.title } : null);
+      } catch {
+        /* 무시 */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [post]);
+
   async function toggleLike() {
     if (!user || !post) return;
     const ref = doc(db, "postLikes", `${id}_${user.uid}`);
@@ -120,6 +150,7 @@ function PostDetailInner() {
       await setDoc(doc(db, "posts", id, "comments", cid), {
         authorUid: user.uid,
         authorName: profile?.name || profile?.displayName || "",
+        authorAvatar: profile?.avatar || "",
         content: commentText.trim(),
         createdAt: Date.now(),
       });
@@ -275,6 +306,42 @@ function PostDetailInner() {
         </article>
       )}
 
+      {/* 글 네비게이션: 이전글 / 목록 / 다음글 */}
+      {!editing && (
+        <div className="grid grid-cols-3 gap-2">
+          {prevPost ? (
+            <Link
+              href={`/board/${prevPost.id}`}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              ← 이전글
+            </Link>
+          ) : (
+            <span className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-300">
+              ← 이전글
+            </span>
+          )}
+          <Link
+            href={`/board?cat=${post.board}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            ≡ 목록
+          </Link>
+          {nextPost ? (
+            <Link
+              href={`/board/${nextPost.id}`}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              다음글 →
+            </Link>
+          ) : (
+            <span className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-300">
+              다음글 →
+            </span>
+          )}
+        </div>
+      )}
+
       {/* 댓글 */}
       {!editing && (
         <section className="card">
@@ -284,8 +351,9 @@ function PostDetailInner() {
           ) : (
             <div className="divide-y divide-slate-100">
               {comments.slice(0, visibleC).map((c) => (
-                <div key={c.id} className="flex items-start justify-between gap-3 py-3">
-                  <div className="min-w-0">
+                <div key={c.id} className="flex items-start gap-2.5 py-3">
+                  <Avatar src={c.authorAvatar} name={c.authorName} className="h-8 w-8 shrink-0 text-xs" />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm">
                       <span className="font-medium text-slate-800">{c.authorName}</span>
                       <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
