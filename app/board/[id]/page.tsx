@@ -306,37 +306,37 @@ function PostDetailInner() {
         </article>
       )}
 
-      {/* 글 네비게이션: 이전글 / 목록 / 다음글 */}
+      {/* 글 네비게이션: 이전글 / 목록 / 다음글 (알약 칩, 중앙 묶음) */}
       {!editing && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex items-center justify-center gap-2">
           {prevPost ? (
             <Link
               href={`/board/${prevPost.id}`}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             >
-              ← 이전글
+              ‹ 이전글
             </Link>
           ) : (
-            <span className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-300">
-              ← 이전글
+            <span className="rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-sm text-slate-300">
+              ‹ 이전글
             </span>
           )}
           <Link
             href={`/board?cat=${post.board}`}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            ≡ 목록
+            목록
           </Link>
           {nextPost ? (
             <Link
               href={`/board/${nextPost.id}`}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             >
-              다음글 →
+              다음글 ›
             </Link>
           ) : (
-            <span className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-300">
-              다음글 →
+            <span className="rounded-full border border-slate-100 bg-slate-50 px-4 py-2 text-sm text-slate-300">
+              다음글 ›
             </span>
           )}
         </div>

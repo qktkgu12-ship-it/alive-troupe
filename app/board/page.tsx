@@ -208,9 +208,9 @@ function BoardInner() {
         />
       )}
 
-      {/* 검색 */}
+      {/* 검색 (중앙 정렬, 좌우 여백) */}
       {!loading && (
-        <div className="flex gap-2">
+        <div className="mx-auto flex w-full max-w-[480px] gap-2">
           <select
             value={searchField}
             onChange={(e) => setSearchField(e.target.value as SearchField)}
