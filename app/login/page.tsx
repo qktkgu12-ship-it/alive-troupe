@@ -39,7 +39,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/wordmark.png" alt="ALIVE" className="mx-auto mb-6 h-10 w-auto" />
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">단원 전용 공간</h1>
+        <h1 className="text-xl font-bold italic tracking-tight text-accent">Today here, Right now!</h1>
         <p className="mt-2 text-sm text-slate-500">
           구글 계정으로 로그인해 주세요.
         </p>
