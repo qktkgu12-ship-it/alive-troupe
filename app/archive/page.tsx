@@ -216,7 +216,7 @@ function ArchiveInner() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+          <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
             {([["all", "전체"], ["rehearsal", "연습"], ["performance", "공연"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
               ([k, label]) => (
                 <button
@@ -230,7 +230,7 @@ function ArchiveInner() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+            <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
               {([["newest", "최신순"], ["oldest", "오래된순"]] as ["newest" | "oldest", string][]).map(([v, label]) => (
                 <button
                   key={v}

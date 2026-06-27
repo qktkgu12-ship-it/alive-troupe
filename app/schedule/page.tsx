@@ -343,7 +343,7 @@ function ScheduleInner() {
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">일정</h1>
 
       {/* 탭 */}
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+      <div className="flex gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
         {(["coord", "events"] as Tab[]).map((t) => (
           <button
             key={t}

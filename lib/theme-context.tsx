@@ -10,7 +10,7 @@ import {
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import type { SiteSettings } from "./types";
-import { hexToRgbTriplet, readableTextColor } from "./utils";
+import { derivePalette, hexToRgbTriplet, readableTextColor } from "./utils";
 
 const DEFAULT_SETTINGS: SiteSettings = {
   troupeName: "ALIVE 얼라이브",
@@ -36,12 +36,19 @@ function applyAccent(hex: string) {
   const root = document.documentElement;
   const accent = hexToRgbTriplet(hex);
   const accentFg = readableTextColor(hex);
+  const { bg, surface, surfaceStrong } = derivePalette(hex);
   root.style.setProperty("--accent", accent);
   root.style.setProperty("--accent-fg", accentFg);
+  root.style.setProperty("--bg", bg);
+  root.style.setProperty("--surface", surface);
+  root.style.setProperty("--surface-strong", surfaceStrong);
   // 다음 방문 때 깜빡임 없이 바로 칠하도록 캐시 (layout.tsx의 인라인 스크립트가 읽음)
   try {
     localStorage.setItem("alive-accent", accent);
     localStorage.setItem("alive-accent-fg", accentFg);
+    localStorage.setItem("alive-bg", bg);
+    localStorage.setItem("alive-surface", surface);
+    localStorage.setItem("alive-surface-strong", surfaceStrong);
   } catch {
     /* 무시 */
   }

@@ -138,7 +138,7 @@ function BoardInner() {
 
       {/* 탭 (카테고리가 늘어나면 가로로 스크롤) */}
       <div className="flex items-center gap-2">
-        <div className="flex flex-1 gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 text-sm font-medium">
+        <div className="flex flex-1 gap-1 overflow-x-auto rounded-xl bg-surface p-1 text-sm font-medium">
           {["all", ...categories].map((t) => (
             <button
               key={t}

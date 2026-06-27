@@ -5,6 +5,10 @@
 :root {
   --accent: 124 58 237; /* 기본 보라, 런타임에 교체됨 */
   --accent-fg: 255 255 255;
+  /* 강조색에서 파생되는 배경/보조색 (기본값=보라 계열, 런타임에 교체됨) */
+  --bg: 249 248 252;
+  --surface: 240 237 248;
+  --surface-strong: 226 220 241;
   --font-sans: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo",
     "Malgun Gothic", system-ui, sans-serif;
 }
@@ -20,7 +24,7 @@ html {
 }
 
 body {
-  background: #ffffff;
+  background: rgb(var(--bg));
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -45,9 +49,9 @@ body {
     @apply mb-1.5 block text-sm font-medium text-slate-600;
   }
   .card {
-    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)];
+    @apply rounded-2xl border border-surface-strong bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)];
   }
   .chip {
-    @apply inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600;
+    @apply inline-flex items-center rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-slate-600;
   }
 }

@@ -196,7 +196,7 @@ function AudioInner() {
 
           {/* 종류(탭) */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
+            <div className="flex flex-wrap gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
               {categories.map((c) => (
                 <button
                   key={c}

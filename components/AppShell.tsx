@@ -46,7 +46,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/40">
+    <div className="min-h-screen bg-canvas">
       {/* 뉴트럴 헤더 */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">

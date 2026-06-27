@@ -25,6 +25,65 @@ export function readableTextColor(hex: string): string {
   return luminance > 0.6 ? "17 24 39" : "255 255 255";
 }
 
+// ---------- 강조색 1개에서 팔레트(배경·보조색) 자동 생성 ----------
+// HSL로 변환해 '색상(Hue)'은 고정하고 채도·명도만 조절 → 같은 계열(모노크롬)로 항상 어울림
+
+function hexToHsl(hex: string): [number, number, number] {
+  const [r, g, b] = hexToRgbTriplet(hex).split(" ").map((n) => Number(n) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  const d = max - min;
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return [h * 360, s, l];
+}
+
+function hslToTriplet(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360 / 360;
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  let r: number, g: number, b: number;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return `${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)}`;
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+// 강조색 → { bg(배경 60%), surface(보조 30%), surfaceStrong(테두리/호버) } RGB 트리플
+export function derivePalette(accentHex: string): {
+  bg: string;
+  surface: string;
+  surfaceStrong: string;
+} {
+  const [h, s] = hexToHsl(accentHex);
+  return {
+    bg: hslToTriplet(h, clamp(s * 0.4, 0.06, 0.16), 0.975),
+    surface: hslToTriplet(h, clamp(s * 0.5, 0.08, 0.2), 0.94),
+    surfaceStrong: hslToTriplet(h, clamp(s * 0.5, 0.08, 0.22), 0.88),
+  };
+}
+
 export function formatBytes(bytes: number): string {
   if (!bytes) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
