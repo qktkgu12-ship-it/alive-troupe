@@ -17,7 +17,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { SkeletonList } from "@/components/Skeleton";
-import { TrashIcon } from "@/components/Icons";
+import EmptyState from "@/components/EmptyState";
+import { FolderIcon, MusicIcon, TrashIcon } from "@/components/Icons";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
@@ -137,19 +138,21 @@ function AudioInner() {
       <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">자료실</h1>
 
       {isAdmin && (
-        <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
-          💡 자료는 구글 드라이브 등에 올린 뒤 <b>공유 링크</b>를 등록하는 방식입니다.
-          파일·폴더는 <b>‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요. (음원 한 넘버에 MR·가이드를 한 폴더로 올리면 편해요)
-        </div>
+        <p className="text-xs leading-relaxed text-slate-400">
+          💡 자료는 구글 드라이브 등에 올린 뒤 <b className="font-semibold text-slate-500">공유 링크</b>를 등록하는 방식입니다.
+          파일·폴더는 <b className="font-semibold text-slate-500">‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요. (음원 한 넘버에 MR·가이드를 한 폴더로 올리면 편해요)
+        </p>
       )}
 
       {/* 작품(폴더) 탭 — 참여 중인 작품만 표시 */}
       {productions.length === 0 ? (
-        <p className="card py-12 text-center text-slate-400">
-          {isAdmin
-            ? "작품이 없습니다. 관리 > 작품 관리에서 추가하세요."
-            : "참여 중인 작품이 없습니다. (관리자가 작품 참여명단에 추가하면 보여요)"}
-        </p>
+        <div className="card">
+          <EmptyState
+            icon={FolderIcon}
+            title="작품이 없습니다."
+            hint={isAdmin ? "관리 > 작품 관리에서 추가하세요." : "관리자가 작품 참여명단에 추가하면 보여요."}
+          />
+        </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           {productions.map((p) => (
@@ -217,7 +220,7 @@ function AudioInner() {
 
           {/* 종류 편집 패널 (관리자만) */}
           {isAdmin && manageCats && (
-            <div className="rounded-2xl bg-surface p-4 space-y-3">
+            <div className="card space-y-3">
               <div className="flex flex-wrap gap-2">
                 {categories.map((c) => (
                   <span key={c} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
@@ -252,7 +255,9 @@ function AudioInner() {
           {loadingItems ? (
             <SkeletonList rows={4} />
           ) : catItems.length === 0 ? (
-            <p className="card py-8 text-center text-slate-400">‘{activeCat}’ 자료가 없습니다.</p>
+            <div className="card">
+              <EmptyState icon={MusicIcon} title={`‘${activeCat}’ 자료가 없습니다.`} />
+            </div>
           ) : (
             <div className="card divide-y divide-slate-100 !p-0">
               {catItems.map((t) => (
@@ -331,7 +336,7 @@ function AddForm({
   }
 
   return (
-    <div className="rounded-2xl bg-surface p-4 space-y-3">
+    <div className="card space-y-3">
       <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
         <select className="input" value={cat} onChange={(e) => setCat(e.target.value)}>
           {categories.map((c) => (

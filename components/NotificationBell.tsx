@@ -183,7 +183,7 @@ export default function NotificationBell() {
             if (willOpen) refresh(true);
           }}
           aria-label="알림"
-          className="relative grid h-14 w-14 place-items-center rounded-full bg-accent text-accent-fg shadow-lg shadow-accent/30 transition hover:brightness-110 active:scale-95"
+          className="bg-accent-gradient relative grid h-14 w-14 place-items-center rounded-full text-accent-fg shadow-lg shadow-accent/30 transition hover:brightness-110 active:scale-95"
         >
           <BellIcon />
           {unreadCount > 0 && (

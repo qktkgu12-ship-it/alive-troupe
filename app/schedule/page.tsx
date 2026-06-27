@@ -15,7 +15,8 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import DateBadge from "@/components/DateBadge";
-import { TrashIcon } from "@/components/Icons";
+import EmptyState from "@/components/EmptyState";
+import { CalendarIcon, TrashIcon } from "@/components/Icons";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -764,7 +765,7 @@ function EventsSection({
         )}
 
         {events.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">이번 달 확정 일정이 없습니다.</p>
+          <EmptyState icon={CalendarIcon} title="이번 달 확정 일정이 없습니다." />
         ) : (
           <div className="divide-y divide-slate-100">
             {sortedEvents.map((e) => {
@@ -778,7 +779,7 @@ function EventsSection({
                   highlightId === e.id ? "-mx-2 rounded-xl bg-accent-soft px-2" : ""
                 } ${past ? "opacity-60" : ""}`}
               >
-                <DateBadge day={Number(e.date.slice(8, 10))} weekday={dow} size="sm" />
+                <DateBadge day={Number(e.date.slice(8, 10))} weekday={dow} variant="plain" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{e.title}</p>
                   <p className="text-sm text-slate-500">

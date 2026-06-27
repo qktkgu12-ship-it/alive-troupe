@@ -1,14 +1,27 @@
-// 강조색으로 꽉 찬 심플·강렬한 날짜 배지 (큰 흰 숫자 + 작은 요일, 월 표시 없음)
+// 날짜 배지
+// variant="solid" : 강조색 꽉 찬 사각형 + 흰 숫자 (홈 강조 카드 등 단독 강조용)
+// variant="plain" : 박스 없이 강조색 숫자 + 회색 요일 (목록용 — 가볍게)
 
 export default function DateBadge({
   day,
   weekday,
   size = "md",
+  variant = "solid",
 }: {
   day: number;
   weekday: string;
   size?: "sm" | "md";
+  variant?: "solid" | "plain";
 }) {
+  if (variant === "plain") {
+    return (
+      <div className="flex w-11 shrink-0 flex-col items-center leading-none">
+        <span className="text-2xl font-extrabold text-accent">{day}</span>
+        <span className="mt-1 text-[11px] font-medium text-slate-400">{weekday}</span>
+      </div>
+    );
+  }
+
   const md = size === "md";
   return (
     <div

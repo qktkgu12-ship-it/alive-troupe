@@ -139,7 +139,7 @@ function HomeInner() {
                   return (
                     <Link key={e.id} href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
                       <div className="w-11 shrink-0 text-center leading-none">
-                        <p className="text-sm font-bold text-slate-700">{dt.getMonth() + 1}.{dt.getDate()}</p>
+                        <p className="text-base font-extrabold text-accent">{dt.getMonth() + 1}.{dt.getDate()}</p>
                         <p className="mt-1 text-[11px] text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</p>
                       </div>
                       <div className="min-w-0 flex-1">

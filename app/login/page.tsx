@@ -35,8 +35,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-white px-4">
-      <div className="w-full max-w-sm text-center">
+    <div className="grid min-h-screen place-items-center bg-canvas px-4">
+      <div className="card w-full max-w-sm text-center !p-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/wordmark.png" alt="ALIVE" className="mx-auto mb-6 h-10 w-auto" />
         <h1 className="text-xl font-bold italic tracking-tight text-slate-900">Today here, Right now!</h1>

@@ -8,8 +8,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
-import { CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
+import { BoardIcon, CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
 import { SkeletonList } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
@@ -160,7 +161,7 @@ function BoardInner() {
 
       {/* 종류 편집 패널 (관리자만) */}
       {isAdmin && manageCats && (
-        <div className="rounded-2xl bg-surface p-4 space-y-3">
+        <div className="card space-y-3">
           <div className="flex flex-wrap gap-2">
             {categories.map((c) => (
               <span key={c} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
@@ -226,9 +227,13 @@ function BoardInner() {
       {loading ? (
         <SkeletonList />
       ) : filtered.length === 0 ? (
-        <p className="card py-12 text-center text-slate-400">
-          {searchQuery ? "검색 결과가 없습니다." : "아직 글이 없습니다. 첫 글을 남겨보세요!"}
-        </p>
+        <div className="card">
+          <EmptyState
+            icon={BoardIcon}
+            title={searchQuery ? "검색 결과가 없습니다." : "아직 글이 없습니다."}
+            hint={searchQuery ? undefined : "첫 글을 남겨보세요!"}
+          />
+        </div>
       ) : (
         <div className="card divide-y divide-slate-100 !p-0">
           {pageItems.map((p) => (

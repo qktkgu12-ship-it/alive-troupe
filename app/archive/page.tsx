@@ -17,7 +17,8 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
-import { PencilIcon, TrashIcon } from "@/components/Icons";
+import EmptyState from "@/components/EmptyState";
+import { ArchiveIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
@@ -249,11 +250,13 @@ function ArchiveInner() {
       {loading ? (
         <SkeletonCards />
       ) : sorted.length === 0 ? (
-        <p className="card py-12 text-center text-slate-400">
-          {!isAdmin && productions.length === 0
-            ? "참여 중인 작품이 없어 볼 수 있는 자료가 없습니다."
-            : "자료가 없습니다."}
-        </p>
+        <div className="card">
+          <EmptyState
+            icon={ArchiveIcon}
+            title="자료가 없습니다."
+            hint={!isAdmin && productions.length === 0 ? "참여 중인 작품이 없어요." : undefined}
+          />
+        </div>
       ) : view === "card" ? (
         /* ===== 카드 보기 ===== */
         <div>
