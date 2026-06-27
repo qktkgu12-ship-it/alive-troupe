@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
+import DateBadge from "@/components/DateBadge";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -34,6 +35,20 @@ const TAB_INFO: Record<Tab, { label: string; desc: string }> = {
 function dateLabel(ds: string) {
   const d = new Date(ds + "T00:00:00");
   return { md: `${d.getMonth() + 1}/${d.getDate()}`, dow: WEEKDAYS_KO[d.getDay()] };
+}
+
+// 종료시간(없으면 시작시간, 둘 다 없으면 그날 자정)이 지났으면 '지난 일정'
+function eventPassed(e: ScheduleEvent): boolean {
+  const [y, m, d] = e.date.split("-").map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  const end = e.endTime || e.startTime;
+  if (end) {
+    const [hh, mm] = end.split(":").map(Number);
+    dt.setHours(hh || 0, mm || 0, 0, 0);
+  } else {
+    dt.setHours(23, 59, 59, 999);
+  }
+  return dt.getTime() < Date.now();
 }
 
 // 선택된 슬롯들을 연속 구간 문자열로 ("18:00~22:00")
@@ -680,6 +695,14 @@ function EventsSection({
     onChanged();
   }
 
+  // 안 지난 일정 먼저(날짜·시간순), 지난 일정은 맨 아래로
+  const sortedEvents = [...events].sort((a, b) => {
+    const pa = eventPassed(a);
+    const pb = eventPassed(b);
+    if (pa !== pb) return pa ? 1 : -1;
+    return (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || ""));
+  });
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* 왼쪽: 달력 (월 선택 카드 안 + 일정 있는 날 동그라미) */}
@@ -743,18 +766,20 @@ function EventsSection({
           <p className="py-8 text-center text-sm text-slate-400">이번 달 확정 일정이 없습니다.</p>
         ) : (
           <div className="space-y-2">
-            {events.map((e) => (
+            {sortedEvents.map((e) => {
+              const past = eventPassed(e);
+              const dow = WEEKDAYS_KO[new Date(e.date + "T00:00:00").getDay()];
+              return (
               <div
                 key={e.id}
                 id={`ev-${e.id}`}
-                className={`flex items-start gap-3 rounded-xl border p-3 transition ${highlightId === e.id ? "border-accent ring-2 ring-accent" : "border-slate-200/70"}`}
+                className={`flex items-start gap-3 rounded-xl border p-3 transition ${
+                  highlightId === e.id ? "border-accent ring-2 ring-accent" : "border-slate-200/70"
+                } ${past ? "opacity-60" : ""}`}
               >
-                <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft leading-none text-accent">
-                  <span className="text-[10px] font-semibold">{Number(e.date.slice(5, 7))}월</span>
-                  <span className="text-base font-extrabold">{Number(e.date.slice(8, 10))}</span>
-                </div>
+                <DateBadge month={Number(e.date.slice(5, 7))} day={Number(e.date.slice(8, 10))} weekday={dow} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{e.title}</p>
+                  <p className="truncate font-semibold">{e.title}</p>
                   <p className="text-sm text-slate-500">
                     {[e.startTime && `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}`, e.location].filter(Boolean).join(" · ") || "시간·장소 미정"}
                   </p>
@@ -763,7 +788,8 @@ function EventsSection({
                 </div>
                 {isAdmin && <button onClick={() => removeEvent(e.id)} className="shrink-0 text-xs text-red-500 hover:underline">삭제</button>}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

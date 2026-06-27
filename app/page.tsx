@@ -6,6 +6,7 @@ import { collection, getDocs, limit, orderBy, query, where } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import DateBadge from "@/components/DateBadge";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
@@ -29,6 +30,18 @@ function eventMeta(e: ScheduleEvent) {
   const time = e.startTime ? `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}` : "";
   return [time, e.location].filter(Boolean).join(" · ");
 }
+// 종료시간(없으면 시작시간, 둘 다 없으면 그날 자정)이 지났으면 '지난 일정'
+function eventPassed(e: ScheduleEvent, nowMs: number) {
+  const dt = parseDate(e.date);
+  const end = e.endTime || e.startTime;
+  if (end) {
+    const [h, m] = end.split(":").map(Number);
+    dt.setHours(h || 0, m || 0, 0, 0);
+  } else {
+    dt.setHours(23, 59, 59, 999);
+  }
+  return dt.getTime() < nowMs;
+}
 
 const FEATURES = [
   { href: "/archive", title: "아카이브", desc: "공연 · 연습 기록", Icon: ArchiveIcon },
@@ -49,10 +62,12 @@ function HomeInner() {
       where("date", ">=", today),
       orderBy("date", "asc")
     );
+    const nowMs = Date.now();
     getDocs(q)
       .then((snap) => {
         const list = snap.docs
           .map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) }))
+          .filter((e) => !eventPassed(e, nowMs)) // 시간이 지난 일정은 제외
           .slice(0, 4);
         setUpcoming(list);
       })
@@ -93,11 +108,7 @@ function HomeInner() {
               const meta = eventMeta(e);
               return (
                 <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-                  <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-accent-soft leading-none text-accent">
-                    <span className="text-[11px] font-semibold">{dt.getMonth() + 1}월</span>
-                    <span className="text-2xl font-extrabold">{dt.getDate()}</span>
-                    <span className="mt-0.5 text-[11px] font-medium">{WEEKDAYS_KO[dt.getDay()]}</span>
-                  </div>
+                  <DateBadge month={dt.getMonth() + 1} day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-fg">{ddayLabel(e.date)}</span>
