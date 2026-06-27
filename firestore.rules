@@ -62,7 +62,7 @@ service cloud.firestore {
     // 연락처 등 민감정보는 users 문서에만 두고(관리자 전용), 여기엔 넣지 않음
     match /publicProfiles/{userId} {
       allow read: if isMember();
-      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow create, update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
     }
 

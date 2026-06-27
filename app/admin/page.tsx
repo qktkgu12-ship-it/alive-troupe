@@ -83,6 +83,36 @@ function AdminInner() {
     }
   }
 
+  // 전 단원의 공개 프로필(이름·배역·기수·사진)을 users 정보로 한 번에 채움
+  const [syncing, setSyncing] = useState(false);
+  async function syncPublicProfiles() {
+    setSyncing(true);
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      const all = snap.docs.map((d) => d.data() as UserProfile);
+      await Promise.all(
+        all.map((u) =>
+          setDoc(
+            doc(db, "publicProfiles", u.uid),
+            {
+              name: u.name || u.displayName || "",
+              part: u.part || "",
+              group: u.group || "",
+              avatar: u.avatar || "",
+            },
+            { merge: true }
+          )
+        )
+      );
+      alert(`${all.length}명의 공개 프로필을 동기화했어요! 👍`);
+    } catch (e) {
+      console.error(e);
+      alert("동기화에 실패했어요. 보안 규칙(publicProfiles의 관리자 쓰기 허용)이 게시됐는지 확인해 주세요.");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold">관리자</h1>
@@ -166,6 +196,15 @@ function AdminInner() {
         <button onClick={cleanupOrphans} disabled={cleaning} className="btn-ghost">
           {cleaning ? "정리 중…" : "탈퇴 단원의 잔여 가능일정 정리"}
         </button>
+
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <p className="mb-3 text-sm text-slate-500">
+            프로필 팝업에 배역·기수가 비어 보이면, 전 단원의 공개 프로필을 한 번에 채울 수 있어요.
+          </p>
+          <button onClick={syncPublicProfiles} disabled={syncing} className="btn-ghost">
+            {syncing ? "동기화 중…" : "전 단원 공개 프로필 동기화"}
+          </button>
+        </div>
       </section>
 
       {/* 사이트·테마 설정 (맨 아래) */}
