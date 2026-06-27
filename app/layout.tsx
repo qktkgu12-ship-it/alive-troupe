@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import NotificationBell from "@/components/NotificationBell";
 
 export const metadata: Metadata = {
   title: "ALIVE 얼라이브",
@@ -35,7 +36,10 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            {children}
+            <NotificationBell />
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

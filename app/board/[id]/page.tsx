@@ -102,7 +102,12 @@ function PostDetailInner() {
     } else {
       setLiked(true);
       setLikeCount((c) => c + 1);
-      await setDoc(ref, { postId: id, uid: user.uid }).catch(() => {});
+      await setDoc(ref, {
+        postId: id,
+        uid: user.uid,
+        name: profile?.name || profile?.displayName || "",
+        createdAt: Date.now(),
+      }).catch(() => {});
       await updateDoc(doc(db, "posts", id), { likeCount: increment(1) }).catch(() => {});
     }
   }

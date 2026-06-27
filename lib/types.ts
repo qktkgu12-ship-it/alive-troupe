@@ -17,6 +17,8 @@ export interface UserProfile {
   group: string; // 소속·기수
   avatar?: string; // 프로필 사진 (압축된 data URL)
   createdAt: number;
+  notifSince?: number; // 알림 기능을 처음 켠 시점 (이후 생긴 것만 알림)
+  notifReads?: Record<string, number>; // 읽은 알림 ID → 읽은 시각
 }
 
 export type ArchiveKind = "performance" | "rehearsal" | "etc";
