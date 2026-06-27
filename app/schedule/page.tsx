@@ -600,7 +600,7 @@ function EventForm({
   }
 
   return (
-    <div className="card space-y-3 border-dashed">
+    <div className="rounded-2xl bg-surface p-4 space-y-3">
       <div>
         <label className="label">제목</label>
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 1막 런스루" />
@@ -774,8 +774,8 @@ function EventsSection({
               <div
                 key={e.id}
                 id={`ev-${e.id}`}
-                className={`flex items-start gap-3 rounded-xl border p-3 transition ${
-                  highlightId === e.id ? "border-accent ring-2 ring-accent" : "border-slate-200/70"
+                className={`flex items-start gap-3 rounded-xl bg-surface p-3 transition ${
+                  highlightId === e.id ? "ring-2 ring-accent" : ""
                 } ${past ? "opacity-60" : ""}`}
               >
                 <DateBadge month={Number(e.date.slice(5, 7))} day={Number(e.date.slice(8, 10))} weekday={dow} size="sm" />

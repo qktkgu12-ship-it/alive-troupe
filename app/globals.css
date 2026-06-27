@@ -6,10 +6,10 @@
   --accent: 124 58 237; /* 기본 보라, 런타임에 교체됨 */
   --accent-fg: 255 255 255;
   --accent-2: 91 33 182; /* 그라데이션용 진한 강조 */
-  /* 강조색에서 파생되는 배경/보조색 (기본값=보라 계열, 런타임에 교체됨) */
-  --bg: 249 248 252;
-  --surface: 240 237 248;
-  --surface-strong: 226 220 241;
+  /* 배경/보조색은 중립 회색(강조색과 무관) — 세련되게 */
+  --bg: 247 248 250; /* 아주 옅은 회색 캔버스 */
+  --surface: 241 244 248; /* 칩·탭 등 보조 면 */
+  --surface-strong: 226 232 240; /* 구분선 */
   --font-sans: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo",
     "Malgun Gothic", system-ui, sans-serif;
 }
@@ -55,7 +55,8 @@ body {
     @apply mb-1.5 block text-sm font-medium text-slate-600;
   }
   .card {
-    @apply rounded-2xl border border-surface-strong bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)];
+    @apply rounded-2xl bg-white p-5;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -10px rgba(16, 24, 40, 0.12);
   }
   .chip {
     @apply inline-flex items-center rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-slate-600;

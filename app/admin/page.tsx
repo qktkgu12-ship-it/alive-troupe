@@ -428,7 +428,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
       ) : (
         <div className="space-y-2">
           {productions.map((p) => (
-            <div key={p.id} className="rounded-xl border border-slate-200 p-3">
+            <div key={p.id} className="rounded-xl bg-surface p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <button

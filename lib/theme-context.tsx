@@ -36,21 +36,16 @@ function applyAccent(hex: string) {
   const root = document.documentElement;
   const accent = hexToRgbTriplet(hex);
   const accentFg = readableTextColor(hex);
-  const { bg, surface, surfaceStrong, accentDeep } = derivePalette(hex);
+  // 배경/보조색은 중립 회색 고정(globals). 강조색과 그라데이션용 진한 강조만 교체.
+  const { accentDeep } = derivePalette(hex);
   root.style.setProperty("--accent", accent);
   root.style.setProperty("--accent-fg", accentFg);
   root.style.setProperty("--accent-2", accentDeep);
-  root.style.setProperty("--bg", bg);
-  root.style.setProperty("--surface", surface);
-  root.style.setProperty("--surface-strong", surfaceStrong);
   // 다음 방문 때 깜빡임 없이 바로 칠하도록 캐시 (layout.tsx의 인라인 스크립트가 읽음)
   try {
     localStorage.setItem("alive-accent", accent);
     localStorage.setItem("alive-accent-fg", accentFg);
     localStorage.setItem("alive-accent-2", accentDeep);
-    localStorage.setItem("alive-bg", bg);
-    localStorage.setItem("alive-surface", surface);
-    localStorage.setItem("alive-surface-strong", surfaceStrong);
   } catch {
     /* 무시 */
   }

@@ -160,7 +160,7 @@ function BoardInner() {
 
       {/* 종류 편집 패널 (관리자만) */}
       {isAdmin && manageCats && (
-        <div className="card space-y-3 border-dashed">
+        <div className="rounded-2xl bg-surface p-4 space-y-3">
           <div className="flex flex-wrap gap-2">
             {categories.map((c) => (
               <span key={c} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
