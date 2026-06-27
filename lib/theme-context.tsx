@@ -36,9 +36,10 @@ function applyAccent(hex: string) {
   const root = document.documentElement;
   const accent = hexToRgbTriplet(hex);
   const accentFg = readableTextColor(hex);
-  const { bg, surface, surfaceStrong } = derivePalette(hex);
+  const { bg, surface, surfaceStrong, accentDeep } = derivePalette(hex);
   root.style.setProperty("--accent", accent);
   root.style.setProperty("--accent-fg", accentFg);
+  root.style.setProperty("--accent-2", accentDeep);
   root.style.setProperty("--bg", bg);
   root.style.setProperty("--surface", surface);
   root.style.setProperty("--surface-strong", surfaceStrong);
@@ -46,6 +47,7 @@ function applyAccent(hex: string) {
   try {
     localStorage.setItem("alive-accent", accent);
     localStorage.setItem("alive-accent-fg", accentFg);
+    localStorage.setItem("alive-accent-2", accentDeep);
     localStorage.setItem("alive-bg", bg);
     localStorage.setItem("alive-surface", surface);
     localStorage.setItem("alive-surface-strong", surfaceStrong);

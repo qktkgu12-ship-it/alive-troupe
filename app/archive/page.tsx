@@ -172,7 +172,7 @@ function ArchiveInner() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">아카이브</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">아카이브</h1>
         <button
           onClick={() => {
             if (showForm || editItem) {

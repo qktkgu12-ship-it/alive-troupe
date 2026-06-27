@@ -5,6 +5,7 @@
 :root {
   --accent: 124 58 237; /* 기본 보라, 런타임에 교체됨 */
   --accent-fg: 255 255 255;
+  --accent-2: 91 33 182; /* 그라데이션용 진한 강조 */
   /* 강조색에서 파생되는 배경/보조색 (기본값=보라 계열, 런타임에 교체됨) */
   --bg: 249 248 252;
   --surface: 240 237 248;
@@ -34,7 +35,12 @@ body {
 /* 강조색 버튼 등에서 사용하는 공통 클래스 */
 @layer components {
   .btn-accent {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition hover:opacity-90 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-accent-fg transition hover:brightness-105 disabled:opacity-50;
+    background-image: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)));
+  }
+  /* 은은한 강조색 그라데이션 (히어로/포인트용) */
+  .bg-accent-gradient {
+    background-image: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)));
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50;

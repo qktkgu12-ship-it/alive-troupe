@@ -130,7 +130,7 @@ function BoardInner() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">게시판</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">게시판</h1>
         <button onClick={() => setShowForm((v) => !v)} className="btn-accent">
           {showForm ? "닫기" : "글쓰기"}
         </button>

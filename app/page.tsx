@@ -83,12 +83,16 @@ function HomeInner() {
 
   return (
     <div className="space-y-8">
-      {/* 인사 */}
-      <header className="pt-1">
-        <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
-        <h1 className="mt-1.5 text-[26px] font-bold leading-tight tracking-tight text-slate-900">
+      {/* 인사 — 히어로 배너 */}
+      <header className="bg-accent-gradient relative overflow-hidden rounded-3xl p-6 text-accent-fg shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
+        {/* 장식용 은은한 원 */}
+        <span aria-hidden className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10" />
+        <span aria-hidden className="pointer-events-none absolute -bottom-12 right-10 h-24 w-24 rounded-full bg-white/10" />
+        <p className="text-xs font-medium opacity-80">{todayLabel}</p>
+        <h1 className="mt-2 text-[28px] font-extrabold leading-tight tracking-tight">
           안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
         </h1>
+        <p className="mt-1 text-sm font-medium italic opacity-90">Today here, Right now!</p>
       </header>
 
       {/* 다가오는 확정 일정 */}

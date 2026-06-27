@@ -134,7 +134,7 @@ function AudioInner() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">자료실</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">자료실</h1>
 
       {isAdmin && (
         <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">

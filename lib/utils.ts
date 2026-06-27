@@ -70,17 +70,19 @@ function hslToTriplet(h: number, s: number, l: number): string {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-// 강조색 → { bg(배경 60%), surface(보조 30%), surfaceStrong(테두리/호버) } RGB 트리플
+// 강조색 → { bg(배경 60%), surface(보조 30%), surfaceStrong(테두리), accentDeep(그라데이션용 진한 강조) }
 export function derivePalette(accentHex: string): {
   bg: string;
   surface: string;
   surfaceStrong: string;
+  accentDeep: string;
 } {
-  const [h, s] = hexToHsl(accentHex);
+  const [h, s, l] = hexToHsl(accentHex);
   return {
     bg: hslToTriplet(h, clamp(s * 0.4, 0.06, 0.16), 0.975),
     surface: hslToTriplet(h, clamp(s * 0.5, 0.08, 0.2), 0.94),
     surfaceStrong: hslToTriplet(h, clamp(s * 0.5, 0.08, 0.22), 0.88),
+    accentDeep: hslToTriplet(h, clamp(s * 1.05, 0, 1), clamp(l * 0.8, 0.12, 0.5)),
   };
 }
 

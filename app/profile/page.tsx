@@ -71,7 +71,7 @@ function ProfileInner() {
 
   return (
     <div className="mx-auto max-w-md space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">내 프로필</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">내 프로필</h1>
 
       <div className="card space-y-5">
         {/* 프로필 사진 */}
