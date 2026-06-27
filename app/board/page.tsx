@@ -18,7 +18,7 @@ function BoardInner() {
   const { user, profile, role } = useAuth();
   const isAdmin = role === "admin";
 
-  const [board, setBoard] = useState<BoardKey>("free");
+  const [tab, setTab] = useState<BoardKey | "all">("all");
   const [posts, setPosts] = useState<Post[]>([]);
   const [notices, setNotices] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,10 +35,14 @@ function BoardInner() {
     );
   }, []);
 
-  const loadBoard = useCallback(async (b: BoardKey) => {
+  const loadBoard = useCallback(async (t: BoardKey | "all") => {
     setLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, "posts"), where("board", "==", b)));
+      // "전체"는 모든 게시판 글을 한 번에, 나머지는 해당 게시판만
+      const snap =
+        t === "all"
+          ? await getDocs(collection(db, "posts"))
+          : await getDocs(query(collection(db, "posts"), where("board", "==", t)));
       setPosts(
         snap.docs
           .map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))
@@ -55,9 +59,9 @@ function BoardInner() {
   }, [loadNotices]);
 
   useEffect(() => {
-    loadBoard(board);
+    loadBoard(tab);
     setVisible(PAGE);
-  }, [board, loadBoard]);
+  }, [tab, loadBoard]);
 
   return (
     <div className="space-y-5">
@@ -68,30 +72,30 @@ function BoardInner() {
         </button>
       </div>
 
-      {/* 탭 */}
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
-        {BOARD_ORDER.map((b) => (
+      {/* 탭 (카테고리가 늘어나면 가로로 스크롤) */}
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 text-sm font-medium">
+        {(["all", ...BOARD_ORDER] as const).map((t) => (
           <button
-            key={b}
-            onClick={() => setBoard(b)}
-            className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 transition ${
-              board === b ? "bg-white text-accent shadow-sm" : "text-slate-500"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 transition ${
+              tab === t ? "bg-white text-accent shadow-sm" : "text-slate-500"
             }`}
           >
-            {BOARD_LABEL[b]}
+            {t === "all" ? "전체" : BOARD_LABEL[t]}
           </button>
         ))}
       </div>
 
       {showForm && (
         <PostForm
-          board={board}
+          defaultBoard={tab === "all" ? "free" : tab}
           isAdmin={isAdmin}
           author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "", avatar: profile?.avatar || "" }}
           onSaved={() => {
             setShowForm(false);
             loadNotices();
-            loadBoard(board);
+            loadBoard(tab);
           }}
         />
       )}
@@ -163,16 +167,17 @@ function BoardInner() {
 }
 
 function PostForm({
-  board,
+  defaultBoard,
   isAdmin,
   author,
   onSaved,
 }: {
-  board: BoardKey;
+  defaultBoard: BoardKey;
   isAdmin: boolean;
   author: { uid: string; name: string; avatar: string };
   onSaved: () => void;
 }) {
+  const [board, setBoard] = useState<BoardKey>(defaultBoard);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -220,6 +225,16 @@ function PostForm({
 
   return (
     <div className="card space-y-3">
+      <div>
+        <label className="label">게시판(카테고리)</label>
+        <select className="input" value={board} onChange={(e) => setBoard(e.target.value as BoardKey)}>
+          {BOARD_ORDER.map((b) => (
+            <option key={b} value={b}>
+              {BOARD_LABEL[b]}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="label">제목</label>
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`${BOARD_LABEL[board]}에 글쓰기`} />

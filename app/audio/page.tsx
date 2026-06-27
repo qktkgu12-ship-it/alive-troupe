@@ -97,10 +97,12 @@ function AudioInner() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">음원 자료실</h1>
       </div>
 
-      <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
-        💡 음원은 구글 드라이브 등에 올린 뒤 <b>공유 링크</b>를 등록하는 방식입니다.
-        드라이브 파일은 <b>‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요.
-      </div>
+      {isAdmin && (
+        <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
+          💡 음원은 구글 드라이브 등에 올린 뒤 <b>공유 링크</b>를 등록하는 방식입니다.
+          드라이브 파일은 <b>‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요.
+        </div>
+      )}
 
       {/* 작품(폴더) 탭 — 참여 중인 작품만 표시 */}
       {productions.length === 0 ? (
