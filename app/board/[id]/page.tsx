@@ -9,10 +9,12 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
-import Markdown from "@/components/Markdown";
+import PostContent from "@/components/PostContent";
+import RichEditor from "@/components/RichEditor";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
+import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { boardCategoryLabel, type Comment, type Post, type PostMedia } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -173,7 +175,8 @@ function PostDetailInner() {
   const canEdit = post && (isAdmin || post.authorUid === user?.uid);
 
   async function save() {
-    if (!post || !title.trim() || !content.trim()) return;
+    const cleanContent = sanitizeRichHtml(content);
+    if (!post || !title.trim() || htmlToText(cleanContent).trim() === "") return;
     if (images.length > 0 && JSON.stringify(images).length > MAX_DOC_BYTES) {
       alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
       return;
@@ -182,7 +185,7 @@ function PostDetailInner() {
     try {
       const update = {
         title: title.trim(),
-        content: content.trim(),
+        content: cleanContent,
         isNotice: isAdmin ? asNotice : post.isNotice,
         hasImages: images.length > 0,
         images: null, // 구버전 인라인 사진 제거(분리 저장으로 이전)
@@ -232,7 +235,7 @@ function PostDetailInner() {
           </div>
           <div>
             <label className="label">내용</label>
-            <textarea className="input min-h-[160px]" value={content} onChange={(e) => setContent(e.target.value)} />
+            <RichEditor value={content} onChange={setContent} />
           </div>
           <div>
             <label className="label">사진 첨부</label>
@@ -266,7 +269,7 @@ function PostDetailInner() {
               <p className="text-xs text-slate-400">{fmtDateTime(post.createdAt)}</p>
             </div>
           </div>
-          <Markdown text={post.content} className="mt-5 text-[15px] text-slate-700" />
+          <PostContent content={post.content} className="mt-5 text-[15px] text-slate-700" />
 
           {post.tags && post.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">

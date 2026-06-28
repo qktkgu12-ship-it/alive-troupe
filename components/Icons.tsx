@@ -93,6 +93,36 @@ export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
 
 export const PlusIcon = makeIcon(<path d="M12 5v14M5 12h14" />);
 
+export const LinkIcon = makeIcon(
+  <>
+    <path d="M10 13.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5L11 7.5" />
+    <path d="M14 10.5a3.5 3.5 0 0 0-5 0L6.5 13a3.5 3.5 0 0 0 5 5L13 16.5" />
+  </>
+);
+
+export const QuoteIcon = makeIcon(
+  <>
+    <path d="M7.5 7C6 7 5 8.2 5 9.8 5 11.3 6 12.3 7.3 12.3c.2 1.5-.6 2.4-2 2.7" />
+    <path d="M15.5 7c-1.5 0-2.5 1.2-2.5 2.8 0 1.5 1 2.5 2.3 2.5.2 1.5-.6 2.4-2 2.7" />
+  </>
+);
+
+export const ListBulletIcon = makeIcon(
+  <>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1.2" />
+    <circle cx="4.5" cy="12" r="1.2" />
+    <circle cx="4.5" cy="18" r="1.2" />
+  </>
+);
+
+export const ListOrderedIcon = makeIcon(
+  <>
+    <path d="M10 6h10M10 12h10M10 18h10" />
+    <path d="M4 5.5 5.2 5v3.2M3.6 17h1.8l-1.8 2.2h1.8" />
+  </>
+);
+
 export const XIcon = makeIcon(<path d="M6 6l12 12M18 6 6 18" />);
 
 export const ClockIcon = makeIcon(

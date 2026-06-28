@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { doc, setDoc } from "firebase/firestore";
@@ -10,7 +10,8 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Select from "@/components/Select";
-import Markdown from "@/components/Markdown";
+import RichEditor from "@/components/RichEditor";
+import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -25,19 +26,16 @@ function WriteInner() {
     settings.boardCategories && settings.boardCategories.length > 0 ? settings.boardCategories : DEFAULT_BOARD_CATEGORIES;
 
   const draftKey = `board-draft-${user?.uid ?? "x"}`;
-  const taRef = useRef<HTMLTextAreaElement>(null);
 
   const [board, setBoard] = useState("");
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(""); // HTML
   const [tags, setTags] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [asNotice, setAsNotice] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
 
-  // 기본 카테고리 + 임시저장 복원
   useEffect(() => {
     let usedDraft = false;
     try {
@@ -60,32 +58,7 @@ function WriteInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function wrap(prefix: string, suffix = prefix) {
-    const ta = taRef.current;
-    if (!ta) return;
-    const s = ta.selectionStart;
-    const e = ta.selectionEnd;
-    const sel = content.slice(s, e) || "텍스트";
-    const next = content.slice(0, s) + prefix + sel + suffix + content.slice(e);
-    setContent(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = s + prefix.length;
-      ta.selectionEnd = s + prefix.length + sel.length;
-    });
-  }
-  function prefixLine(prefix: string) {
-    const ta = taRef.current;
-    if (!ta) return;
-    const s = ta.selectionStart;
-    const lineStart = content.lastIndexOf("\n", s - 1) + 1;
-    const next = content.slice(0, lineStart) + prefix + content.slice(lineStart);
-    setContent(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = ta.selectionEnd = s + prefix.length;
-    });
-  }
+  const textLen = htmlToText(content).length;
 
   function saveDraft() {
     try {
@@ -109,7 +82,8 @@ function WriteInner() {
       alert("게시판을 선택해 주세요.");
       return;
     }
-    if (!title.trim() || !content.trim()) {
+    const cleanContent = sanitizeRichHtml(content);
+    if (!title.trim() || htmlToText(cleanContent).trim() === "") {
       alert("제목과 내용을 입력해 주세요.");
       return;
     }
@@ -125,7 +99,7 @@ function WriteInner() {
         board,
         isNotice: isAdmin ? asNotice : false,
         title: title.trim(),
-        content: content.trim(),
+        content: cleanContent,
         hasImages: images.length > 0,
         tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
         authorUid: user?.uid ?? "",
@@ -148,16 +122,6 @@ function WriteInner() {
     }
   }
 
-  const TBtn = ({ onClick, label }: { onClick: () => void; label: string }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-    >
-      {label}
-    </button>
-  );
-
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
@@ -165,9 +129,7 @@ function WriteInner() {
         <Link href="/board" className="text-sm font-medium text-slate-500 hover:text-slate-900">← 목록</Link>
       </div>
 
-      {restored && (
-        <p className="text-xs text-slate-400">임시 저장된 글을 불러왔어요.</p>
-      )}
+      {restored && <p className="text-xs text-slate-400">임시 저장된 글을 불러왔어요.</p>}
 
       <div className="card space-y-3">
         <Select value={board} onChange={(e) => setBoard(e.target.value)}>
@@ -179,38 +141,8 @@ function WriteInner() {
 
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
 
-        {/* 간단 서식 툴바 */}
-        <div className="flex flex-wrap items-center gap-0.5 rounded-lg bg-surface p-1">
-          <TBtn onClick={() => wrap("**")} label="굵게" />
-          <TBtn onClick={() => wrap("*")} label="기울임" />
-          <TBtn onClick={() => wrap("~~")} label="취소선" />
-          <TBtn onClick={() => prefixLine("- ")} label="• 목록" />
-          <TBtn onClick={() => prefixLine("> ")} label="❝ 인용" />
-          <TBtn onClick={() => wrap("[", "](https://)")} label="링크" />
-          <button
-            type="button"
-            onClick={() => setPreview((v) => !v)}
-            className={`ml-auto rounded-lg px-2.5 py-1.5 text-sm font-semibold transition ${preview ? "bg-accent text-accent-fg" : "text-slate-600 hover:bg-slate-100"}`}
-          >
-            미리보기
-          </button>
-        </div>
-
-        {preview ? (
-          <div className="min-h-[200px] rounded-xl border border-slate-200 p-3 text-[15px] text-slate-700">
-            {content.trim() ? <Markdown text={content} /> : <span className="text-slate-400">미리볼 내용이 없어요.</span>}
-          </div>
-        ) : (
-          <textarea
-            ref={taRef}
-            className="input min-h-[240px]"
-            value={content}
-            maxLength={MAX_LEN}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={"내용을 입력하세요.\n**굵게**  *기울임*  > 인용  - 목록  처럼 간단 서식을 쓸 수 있어요."}
-          />
-        )}
-        <p className="text-right text-xs text-slate-400">{content.length.toLocaleString()} / {MAX_LEN.toLocaleString()}</p>
+        <RichEditor value={content} onChange={setContent} />
+        <p className="text-right text-xs text-slate-400">{textLen.toLocaleString()} / {MAX_LEN.toLocaleString()}</p>
 
         <div>
           <label className="label">사진 첨부</label>

@@ -58,6 +58,48 @@ body {
   }
 }
 
+/* 리치 본문(에디터/표시 공용) 서식 */
+.rich {
+  word-break: break-word;
+}
+.rich p {
+  margin: 0 0 0.5rem;
+}
+.rich p:last-child {
+  margin-bottom: 0;
+}
+.rich ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.rich ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.rich li {
+  margin: 0.1rem 0;
+}
+.rich blockquote {
+  border-left: 2px solid #cbd5e1;
+  padding-left: 0.75rem;
+  color: #64748b;
+  margin: 0.4rem 0;
+}
+.rich a {
+  color: rgb(var(--accent));
+  text-decoration: underline;
+}
+.rich strong,
+.rich b {
+  font-weight: 700;
+}
+.rich em,
+.rich i {
+  font-style: italic;
+}
+
 /* 알림 벨: 알림 있을 때 주기적으로 딸랑딸랑 흔들림 */
 @keyframes bell-ring {
   0% { transform: rotate(0); }
