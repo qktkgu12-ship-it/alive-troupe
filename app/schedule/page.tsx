@@ -573,6 +573,9 @@ function EventForm({
   const [date, setDate] = useState(initial.date);
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
+  const [location, setLocation] = useState("");
+  const [memo, setMemo] = useState("");
+  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -587,6 +590,8 @@ function EventForm({
         date,
         startTime,
         endTime,
+        location: location.trim(),
+        memo: memo.trim(),
         createdAt: Date.now(),
       });
       onSaved();
@@ -599,14 +604,22 @@ function EventForm({
 
   return (
     <div className="space-y-3">
-      {/* 제목 (칸 안에 안내문) */}
-      <div className="card !p-0 overflow-hidden">
+      {/* 제목 (+펼치면 장소) — 칸 안에 안내문 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
         <input
           className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
         />
+        {more && (
+          <input
+            className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="장소"
+          />
+        )}
       </div>
 
       {/* 날짜·시간 (한 카드, 줄마다 구분선) */}
@@ -624,6 +637,24 @@ function EventForm({
           <input type="time" className={chip} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>
       </div>
+
+      {/* 메모 (펼쳤을 때) */}
+      {more && (
+        <div className="card !p-0 overflow-hidden">
+          <textarea
+            className="w-full min-h-[80px] resize-none bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder="메모·준비물"
+          />
+        </div>
+      )}
+
+      {!more && (
+        <button onClick={() => setMore(true)} className="text-sm font-medium text-slate-500 hover:text-slate-700">
+          + 장소·메모 추가
+        </button>
+      )}
 
       <div className="flex gap-2">
         <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? "등록 중…" : "등록"}</button>
