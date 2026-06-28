@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -51,29 +51,6 @@ function HomeInner() {
   const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
-  const [weekEventDates, setWeekEventDates] = useState<Set<string>>(new Set());
-
-  const todayDs = toDateStr(now);
-  // 이번 주(일~토) 7일
-  const weekDays = useMemo(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - start.getDay());
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
-    });
-  }, []);
-
-  useEffect(() => {
-    // 이번 주 일정 있는 날(점 표시용)
-    const ws = toDateStr(weekDays[0]);
-    const we = toDateStr(weekDays[6]);
-    getDocs(query(collection(db, "events"), where("date", ">=", ws), where("date", "<=", we)))
-      .then((snap) => setWeekEventDates(new Set(snap.docs.map((d) => (d.data() as ScheduleEvent).date))))
-      .catch(() => setWeekEventDates(new Set()));
-  }, [weekDays]);
 
   useEffect(() => {
     const today = toDateStr(new Date());
@@ -103,8 +80,6 @@ function HomeInner() {
 
   return (
     <div className="space-y-8">
-      {/* 인사 + 주간 스트립 + 다가오는 일정 (서로 가깝게) */}
-      <div className="space-y-4">
       {/* 인사 — 담백하게 */}
       <header className="pt-1">
         <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
@@ -113,28 +88,6 @@ function HomeInner() {
         </h1>
         <p className="mt-1 text-sm italic text-slate-400">Today here, Right now!</p>
       </header>
-
-      {/* 이번 주 데이 스트립 (배경 위에 슬림하게, 오늘은 둥근 사각형) */}
-      <div className="flex justify-between gap-0.5 px-1">
-        {weekDays.map((d) => {
-          const ds = toDateStr(d);
-          const isToday = ds === todayDs;
-          const has = weekEventDates.has(ds);
-          return (
-            <Link key={ds} href={`/schedule?tab=events&date=${ds}`} className="flex flex-1 flex-col items-center gap-1">
-              <div
-                className={`flex w-9 flex-col items-center rounded-xl py-1.5 transition ${
-                  isToday ? "bg-accent text-accent-fg shadow-sm" : "hover:bg-black/[0.03]"
-                }`}
-              >
-                <span className={`text-[10px] font-medium ${isToday ? "text-accent-fg/80" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
-                <span className={`mt-0.5 text-[15px] font-bold ${isToday ? "text-accent-fg" : "text-slate-600"}`}>{d.getDate()}</span>
-              </div>
-              <span className={`h-1 w-1 rounded-full ${has ? "bg-accent" : "bg-transparent"}`} />
-            </Link>
-          );
-        })}
-      </div>
 
       {/* 다가오는 확정 일정 */}
       <section>
@@ -193,7 +146,6 @@ function HomeInner() {
           </div>
         )}
       </section>
-      </div>
 
       {/* 바로가기 */}
       <section>
