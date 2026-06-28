@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         part: p.part || "",
         group: p.group || "",
         avatar: p.avatar || "",
+        role: p.role,
       },
       { merge: true }
     ).catch(() => {});

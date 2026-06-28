@@ -58,7 +58,7 @@ function ProfileInner() {
       // 단원끼리 보이는 공개 프로필도 함께 갱신 (연락처는 제외)
       await setDoc(
         doc(db, "publicProfiles", user.uid),
-        { name, part, group, avatar },
+        { name, part, group, avatar, role: profile?.role },
         { merge: true }
       );
       await refreshProfile();

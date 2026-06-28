@@ -157,6 +157,7 @@ function AdminInner() {
               part: u.part || "",
               group: u.group || "",
               avatar: u.avatar || "",
+              role: u.role,
             },
             { merge: true }
           )

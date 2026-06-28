@@ -18,6 +18,7 @@ import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import Select from "@/components/Select";
 import { ArchiveIcon, CalendarIcon, PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
@@ -527,12 +528,12 @@ function ArchiveForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className="label">작품</label>
-          <select className="input" value={productionId} onChange={(e) => setProductionId(e.target.value)}>
+          <Select value={productionId} onChange={(e) => setProductionId(e.target.value)}>
             <option value="">{isAdmin ? "미지정 (관리자만 볼 수 있음)" : "작품을 선택하세요"}</option>
             {productions.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
-          </select>
+          </Select>
           {productions.length === 0 && (
             <p className="mt-1 text-xs text-amber-600">
               {isAdmin ? "작품 관리에서 작품을 먼저 만들어 주세요." : "참여 중인 작품이 없습니다."}
@@ -545,11 +546,11 @@ function ArchiveForm({
         </div>
         <div>
           <label className="label">종류</label>
-          <select className="input" value={kind} onChange={(e) => setKind(e.target.value as ArchiveKind)}>
+          <Select value={kind} onChange={(e) => setKind(e.target.value as ArchiveKind)}>
             <option value="rehearsal">연습</option>
             <option value="performance">공연</option>
             <option value="etc">기타</option>
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label">날짜</label>

@@ -61,6 +61,15 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
               <Avatar src={avatar} name={name} className="h-20 w-20 text-2xl" />
             </div>
             <p className="text-lg font-bold text-slate-900">{name}</p>
+            {data?.role && data.role !== "guest" && (
+              <span
+                className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  data.role === "admin" ? "bg-accent-soft text-accent" : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {data.role === "admin" ? "관리자" : "정단원"}
+              </span>
+            )}
 
             {loading ? (
               <p className="mt-2 text-sm text-slate-400">불러오는 중…</p>

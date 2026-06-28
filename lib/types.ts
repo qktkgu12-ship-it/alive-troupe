@@ -28,6 +28,7 @@ export interface PublicProfile {
   part: string; // 배역·파트
   group: string; // 소속·기수
   avatar?: string;
+  role?: Role; // 표시용(배지) — 실제 권한은 users 문서 기준
 }
 
 export type ArchiveKind = "performance" | "rehearsal" | "etc";

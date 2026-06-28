@@ -11,6 +11,7 @@ import ImagePicker from "@/components/ImagePicker";
 import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon, XIcon } from "@/components/Icons";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import Select from "@/components/Select";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
@@ -290,15 +291,15 @@ function BoardInner() {
       {/* 검색 (중앙 정렬, 좌우 여백) */}
       {!loading && (
         <div className="mx-auto flex w-full max-w-[480px] gap-2">
-          <select
+          <Select
+            wrapperClassName="w-28 shrink-0"
             value={searchField}
             onChange={(e) => setSearchField(e.target.value as SearchField)}
-            className="input w-28 shrink-0"
           >
             <option value="title">제목</option>
             <option value="titleContent">제목+내용</option>
             <option value="author">글쓴이</option>
-          </select>
+          </Select>
           <input
             className="input flex-1"
             value={searchInput}
@@ -428,13 +429,13 @@ function PostForm({
     <div className="card space-y-3">
       <div>
         <label className="label">게시판(카테고리)</label>
-        <select className="input" value={board} onChange={(e) => setBoard(e.target.value)}>
+        <Select value={board} onChange={(e) => setBoard(e.target.value)}>
           {categories.map((b) => (
             <option key={b} value={b}>
               {b}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="label">제목</label>
