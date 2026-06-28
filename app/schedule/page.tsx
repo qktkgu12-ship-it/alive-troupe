@@ -604,7 +604,7 @@ function EventForm({
 
   return (
     <div className="space-y-3">
-      {/* 제목 (+펼치면 장소) — 칸 안에 안내문 */}
+      {/* 제목 + 장소 — 칸 안에 안내문 */}
       <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
         <input
           className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
@@ -612,14 +612,12 @@ function EventForm({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
         />
-        {more && (
-          <input
-            className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="장소"
-          />
-        )}
+        <input
+          className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="장소"
+        />
       </div>
 
       {/* 날짜·시간 (한 카드, 줄마다 구분선) */}
@@ -652,7 +650,7 @@ function EventForm({
 
       {!more && (
         <button onClick={() => setMore(true)} className="text-sm font-medium text-slate-500 hover:text-slate-700">
-          + 장소·메모 추가
+          + 메모 추가
         </button>
       )}
 
