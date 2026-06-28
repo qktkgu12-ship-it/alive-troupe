@@ -18,7 +18,7 @@ import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { ArchiveIcon, PencilIcon, TrashIcon } from "@/components/Icons";
+import { ArchiveIcon, CalendarIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
@@ -275,14 +275,17 @@ function ArchiveInner() {
               onKeyDown={(e) => {
                 if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url);
               }}
-              className={`card flex flex-col !p-4 transition ${multi ? "" : "cursor-pointer hover:shadow-md hover:ring-1 hover:ring-accent/30"}`}
+              className={`card flex flex-col !p-4 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
                   {ARCHIVE_KIND_LABEL[it.kind]}
                 </span>
                 <span className={`chip ${!it.productionId ? "bg-amber-100 text-amber-700" : ""}`}>{prodLabel(it)}</span>
-                <span className="text-xs text-slate-400">{it.date}</span>
+                <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {it.date}
+                </span>
                 {multi ? (
                   <span className="ml-auto text-xs font-semibold text-slate-400">영상 {clips.length}개</span>
                 ) : (
