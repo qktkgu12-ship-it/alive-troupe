@@ -16,7 +16,7 @@ import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
-import { CalendarIcon, TrashIcon } from "@/components/Icons";
+import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -754,7 +754,14 @@ function EventsSection({
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-bold">이번 달 일정</h2>
           {isAdmin && (
-            <button onClick={() => setShowForm((v) => !v)} className="btn-accent !py-1.5">{showForm ? "닫기" : "+ 추가"}</button>
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              aria-label={showForm ? "닫기" : "일정 추가"}
+              title={showForm ? "닫기" : "일정 추가"}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+            >
+              {showForm ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
+            </button>
           )}
         </div>
 

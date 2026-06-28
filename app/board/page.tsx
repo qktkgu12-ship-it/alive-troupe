@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
-import { BoardIcon, CommentIcon, EyeIcon, HeartIcon } from "@/components/Icons";
+import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon, XIcon } from "@/components/Icons";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { relativeTime } from "@/lib/utils";
@@ -132,8 +132,13 @@ function BoardInner() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">게시판</h1>
-        <button onClick={() => setShowForm((v) => !v)} className="btn-accent">
-          {showForm ? "닫기" : "글쓰기"}
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          aria-label={showForm ? "닫기" : "글쓰기"}
+          title={showForm ? "닫기" : "글쓰기"}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+        >
+          {showForm ? <XIcon className="h-5 w-5" /> : <PencilIcon className="h-5 w-5" />}
         </button>
       </div>
 

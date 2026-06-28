@@ -18,7 +18,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { FolderIcon, MusicIcon, TrashIcon } from "@/components/Icons";
+import { FolderIcon, MusicIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
@@ -169,8 +169,13 @@ function AudioInner() {
               ))}
             </select>
             {isAdmin && (
-              <button onClick={() => setShowAdd((v) => !v)} className="btn-accent !py-1.5 shrink-0">
-                {showAdd ? "닫기" : "+ 자료 추가"}
+              <button
+                onClick={() => setShowAdd((v) => !v)}
+                aria-label={showAdd ? "닫기" : "자료 추가"}
+                title={showAdd ? "닫기" : "자료 추가"}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+              >
+                {showAdd ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
               </button>
             )}
           </div>

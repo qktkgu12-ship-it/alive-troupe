@@ -91,6 +91,10 @@ export const BoardIcon = makeIcon(
 
 export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
 
+export const PlusIcon = makeIcon(<path d="M12 5v14M5 12h14" />);
+
+export const XIcon = makeIcon(<path d="M6 6l12 12M18 6 6 18" />);
+
 export const ClockIcon = makeIcon(
   <>
     <circle cx="12" cy="12" r="8.5" />

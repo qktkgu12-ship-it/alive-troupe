@@ -57,3 +57,21 @@ body {
     @apply inline-flex items-center rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-slate-600;
   }
 }
+
+/* 알림 벨: 알림 있을 때 주기적으로 딸랑딸랑 흔들림 */
+@keyframes bell-ring {
+  0% { transform: rotate(0); }
+  3% { transform: rotate(16deg); }
+  6% { transform: rotate(-14deg); }
+  9% { transform: rotate(11deg); }
+  12% { transform: rotate(-8deg); }
+  15% { transform: rotate(0); }
+  100% { transform: rotate(0); }
+}
+.animate-bell {
+  transform-origin: top center;
+  animation: bell-ring 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-bell { animation: none; }
+}

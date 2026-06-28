@@ -18,7 +18,7 @@ import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { ArchiveIcon, CalendarIcon, PencilIcon, TrashIcon } from "@/components/Icons";
+import { ArchiveIcon, CalendarIcon, PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
@@ -183,9 +183,11 @@ function ArchiveInner() {
               setShowForm(true);
             }
           }}
-          className="btn-accent"
+          aria-label={showForm || editItem ? "닫기" : "자료 등록"}
+          title={showForm || editItem ? "닫기" : "자료 등록"}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
         >
-          {showForm || editItem ? "닫기" : "+ 자료 등록"}
+          {showForm || editItem ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
         </button>
       </div>
 
