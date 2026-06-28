@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import DateBadge from "@/components/DateBadge";
+import EventMeta from "@/components/EventMeta";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
@@ -54,6 +55,29 @@ function HomeInner() {
   const todayLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
+  const [weekEventDates, setWeekEventDates] = useState<Set<string>>(new Set());
+
+  const todayDs = toDateStr(now);
+  // 이번 주(일~토) 7일
+  const weekDays = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - start.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, []);
+
+  useEffect(() => {
+    // 이번 주 일정 있는 날(점 표시용)
+    const ws = toDateStr(weekDays[0]);
+    const we = toDateStr(weekDays[6]);
+    getDocs(query(collection(db, "events"), where("date", ">=", ws), where("date", "<=", we)))
+      .then((snap) => setWeekEventDates(new Set(snap.docs.map((d) => (d.data() as ScheduleEvent).date))))
+      .catch(() => setWeekEventDates(new Set()));
+  }, [weekDays]);
 
   useEffect(() => {
     const today = toDateStr(new Date());
@@ -92,6 +116,28 @@ function HomeInner() {
         <p className="mt-1 text-sm italic text-slate-400">Today here, Right now!</p>
       </header>
 
+      {/* 이번 주 데이 스트립 */}
+      <div className="card flex justify-between gap-0.5 !px-2 !py-3">
+        {weekDays.map((d) => {
+          const ds = toDateStr(d);
+          const isToday = ds === todayDs;
+          const has = weekEventDates.has(ds);
+          return (
+            <Link
+              key={ds}
+              href={`/schedule?tab=events&date=${ds}`}
+              className="flex flex-1 flex-col items-center gap-1.5 rounded-xl py-1 transition hover:bg-slate-50"
+            >
+              <span className={`text-[11px] font-medium ${isToday ? "text-accent" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
+              <span className={`grid h-8 w-8 place-items-center rounded-full text-sm font-bold ${isToday ? "bg-accent-gradient text-accent-fg" : "text-slate-700"}`}>
+                {d.getDate()}
+              </span>
+              <span className={`h-1 w-1 rounded-full ${has ? "bg-accent" : "bg-transparent"}`} />
+            </Link>
+          );
+        })}
+      </div>
+
       {/* 다가오는 확정 일정 */}
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -108,7 +154,6 @@ function HomeInner() {
             {(() => {
               const e = upcoming[0];
               const dt = parseDate(e.date);
-              const meta = eventMeta(e);
               return (
                 <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
                   <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
@@ -118,7 +163,7 @@ function HomeInner() {
                       {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
                     </p>
                     <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
-                    <p className="mt-0.5 text-sm text-slate-500">{meta || "시간·장소 미정"}</p>
+                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
                     {e.memo && (
                       <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
                     )}

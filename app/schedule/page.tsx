@@ -16,6 +16,7 @@ import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import DateBadge from "@/components/DateBadge";
 import EmptyState from "@/components/EmptyState";
+import EventMeta from "@/components/EventMeta";
 import { CalendarIcon, TrashIcon } from "@/components/Icons";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
@@ -782,9 +783,7 @@ function EventsSection({
                 <DateBadge day={Number(e.date.slice(8, 10))} weekday={dow} variant="plain" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{e.title}</p>
-                  <p className="text-sm text-slate-500">
-                    {[e.startTime && `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}`, e.location].filter(Boolean).join(" · ") || "시간·장소 미정"}
-                  </p>
+                  <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-0.5 text-sm text-slate-500" />
                   {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
                   <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
                 </div>
