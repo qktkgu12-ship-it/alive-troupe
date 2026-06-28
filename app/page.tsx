@@ -103,6 +103,8 @@ function HomeInner() {
 
   return (
     <div className="space-y-8">
+      {/* 인사 + 주간 스트립 + 다가오는 일정 (서로 가깝게) */}
+      <div className="space-y-4">
       {/* 인사 — 담백하게 */}
       <header className="pt-1">
         <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
@@ -112,22 +114,22 @@ function HomeInner() {
         <p className="mt-1 text-sm italic text-slate-400">Today here, Right now!</p>
       </header>
 
-      {/* 이번 주 데이 스트립 (배경 위에 슬림하게) */}
+      {/* 이번 주 데이 스트립 (배경 위에 슬림하게, 오늘은 둥근 사각형) */}
       <div className="flex justify-between gap-0.5 px-1">
         {weekDays.map((d) => {
           const ds = toDateStr(d);
           const isToday = ds === todayDs;
           const has = weekEventDates.has(ds);
           return (
-            <Link
-              key={ds}
-              href={`/schedule?tab=events&date=${ds}`}
-              className="flex flex-1 flex-col items-center gap-1 rounded-lg py-1 transition hover:bg-black/[0.03]"
-            >
-              <span className={`text-[10px] font-medium ${isToday ? "text-accent" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
-              <span className={`grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold ${isToday ? "bg-accent text-accent-fg" : "text-slate-600"}`}>
-                {d.getDate()}
-              </span>
+            <Link key={ds} href={`/schedule?tab=events&date=${ds}`} className="flex flex-1 flex-col items-center gap-1">
+              <div
+                className={`flex w-9 flex-col items-center rounded-xl py-1.5 transition ${
+                  isToday ? "bg-accent text-accent-fg shadow-sm" : "hover:bg-black/[0.03]"
+                }`}
+              >
+                <span className={`text-[10px] font-medium ${isToday ? "text-accent-fg/80" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
+                <span className={`mt-0.5 text-[15px] font-bold ${isToday ? "text-accent-fg" : "text-slate-600"}`}>{d.getDate()}</span>
+              </div>
               <span className={`h-1 w-1 rounded-full ${has ? "bg-accent" : "bg-transparent"}`} />
             </Link>
           );
@@ -191,6 +193,7 @@ function HomeInner() {
           </div>
         )}
       </section>
+      </div>
 
       {/* 바로가기 */}
       <section>
