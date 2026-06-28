@@ -573,9 +573,6 @@ function EventForm({
   const [date, setDate] = useState(initial.date);
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
-  const [location, setLocation] = useState("");
-  const [memo, setMemo] = useState("");
-  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -590,8 +587,6 @@ function EventForm({
         date,
         startTime,
         endTime,
-        location,
-        memo,
         createdAt: Date.now(),
       });
       onSaved();
@@ -600,40 +595,36 @@ function EventForm({
     }
   }
 
+  const chip = "rounded-lg bg-surface px-3 py-1.5 text-[15px] text-slate-800 outline-none focus:ring-2 focus:ring-accent/20";
+
   return (
-    <div className="card space-y-3">
-      <div>
-        <label className="label">제목</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+    <div className="space-y-3">
+      {/* 제목 (칸 안에 안내문) */}
+      <div className="card !p-0 overflow-hidden">
+        <input
+          className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="제목"
+        />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <label className="label">날짜</label>
-          <input type="date" className="input !px-2" value={date} onChange={(e) => setDate(e.target.value)} />
+
+      {/* 날짜·시간 (한 카드, 줄마다 구분선) */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">날짜</span>
+          <input type="date" className={chip} value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
-        <div>
-          <label className="label">시작</label>
-          <input type="time" className="input !px-2" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">시작</span>
+          <input type="time" className={chip} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
         </div>
-        <div>
-          <label className="label">종료</label>
-          <input type="time" className="input !px-2" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">종료</span>
+          <input type="time" className={chip} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>
       </div>
-      {more ? (
-        <>
-          <div>
-            <label className="label">장소</label>
-            <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="연습실 등" />
-          </div>
-          <div>
-            <label className="label">메모·준비물</label>
-            <textarea className="input min-h-[60px]" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="준비물, 전달사항 등" />
-          </div>
-        </>
-      ) : (
-        <button onClick={() => setMore(true)} className="text-xs font-medium text-slate-500 hover:underline">+ 장소·메모 추가</button>
-      )}
+
       <div className="flex gap-2">
         <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? "등록 중…" : "등록"}</button>
         <button onClick={onCancel} className="btn-ghost">취소</button>
