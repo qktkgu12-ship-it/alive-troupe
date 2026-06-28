@@ -48,7 +48,7 @@ const FEATURES = [
 function HomeInner() {
   const { profile, role } = useAuth();
   const now = new Date();
-  const todayLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
+  const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
   const [weekEventDates, setWeekEventDates] = useState<Set<string>>(new Set());
@@ -112,8 +112,8 @@ function HomeInner() {
         <p className="mt-1 text-sm italic text-slate-400">Today here, Right now!</p>
       </header>
 
-      {/* 이번 주 데이 스트립 */}
-      <div className="card flex justify-between gap-0.5 !px-2 !py-3">
+      {/* 이번 주 데이 스트립 (배경 위에 슬림하게) */}
+      <div className="flex justify-between gap-0.5 px-1">
         {weekDays.map((d) => {
           const ds = toDateStr(d);
           const isToday = ds === todayDs;
@@ -122,10 +122,10 @@ function HomeInner() {
             <Link
               key={ds}
               href={`/schedule?tab=events&date=${ds}`}
-              className="flex flex-1 flex-col items-center gap-1.5 rounded-xl py-1 transition hover:bg-slate-50"
+              className="flex flex-1 flex-col items-center gap-1 rounded-lg py-1 transition hover:bg-black/[0.03]"
             >
-              <span className={`text-[11px] font-medium ${isToday ? "text-accent" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
-              <span className={`grid h-8 w-8 place-items-center rounded-full text-sm font-bold ${isToday ? "bg-accent text-accent-fg" : "text-slate-700"}`}>
+              <span className={`text-[10px] font-medium ${isToday ? "text-accent" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
+              <span className={`grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold ${isToday ? "bg-accent text-accent-fg" : "text-slate-600"}`}>
                 {d.getDate()}
               </span>
               <span className={`h-1 w-1 rounded-full ${has ? "bg-accent" : "bg-transparent"}`} />
@@ -145,26 +145,50 @@ function HomeInner() {
         {upcoming.length === 0 ? (
           <div className="card py-10 text-center text-sm text-slate-400">예정된 확정 일정이 없습니다.</div>
         ) : (
-          (() => {
-            const e = upcoming[0];
-            const dt = parseDate(e.date);
-            return (
-              <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
-                <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
-                <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
-                <div className="min-w-0 flex-1 pr-12">
-                  <p className="mb-0.5 text-xs text-slate-400">
-                    {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-                  </p>
-                  <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
-                  <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
-                  {e.memo && (
-                    <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
-                  )}
-                </div>
-              </Link>
-            );
-          })()
+          <div className="space-y-2">
+            {/* 가장 가까운 일정 — 크게 */}
+            {(() => {
+              const e = upcoming[0];
+              const dt = parseDate(e.date);
+              return (
+                <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
+                  <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
+                  <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
+                  <div className="min-w-0 flex-1 pr-12">
+                    <p className="mb-0.5 text-xs text-slate-400">
+                      {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
+                    </p>
+                    <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
+                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
+                    {e.memo && (
+                      <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })()}
+
+            {/* 그다음 일정 2~3개 — 아주 작게 */}
+            {upcoming.length > 1 && (
+              <div className="px-1">
+                {upcoming.slice(1, 4).map((e) => {
+                  const dt = parseDate(e.date);
+                  return (
+                    <Link
+                      key={e.id}
+                      href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-black/[0.03]"
+                    >
+                      <span className="shrink-0 font-bold text-accent">{dt.getMonth() + 1}.{dt.getDate()}</span>
+                      <span className="shrink-0 text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{e.title}</span>
+                      <span className="shrink-0 text-slate-400">{ddayLabel(e.date)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       </section>
 
