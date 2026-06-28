@@ -527,7 +527,6 @@ function ArchiveForm({
       <p className="font-bold text-slate-900">{edit ? "자료 수정" : "자료 등록"}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label className="label">작품</label>
           <Select value={productionId} onChange={(e) => setProductionId(e.target.value)}>
             <option value="">{isAdmin ? "미지정 (관리자만 볼 수 있음)" : "작품을 선택하세요"}</option>
             {productions.map((p) => (
@@ -541,11 +540,9 @@ function ArchiveForm({
           )}
         </div>
         <div className="sm:col-span-2">
-          <label className="label">제목 (예: 커튼콜, 1막 런스루)</label>
           <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
         </div>
         <div>
-          <label className="label">종류</label>
           <Select value={kind} onChange={(e) => setKind(e.target.value as ArchiveKind)}>
             <option value="rehearsal">연습</option>
             <option value="performance">공연</option>
@@ -553,11 +550,9 @@ function ArchiveForm({
           </Select>
         </div>
         <div>
-          <label className="label">날짜</label>
           <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">링크 (유튜브·구글포토 등) — 같은 장면 영상이 여러 개면 아래에 추가하세요</label>
           <div className="space-y-2">
             {clips.map((c, i) => (
               <div key={i} className="flex gap-2">
@@ -565,7 +560,7 @@ function ArchiveForm({
                   className="input w-28 shrink-0"
                   value={c.label}
                   onChange={(e) => updateClip(i, "label", e.target.value)}
-                  placeholder={`라벨 (예: ${i + 1}차)`}
+                  placeholder="라벨"
                 />
                 <input
                   className="input flex-1"
@@ -591,12 +586,10 @@ function ArchiveForm({
           </button>
         </div>
         <div className="sm:col-span-2">
-          <label className="label">설명·메모</label>
-          <textarea className="input min-h-[72px]" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <textarea className="input min-h-[72px]" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="설명·메모" />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">태그 (쉼표 또는 띄어쓰기로 구분)</label>
-          <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="커튼콜 메이킹 1막" />
+          <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그" />
         </div>
       </div>
       <div className="flex gap-2">

@@ -186,7 +186,7 @@ function BoardInner() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") addCategory();
               }}
-              placeholder="새 종류 이름 (예: 회계, 홍보)"
+              placeholder="새 종류 이름"
             />
             <button onClick={addCategory} className="btn-accent shrink-0">추가</button>
           </div>

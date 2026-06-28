@@ -149,7 +149,7 @@ function WriteInner() {
           <ImagePicker images={images} onChange={setImages} />
         </div>
 
-        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그 (띄어쓰기/쉼표로 구분 — 예: 의상 1막 회의)" />
+        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그 (띄어쓰기/쉼표로 구분)" />
 
         {isAdmin && (
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

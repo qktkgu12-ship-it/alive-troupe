@@ -417,7 +417,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
 
       {/* 새 작품 추가 */}
       <div className="mb-4 flex flex-wrap gap-2">
-        <input className="input min-w-[140px] flex-1" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="새 작품명 (예: 넥스트 투 노멀)" />
+        <input className="input min-w-[140px] flex-1" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="새 작품명" />
         <input className="input w-24" value={newGisu} onChange={(e) => setNewGisu(e.target.value)} placeholder="기수" />
         <button onClick={create} className="btn-accent">추가</button>
       </div>

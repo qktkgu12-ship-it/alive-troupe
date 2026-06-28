@@ -243,7 +243,7 @@ function AudioInner() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") addCategory();
                   }}
-                  placeholder="새 종류 이름 (예: 악보, 대본, 안무)"
+                  placeholder="새 종류 이름"
                 />
                 <button onClick={addCategory} className="btn-accent shrink-0">추가</button>
               </div>
@@ -342,10 +342,10 @@ function AddForm({
             <option key={c} value={c}>{c}</option>
           ))}
         </Select>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목 (예: 넘버명 / 악보명 / 문서명)" />
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
       </div>
       <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="구글 드라이브 등 공유 링크 (https://drive.google.com/...)" />
-      <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모 (선택) — 예: 2키 다운 / 1막용" />
+      <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모 (선택)" />
       <button onClick={add} disabled={busy} className="btn-accent w-full">
         {busy ? "추가 중…" : "자료 추가"}
       </button>

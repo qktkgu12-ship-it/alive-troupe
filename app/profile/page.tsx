@@ -100,11 +100,11 @@ function ProfileInner() {
         </div>
         <div>
           <label className="label">배역·파트(포지션)</label>
-          <input className="input" value={part} onChange={(e) => setPart(e.target.value)} placeholder="예: 주연 / 앙상블 / 소프라노" />
+          <input className="input" value={part} onChange={(e) => setPart(e.target.value)} />
         </div>
         <div>
           <label className="label">소속·기수</label>
-          <input className="input" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="예: 5기" />
+          <input className="input" value={group} onChange={(e) => setGroup(e.target.value)} />
         </div>
 
         <button onClick={save} disabled={busy} className="btn-accent w-full">
