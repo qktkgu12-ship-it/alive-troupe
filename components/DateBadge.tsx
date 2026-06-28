@@ -25,7 +25,7 @@ export default function DateBadge({
   const md = size === "md";
   return (
     <div
-      className={`bg-accent-gradient flex shrink-0 flex-col items-center justify-center rounded-2xl text-accent-fg ${
+      className={`flex shrink-0 flex-col items-center justify-center rounded-2xl bg-accent text-accent-fg ${
         md ? "h-16 w-16" : "h-12 w-12"
       }`}
     >

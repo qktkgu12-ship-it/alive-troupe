@@ -27,10 +27,6 @@ function ddayLabel(dateStr: string) {
   if (diff > 1) return `D-${diff}`;
   return `D+${-diff}`;
 }
-function eventMeta(e: ScheduleEvent) {
-  const time = e.startTime ? `${e.startTime}${e.endTime ? `~${e.endTime}` : ""}` : "";
-  return [time, e.location].filter(Boolean).join(" · ");
-}
 // 종료시간(없으면 시작시간, 둘 다 없으면 그날 자정)이 지났으면 '지난 일정'
 function eventPassed(e: ScheduleEvent, nowMs: number) {
   const dt = parseDate(e.date);
@@ -129,7 +125,7 @@ function HomeInner() {
               className="flex flex-1 flex-col items-center gap-1.5 rounded-xl py-1 transition hover:bg-slate-50"
             >
               <span className={`text-[11px] font-medium ${isToday ? "text-accent" : "text-slate-400"}`}>{WEEKDAYS_KO[d.getDay()]}</span>
-              <span className={`grid h-8 w-8 place-items-center rounded-full text-sm font-bold ${isToday ? "bg-accent-gradient text-accent-fg" : "text-slate-700"}`}>
+              <span className={`grid h-8 w-8 place-items-center rounded-full text-sm font-bold ${isToday ? "bg-accent text-accent-fg" : "text-slate-700"}`}>
                 {d.getDate()}
               </span>
               <span className={`h-1 w-1 rounded-full ${has ? "bg-accent" : "bg-transparent"}`} />
@@ -149,52 +145,26 @@ function HomeInner() {
         {upcoming.length === 0 ? (
           <div className="card py-10 text-center text-sm text-slate-400">예정된 확정 일정이 없습니다.</div>
         ) : (
-          <div className="space-y-3">
-            {/* 가장 가까운 일정 — 강조 카드 */}
-            {(() => {
-              const e = upcoming[0];
-              const dt = parseDate(e.date);
-              return (
-                <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
-                  <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
-                  <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
-                  <div className="min-w-0 flex-1 pr-12">
-                    <p className="mb-0.5 text-xs text-slate-400">
-                      {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-                    </p>
-                    <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
-                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
-                    {e.memo && (
-                      <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })()}
-
-            {/* 다음 일정들 — 작게 */}
-            {upcoming.length > 1 && (
-              <div className="card divide-y divide-slate-100 !p-0">
-                {upcoming.slice(1).map((e) => {
-                  const dt = parseDate(e.date);
-                  const meta = eventMeta(e);
-                  return (
-                    <Link key={e.id} href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
-                      <div className="w-11 shrink-0 text-center leading-none">
-                        <p className="text-base font-extrabold text-accent">{dt.getMonth() + 1}.{dt.getDate()}</p>
-                        <p className="mt-1 text-[11px] text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</p>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900">{e.title}</p>
-                        <p className="truncate text-xs text-slate-400">{meta || "시간·장소 미정"}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">{ddayLabel(e.date)}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          (() => {
+            const e = upcoming[0];
+            const dt = parseDate(e.date);
+            return (
+              <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
+                <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
+                <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
+                <div className="min-w-0 flex-1 pr-12">
+                  <p className="mb-0.5 text-xs text-slate-400">
+                    {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
+                  </p>
+                  <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
+                  <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
+                  {e.memo && (
+                    <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
+                  )}
+                </div>
+              </Link>
+            );
+          })()
         )}
       </section>
 
