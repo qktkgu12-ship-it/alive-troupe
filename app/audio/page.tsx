@@ -18,7 +18,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { FolderIcon, MusicIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { ChevronDownIcon, FolderIcon, MusicIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
@@ -156,18 +156,21 @@ function AudioInner() {
         <div className="space-y-4">
           {/* 작품 선택 (드롭다운 — 작품이 많아져도 깔끔) */}
           <div className="flex items-center justify-between gap-2">
-            <select
-              value={activeId ?? ""}
-              onChange={(e) => setActiveId(e.target.value)}
-              className="input !w-auto max-w-[70%] font-semibold text-slate-800"
-            >
-              {productions.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.gisu ? ` · ${p.gisu}` : ""}
-                </option>
-              ))}
-            </select>
+            <div className="relative inline-block max-w-[75%]">
+              <select
+                value={activeId ?? ""}
+                onChange={(e) => setActiveId(e.target.value)}
+                className="input !w-full appearance-none !pr-9 font-semibold text-slate-800"
+              >
+                {productions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.gisu ? ` · ${p.gisu}` : ""}
+                  </option>
+                ))}
+              </select>
+              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
             {isAdmin && (
               <button
                 onClick={() => setShowAdd((v) => !v)}

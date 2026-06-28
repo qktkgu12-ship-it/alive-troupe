@@ -440,14 +440,14 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
                     {currentId === p.id ? "★" : "☆"}
                   </button>
                   <div className="min-w-0">
-                    <p className="font-semibold text-slate-900">
-                      {p.name}
-                      {p.gisu && <span className="chip ml-1.5">{p.gisu}</span>}
+                    <p className="truncate font-semibold text-slate-900">{p.name}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {p.gisu && <span className="chip shrink-0">{p.gisu}</span>}
                       {currentId === p.id && (
-                        <span className="ml-1.5 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">진행 중</span>
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">진행 중</span>
                       )}
-                    </p>
-                    <p className="text-xs text-slate-400">참여 {p.participants?.length || 0}명</p>
+                      <span className="text-xs text-slate-400">참여 {p.participants?.length || 0}명</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
