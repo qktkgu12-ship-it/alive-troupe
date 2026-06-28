@@ -6,7 +6,6 @@ import { collection, getDocs, limit, orderBy, query, where } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
-import DateBadge from "@/components/DateBadge";
 import EventMeta from "@/components/EventMeta";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
@@ -145,50 +144,54 @@ function HomeInner() {
         {upcoming.length === 0 ? (
           <div className="card py-10 text-center text-sm text-slate-400">예정된 확정 일정이 없습니다.</div>
         ) : (
-          <div className="space-y-2">
-            {/* 가장 가까운 일정 — 크게 */}
-            {(() => {
-              const e = upcoming[0];
-              const dt = parseDate(e.date);
-              return (
-                <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
-                  <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
-                  <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
-                  <div className="min-w-0 flex-1 pr-12">
-                    <p className="mb-0.5 text-xs text-slate-400">
-                      {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-                    </p>
-                    <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
-                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
-                    {e.memo && (
-                      <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })()}
-
-            {/* 그다음 일정 2~3개 — 아주 작게 */}
-            {upcoming.length > 1 && (
-              <div className="px-1">
-                {upcoming.slice(1, 4).map((e) => {
-                  const dt = parseDate(e.date);
+          (() => {
+            // 가까운 3개를 날짜별로 묶기 (확정일정과 동일한 모양)
+            const top = upcoming.slice(0, 3);
+            const groups: [string, ScheduleEvent[]][] = [];
+            for (const e of top) {
+              const last = groups[groups.length - 1];
+              if (last && last[0] === e.date) last[1].push(e);
+              else groups.push([e.date, [e]]);
+            }
+            return (
+              <div className="space-y-4">
+                {groups.map(([date, evs]) => {
+                  const d = parseDate(date);
                   return (
-                    <Link
-                      key={e.id}
-                      href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-black/[0.03]"
-                    >
-                      <span className="shrink-0 font-bold text-accent">{dt.getMonth() + 1}.{dt.getDate()}</span>
-                      <span className="shrink-0 text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{e.title}</span>
-                      <span className="shrink-0 text-slate-400">{ddayLabel(e.date)}</span>
-                    </Link>
+                    <div key={date} className="flex gap-3">
+                      {/* 날짜 (왼쪽) */}
+                      <div className="w-9 shrink-0 pt-1.5 text-center leading-none">
+                        {d.getMonth() !== now.getMonth() && (
+                          <p className="text-[10px] text-slate-300">{d.getMonth() + 1}월</p>
+                        )}
+                        <p className="text-[11px] font-medium text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
+                        <p className="mt-1 text-2xl font-extrabold text-accent">{d.getDate()}</p>
+                      </div>
+                      {/* 카드들 (첫 일정만 조금 크게) */}
+                      <div className="min-w-0 flex-1 space-y-2">
+                        {evs.map((e) => {
+                          const big = e.id === upcoming[0].id;
+                          return (
+                            <Link
+                              key={e.id}
+                              href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
+                              className={`relative block rounded-xl bg-white shadow-[0_1px_3px_rgba(16,24,40,0.05),0_6px_16px_-8px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${
+                                big ? "p-4 ring-1 ring-accent/15" : "p-3"
+                              }`}
+                            >
+                              <span className="absolute right-3 top-3 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent">{ddayLabel(e.date)}</span>
+                              <p className={`truncate pr-12 font-bold text-slate-900 ${big ? "text-lg" : "text-[15px]"}`}>{e.title}</p>
+                              <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-            )}
-          </div>
+            );
+          })()
         )}
       </section>
 
