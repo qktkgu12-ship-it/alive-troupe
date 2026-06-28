@@ -14,7 +14,6 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
-import DateBadge from "@/components/DateBadge";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
 import { CalendarIcon, TrashIcon } from "@/components/Icons";
@@ -706,6 +705,14 @@ function EventsSection({
     return (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || ""));
   });
 
+  // 날짜별로 묶기 (왼쪽 날짜 1개 + 그 날 일정 카드들)
+  const groups: [string, ScheduleEvent[]][] = [];
+  for (const e of sortedEvents) {
+    const last = groups[groups.length - 1];
+    if (last && last[0] === e.date) last[1].push(e);
+    else groups.push([e.date, [e]]);
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* 왼쪽: 달력 (월 선택 카드 안 + 일정 있는 날 동그라미) */}
@@ -768,31 +775,44 @@ function EventsSection({
         {events.length === 0 ? (
           <EmptyState icon={CalendarIcon} title="이번 달 확정 일정이 없습니다." />
         ) : (
-          <div className="divide-y divide-slate-100">
-            {sortedEvents.map((e) => {
-              const past = eventPassed(e);
-              const dow = WEEKDAYS_KO[new Date(e.date + "T00:00:00").getDay()];
+          <div className="space-y-5">
+            {groups.map(([date, evs]) => {
+              const d = new Date(date + "T00:00:00");
               return (
-              <div
-                key={e.id}
-                id={`ev-${e.id}`}
-                className={`flex items-start gap-3 py-3 transition ${
-                  highlightId === e.id ? "-mx-2 rounded-xl bg-accent-soft px-2" : ""
-                } ${past ? "opacity-60" : ""}`}
-              >
-                <DateBadge day={Number(e.date.slice(8, 10))} weekday={dow} variant="plain" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{e.title}</p>
-                  <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-0.5 text-sm text-slate-500" />
-                  {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
-                  <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
+                <div key={date} className="flex gap-3">
+                  {/* 날짜 (왼쪽, 하루 1번) */}
+                  <div className="w-9 shrink-0 pt-1.5 text-center leading-none">
+                    <p className="text-[11px] font-medium text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-accent">{d.getDate()}</p>
+                  </div>
+                  {/* 그 날 일정 카드들 */}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    {evs.map((e) => {
+                      const past = eventPassed(e);
+                      return (
+                        <div
+                          key={e.id}
+                          id={`ev-${e.id}`}
+                          className={`rounded-xl bg-white p-3 shadow-[0_1px_3px_rgba(16,24,40,0.05),0_6px_16px_-8px_rgba(16,24,40,0.12)] transition ${
+                            highlightId === e.id ? "ring-2 ring-accent" : ""
+                          } ${past ? "opacity-60" : ""}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 flex-1 truncate font-semibold">{e.title}</p>
+                            {isAdmin && (
+                              <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-0.5 text-sm text-slate-500" />
+                          {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
+                          <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                {isAdmin && (
-                  <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
               );
             })}
           </div>
