@@ -149,6 +149,7 @@ export interface Post {
   content: string;
   hasImages?: boolean; // 첨부 사진 존재 여부 (실제 사진은 postMedia 문서에 별도 저장)
   images?: string[]; // (구버전 호환) 예전 글은 사진이 글 문서 안에 들어있을 수 있음
+  tags?: string[]; // 태그
   authorUid: string;
   authorName: string;
   authorAvatar?: string; // 작성 시점의 글쓴이 프로필 사진

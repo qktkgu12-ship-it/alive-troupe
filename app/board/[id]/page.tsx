@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
+import Markdown from "@/components/Markdown";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
@@ -265,9 +266,15 @@ function PostDetailInner() {
               <p className="text-xs text-slate-400">{fmtDateTime(post.createdAt)}</p>
             </div>
           </div>
-          <div className="mt-5 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-slate-700">
-            <Linkify text={post.content} />
-          </div>
+          <Markdown text={post.content} className="mt-5 text-[15px] text-slate-700" />
+
+          {post.tags && post.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {post.tags.map((t) => (
+                <span key={t} className="chip">#{t}</span>
+              ))}
+            </div>
+          )}
 
           {images.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">

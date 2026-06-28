@@ -2,24 +2,20 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
-import ImagePicker from "@/components/ImagePicker";
-import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon, XIcon } from "@/components/Icons";
+import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon } from "@/components/Icons";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import Select from "@/components/Select";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
-// Firestore 문서 1MB 제한 안전선
-const MAX_DOC_BYTES = 950_000;
-
 function BoardInner() {
-  const { user, profile, role } = useAuth();
+  const { role } = useAuth();
   const isAdmin = role === "admin";
   const { settings, saveSettings } = useTheme();
   const categories =
@@ -31,7 +27,6 @@ function BoardInner() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [notices, setNotices] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [manageCats, setManageCats] = useState(false);
   const [newCat, setNewCat] = useState("");
 
@@ -133,14 +128,14 @@ function BoardInner() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">게시판</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          aria-label={showForm ? "닫기" : "글쓰기"}
-          title={showForm ? "닫기" : "글쓰기"}
+        <Link
+          href="/board/write"
+          aria-label="글쓰기"
+          title="글쓰기"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
         >
-          {showForm ? <XIcon className="h-5 w-5" /> : <PencilIcon className="h-5 w-5" />}
-        </button>
+          <PencilIcon className="h-5 w-5" />
+        </Link>
       </div>
 
       {/* 탭 (카테고리가 늘어나면 가로로 스크롤) */}
@@ -196,20 +191,6 @@ function BoardInner() {
             <button onClick={addCategory} className="btn-accent shrink-0">추가</button>
           </div>
         </div>
-      )}
-
-      {showForm && (
-        <PostForm
-          categories={categories}
-          defaultBoard={tab !== "all" && categories.includes(tab) ? tab : categories[0]}
-          isAdmin={isAdmin}
-          author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "", avatar: profile?.avatar || "" }}
-          onSaved={() => {
-            setShowForm(false);
-            loadNotices();
-            loadBoard();
-          }}
-        />
       )}
 
       {/* 공지 (모든 게시판 상단 고정) */}
@@ -361,102 +342,6 @@ function Pagination({
         className={`${base} border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40`}
       >
         다음
-      </button>
-    </div>
-  );
-}
-
-function PostForm({
-  categories,
-  defaultBoard,
-  isAdmin,
-  author,
-  onSaved,
-}: {
-  categories: string[];
-  defaultBoard: string;
-  isAdmin: boolean;
-  author: { uid: string; name: string; avatar: string };
-  onSaved: () => void;
-}) {
-  const [board, setBoard] = useState<string>(defaultBoard);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [images, setImages] = useState<string[]>([]);
-  const [asNotice, setAsNotice] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function save() {
-    if (!title.trim() || !content.trim()) {
-      alert("제목과 내용을 입력해 주세요.");
-      return;
-    }
-    // 사진은 별도 문서(postMedia)에 저장 → 목록 쿼리가 가벼워짐
-    if (images.length > 0 && JSON.stringify(images).length > MAX_DOC_BYTES) {
-      alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const id = crypto.randomUUID();
-      const now = Date.now();
-      const post: Omit<Post, "id"> = {
-        board,
-        isNotice: isAdmin ? asNotice : false,
-        title: title.trim(),
-        content: content.trim(),
-        hasImages: images.length > 0,
-        authorUid: author.uid,
-        authorName: author.name,
-        authorAvatar: author.avatar || "",
-        likeCount: 0,
-        commentCount: 0,
-        viewCount: 0,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await setDoc(doc(db, "posts", id), post);
-      if (images.length > 0) {
-        await setDoc(doc(db, "postMedia", id), { images, authorUid: author.uid });
-      }
-      onSaved();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card space-y-3">
-      <div>
-        <label className="label">게시판(카테고리)</label>
-        <Select value={board} onChange={(e) => setBoard(e.target.value)}>
-          {categories.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <label className="label">제목</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`${board}에 글쓰기`} />
-      </div>
-      <div>
-        <label className="label">내용</label>
-        <textarea className="input min-h-[140px]" value={content} onChange={(e) => setContent(e.target.value)} placeholder="내용을 입력하세요. 링크(http…)를 적으면 자동으로 눌러서 열 수 있어요." />
-      </div>
-      <div>
-        <label className="label">사진 첨부</label>
-        <ImagePicker images={images} onChange={setImages} />
-      </div>
-      {isAdmin && (
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <input type="checkbox" checked={asNotice} onChange={(e) => setAsNotice(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-          📢 공지로 등록 (모든 게시판 상단에 고정)
-        </label>
-      )}
-      <button onClick={save} disabled={busy} className="btn-accent w-full">
-        {busy ? "등록 중…" : "등록"}
       </button>
     </div>
   );
