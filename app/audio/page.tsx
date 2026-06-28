@@ -144,7 +144,6 @@ function AudioInner() {
         </p>
       )}
 
-      {/* 작품(폴더) 탭 — 참여 중인 작품만 표시 */}
       {productions.length === 0 ? (
         <div className="card">
           <EmptyState
@@ -153,31 +152,24 @@ function AudioInner() {
             hint={isAdmin ? "관리 > 작품 관리에서 추가하세요." : "관리자가 작품 참여명단에 추가하면 보여요."}
           />
         </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {productions.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setActiveId(p.id)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                activeId === p.id ? "bg-accent text-accent-fg" : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {active && (
+      ) : active ? (
         <div className="space-y-4">
+          {/* 작품 선택 (드롭다운 — 작품이 많아져도 깔끔) */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-slate-700">{active.name}</h2>
-              {active.gisu && <span className="chip">{active.gisu}</span>}
-            </div>
+            <select
+              value={activeId ?? ""}
+              onChange={(e) => setActiveId(e.target.value)}
+              className="input !w-auto max-w-[70%] font-semibold text-slate-800"
+            >
+              {productions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.gisu ? ` · ${p.gisu}` : ""}
+                </option>
+              ))}
+            </select>
             {isAdmin && (
-              <button onClick={() => setShowAdd((v) => !v)} className="btn-accent !py-1.5">
+              <button onClick={() => setShowAdd((v) => !v)} className="btn-accent !py-1.5 shrink-0">
                 {showAdd ? "닫기" : "+ 자료 추가"}
               </button>
             )}
@@ -281,7 +273,7 @@ function AudioInner() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
