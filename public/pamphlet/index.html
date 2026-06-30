@@ -97,12 +97,12 @@
   }
   .intro-title { font-size: 18px; font-weight: 700; line-height: 1.4; }
 
-  /* 좌우 화살표 (배경 없이 화살표만, 첫 화면 길잡이 → 한 번 터치하면 사라짐) */
+  /* 좌우 화살표 (배경 없이 화살표만, 터치하면 나타나고 잠시 뒤 사라짐) */
   .nav-btn {
     position: absolute; top: 50%; transform: translateY(-50%);
-    width: 54px; height: 54px;
+    width: 40px; height: 40px;
     border: none; background: none;
-    color: #fff; font-size: 38px; line-height: 1;
+    color: #fff; font-size: 26px; line-height: 1;
     cursor: pointer; z-index: 6;
     display: flex;
     align-items: center; justify-content: center;
@@ -110,10 +110,10 @@
     transition: opacity .3s;
   }
   .nav-btn:hover { opacity: .7; }
-  .nav-btn[disabled] { display: none; }                /* 첫 화면=왼쪽 숨김, 끝 화면=오른쪽 숨김 */
-  body.started .nav-btn { display: none !important; }  /* 한 번 터치하면 화살표 사라짐 */
-  #prev { left: 10px; }
-  #next { right: 10px; }
+  .nav-btn.hidden { opacity: 0; pointer-events: none; }   /* 잠시 후 사라짐(다시 터치하면 나타남) */
+  .nav-btn[disabled] { display: none; }                    /* 첫 화면=왼쪽 숨김, 끝 화면=오른쪽 숨김 */
+  #prev { left: 8px; }
+  #next { right: 8px; }
 </style>
 </head>
 <body>
@@ -254,6 +254,7 @@ viewport.addEventListener("pointerdown", (e) => {
   viewport.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, downX: e.clientX, downY: e.clientY, downT: performance.now(), introOpen: !introHidden });
   hideIntro();
+  showArrows();
 
   if (pointers.size === 2) {
     const p = [...pointers.values()];
@@ -375,6 +376,7 @@ viewport.addEventListener("wheel", (e) => {
   const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
   if (Math.abs(delta) < 8) return;
   hideIntro();
+  showArrows();
   goTo(index + (delta > 0 ? 1 : -1));
   wheelLock = true;
   setTimeout(() => { wheelLock = false; }, 420);
@@ -382,14 +384,14 @@ viewport.addEventListener("wheel", (e) => {
 
 /* ---------- 키보드 ---------- */
 window.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowRight" || e.key === "ArrowDown") { hideIntro(); goTo(index + 1); }
-  if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   { hideIntro(); goTo(index - 1); }
+  if (e.key === "ArrowRight" || e.key === "ArrowDown") { hideIntro(); showArrows(); goTo(index + 1); }
+  if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   { hideIntro(); showArrows(); goTo(index - 1); }
   if (e.key === "Escape") { resetZoom(true); }
 });
 
 /* ---------- 버튼 ---------- */
-prevBtn.addEventListener("click", () => { hideIntro(); goTo(index - 1); });
-nextBtn.addEventListener("click", () => { hideIntro(); goTo(index + 1); });
+prevBtn.addEventListener("click", () => { hideIntro(); showArrows(); goTo(index - 1); });
+nextBtn.addEventListener("click", () => { hideIntro(); showArrows(); goTo(index + 1); });
 
 /* ---------- 창 크기 변경 ---------- */
 window.addEventListener("resize", () => { resetZoom(false); setTransform(false); });
@@ -401,13 +403,25 @@ function hideIntro() {
   if (introHidden) return;
   introHidden = true;
   intro.classList.add("hide");
-  document.body.classList.add("started");   // 화살표도 함께 사라짐
+}
+
+/* ---------- 화살표: 터치/조작하면 나타나고, 약 2초 뒤 사라짐 ---------- */
+let arrowTimer = null;
+function showArrows() {
+  prevBtn.classList.remove("hidden");
+  nextBtn.classList.remove("hidden");
+  clearTimeout(arrowTimer);
+  arrowTimer = setTimeout(() => {
+    prevBtn.classList.add("hidden");
+    nextBtn.classList.add("hidden");
+  }, 2000);
 }
 intro.addEventListener("click", hideIntro);   // 화면을 누르면 사라짐(자동 사라짐 없음)
 
 /* ---------- 시작 ---------- */
 update();
 setTransform(false);
+showArrows();   // 처음에 잠깐 보여주고 2초 뒤 사라짐
 </script>
 </body>
 </html>
