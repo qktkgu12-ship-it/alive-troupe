@@ -71,27 +71,31 @@
   }
 
   /* ===== 첫 화면 안내 오버레이 ===== */
+  /* 전체화면을 덮지 않고, 가운데에 작은 '창(카드)'만 띄움 */
   #intro {
     position: absolute; inset: 0;
-    display: flex; flex-direction: column;
+    display: flex;
     align-items: center; justify-content: center;
-    gap: 22px;
-    background: rgba(10,11,13,.72);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     z-index: 20;
-    text-align: center;
     padding: 24px;
-    transition: opacity .6s ease;
+    transition: opacity .5s ease;
   }
   #intro.hide { opacity: 0; pointer-events: none; }
-  .intro-icon { font-size: 40px; animation: swipeHint 1.6s ease-in-out infinite; }
-  @keyframes swipeHint {
-    0%, 100% { transform: translateX(-10px); opacity: .55; }
-    50%      { transform: translateX(10px);  opacity: 1; }
+  .intro-card {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    background: rgba(17,19,23,.92);
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 14px 44px rgba(0,0,0,.45);
+    border-radius: 18px;
+    padding: 26px 34px;
+    text-align: center;
   }
-  .intro-title { font-size: 18px; font-weight: 700; line-height: 1.5; }
-  .intro-sub { font-size: 14px; line-height: 1.7; color: #c9ccd2; }
+  .intro-icon { font-size: 38px; animation: swipeHint 1.6s ease-in-out infinite; }
+  @keyframes swipeHint {
+    0%, 100% { transform: translateX(-9px); opacity: .55; }
+    50%      { transform: translateX(9px);  opacity: 1; }
+  }
+  .intro-title { font-size: 18px; font-weight: 700; line-height: 1.4; }
 
   /* 데스크톱 좌우 화살표 버튼(모바일에선 숨김) */
   .nav-btn {
@@ -125,9 +129,10 @@
   <div id="counter">1 / 15</div>
 
   <div id="intro">
-    <div class="intro-icon">👆</div>
-    <div class="intro-title">좌우로 넘겨보세요</div>
-    <div class="intro-sub">두 번 톡 두드리면 확대 · 화면을 누르면 시작</div>
+    <div class="intro-card">
+      <div class="intro-icon">👆</div>
+      <div class="intro-title">좌우로 넘겨보세요</div>
+    </div>
   </div>
 
 <script>
