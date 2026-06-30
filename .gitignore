@@ -31,3 +31,6 @@ next-env.d.ts
 
 # claude
 .claude/
+
+# 팜플렛 작업용 폴더(원본 PNG 백업·공유용 단일파일) — 배포본은 public/pamphlet/ 에 있음
+/pamphlet/
