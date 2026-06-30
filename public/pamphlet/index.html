@@ -97,25 +97,24 @@
   }
   .intro-title { font-size: 18px; font-weight: 700; line-height: 1.4; }
 
-  /* 데스크톱 좌우 화살표 버튼(모바일에선 숨김) */
+  /* 좌우 화살표 버튼 (모바일 포함 항상 표시, 끝 페이지에선 해당 방향만 숨김) */
   .nav-btn {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 46px; height: 46px;
     border: none; border-radius: 50%;
-    background: rgba(0,0,0,.4);
-    color: #fff; font-size: 22px;
+    background: rgba(0,0,0,.42);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #fff; font-size: 24px; line-height: 1;
     cursor: pointer; z-index: 6;
-    display: none;
+    display: flex;
     align-items: center; justify-content: center;
-    transition: background .2s, opacity .3s;
+    transition: background .2s;
   }
   .nav-btn:hover { background: rgba(0,0,0,.7); }
-  .nav-btn[disabled] { opacity: .25; cursor: default; }
+  .nav-btn[disabled] { display: none; }   /* 첫 화면=왼쪽 숨김, 끝 화면=오른쪽 숨김 */
   #prev { left: 14px; }
   #next { right: 14px; }
-  @media (hover: hover) and (pointer: fine) {
-    .nav-btn { display: flex; }
-  }
 </style>
 </head>
 <body>
