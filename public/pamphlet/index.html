@@ -97,24 +97,23 @@
   }
   .intro-title { font-size: 18px; font-weight: 700; line-height: 1.4; }
 
-  /* 좌우 화살표 버튼 (모바일 포함 항상 표시, 끝 페이지에선 해당 방향만 숨김) */
+  /* 좌우 화살표 (배경 없이 화살표만, 첫 화면 길잡이 → 한 번 터치하면 사라짐) */
   .nav-btn {
     position: absolute; top: 50%; transform: translateY(-50%);
-    width: 46px; height: 46px;
-    border: none; border-radius: 50%;
-    background: rgba(0,0,0,.42);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    color: #fff; font-size: 24px; line-height: 1;
+    width: 54px; height: 54px;
+    border: none; background: none;
+    color: #fff; font-size: 38px; line-height: 1;
     cursor: pointer; z-index: 6;
     display: flex;
     align-items: center; justify-content: center;
-    transition: background .2s;
+    text-shadow: 0 0 3px rgba(0,0,0,.55), 0 1px 5px rgba(0,0,0,.5);
+    transition: opacity .3s;
   }
-  .nav-btn:hover { background: rgba(0,0,0,.7); }
-  .nav-btn[disabled] { display: none; }   /* 첫 화면=왼쪽 숨김, 끝 화면=오른쪽 숨김 */
-  #prev { left: 14px; }
-  #next { right: 14px; }
+  .nav-btn:hover { opacity: .7; }
+  .nav-btn[disabled] { display: none; }                /* 첫 화면=왼쪽 숨김, 끝 화면=오른쪽 숨김 */
+  body.started .nav-btn { display: none !important; }  /* 한 번 터치하면 화살표 사라짐 */
+  #prev { left: 10px; }
+  #next { right: 10px; }
 </style>
 </head>
 <body>
@@ -122,8 +121,8 @@
     <div id="track"></div>
   </div>
 
-  <button id="prev" class="nav-btn" aria-label="이전">‹</button>
-  <button id="next" class="nav-btn" aria-label="다음">›</button>
+  <button id="prev" class="nav-btn" aria-label="이전">❮</button>
+  <button id="next" class="nav-btn" aria-label="다음">❯</button>
 
   <div id="counter">1 / 15</div>
 
@@ -402,6 +401,7 @@ function hideIntro() {
   if (introHidden) return;
   introHidden = true;
   intro.classList.add("hide");
+  document.body.classList.add("started");   // 화살표도 함께 사라짐
 }
 intro.addEventListener("click", hideIntro);   // 화면을 누르면 사라짐(자동 사라짐 없음)
 
