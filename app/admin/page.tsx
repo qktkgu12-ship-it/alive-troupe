@@ -287,8 +287,8 @@ function AdminInner() {
         <ProductionManager members={approved} />
       </CollapsibleSection>
 
-      {/* 데이터 정리 · 설정 */}
-      <CollapsibleSection id="misc" title="데이터 정리 · 설정">
+      {/* 데이터 정리 */}
+      <CollapsibleSection id="misc" title="데이터 정리">
         <p className="mb-1 text-sm font-semibold text-slate-700">데이터 정리</p>
         <p className="mb-3 text-sm text-slate-500">
           탈퇴한 단원이 남긴 가능 일정 데이터를 한 번에 정리합니다.
@@ -304,10 +304,6 @@ function AdminInner() {
           <button onClick={syncPublicProfiles} disabled={syncing} className="btn-ghost">
             {syncing ? "동기화 중…" : "전 단원 공개 프로필 동기화"}
           </button>
-        </div>
-
-        <div className="mt-5 border-t border-slate-100 pt-5">
-          <SettingsCard />
         </div>
       </CollapsibleSection>
     </div>
@@ -635,46 +631,6 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function SettingsCard() {
-  const { settings, saveSettings } = useTheme();
-  const [troupeName, setTroupeName] = useState(settings.troupeName);
-  const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setTroupeName(settings.troupeName);
-  }, [settings]);
-
-  async function save() {
-    setBusy(true);
-    try {
-      await saveSettings({ troupeName });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-sm font-semibold text-slate-700">사이트 설정</p>
-        <p className="text-sm text-slate-500">극단 이름을 바꿀 수 있어요. (전 단원에게 즉시 반영)</p>
-      </div>
-
-      <div>
-        <label className="label">극단 이름</label>
-        <input className="input" value={troupeName} onChange={(e) => setTroupeName(e.target.value)} />
-      </div>
-
-      <button onClick={save} disabled={busy} className="btn-accent">
-        {busy ? "저장 중…" : saved ? "저장됐어요 ✓" : "설정 저장"}
-      </button>
     </div>
   );
 }
