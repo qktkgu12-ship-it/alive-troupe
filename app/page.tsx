@@ -110,7 +110,11 @@ function HomeInner() {
               const e = shownEvents[0];
               const dt = parseDate(e.date);
               return (
-                <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
+                <Link
+                  href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
+                  className="card relative flex items-start gap-4 ring-2 ring-accent/45 transition hover:ring-accent/70"
+                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgb(var(--accent) / 0.18)" }}
+                >
                   <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
                   <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
                   <div className="min-w-0 flex-1 pr-12">
