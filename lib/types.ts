@@ -16,6 +16,7 @@ export interface UserProfile {
   part: string; // 배역·파트(포지션)
   group: string; // 소속·기수
   avatar?: string; // 프로필 사진 (압축된 data URL)
+  team?: string; // 소속 팀 (A팀/B팀 등, 관리자 지정) — 빈값이면 팀 미지정(전체)
   createdAt: number;
   notifSince?: number; // 알림 기능을 처음 켠 시점 (이후 생긴 것만 알림)
   notifReads?: Record<string, number>; // 읽은 알림 ID → 읽은 시각
@@ -29,6 +30,7 @@ export interface PublicProfile {
   group: string; // 소속·기수
   avatar?: string;
   role?: Role; // 표시용(배지) — 실제 권한은 users 문서 기준
+  team?: string; // 소속 팀 (표시·필터용)
 }
 
 export type ArchiveKind = "performance" | "rehearsal" | "etc";
@@ -76,6 +78,7 @@ export interface ScheduleEvent {
   endTime: string; // HH:mm (선택)
   location: string; // 장소
   memo: string; // 메모·준비물
+  team?: string; // 대상 팀 (빈값이면 전체 공통)
   createdAt: number;
 }
 
@@ -85,6 +88,7 @@ export interface Availability {
   uid: string;
   name: string;
   avatar?: string; // 제출 시점의 프로필 사진 (명단 표시용)
+  team?: string; // 제출 시점의 소속 팀 (팀별 조율 집계용)
   yearMonth: string; // YYYY-MM
   dates: string[]; // 가능한 날짜 목록 (YYYY-MM-DD)
   // 날짜별 가능 시간 슬롯(30분 단위, "HH:mm"). 비어있거나 없으면 그 날은 '아무때나 가능'
@@ -183,5 +187,6 @@ export interface SiteSettings {
   currentProductionId?: string; // 현재 진행 작품의 productions 문서 id (자료등록 기본값)
   resourceCategories?: string[]; // 자료실 종류(탭) 목록 — 관리자가 추가/삭제
   boardCategories?: string[]; // 게시판 종류(탭) 목록 — 관리자가 추가/삭제
+  teams?: string[]; // 팀 목록 (A팀/B팀 등) — 관리자가 추가/삭제, 비어있으면 팀 기능 off
   accentColor: string; // HEX 예: #7c3aed
 }

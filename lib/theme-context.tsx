@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   currentProductionId: "",
   resourceCategories: ["음원", "기타"],
   boardCategories: ["자유게시판", "의상·소품", "무대"],
+  teams: [], // 기본: 팀 없음(팀 기능 off). 관리에서 추가하면 켜짐
   accentColor: "#7c3aed", // 기본: 보라
 };
 

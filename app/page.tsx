@@ -67,7 +67,7 @@ function HomeInner() {
           .filter((e) => !eventPassed(e, nowMs)) // 시간이 지난 일정은 제외
           // 날짜순, 같은 날짜는 시작시간 빠른 순
           .sort((a, b) => (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || "")))
-          .slice(0, 4);
+          .slice(0, 30);
         setUpcoming(list);
       })
       .catch(() => setUpcoming([]));
@@ -77,6 +77,10 @@ function HomeInner() {
       .then((snap) => setRecentPosts(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))))
       .catch(() => setRecentPosts([]));
   }, []);
+
+  // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이면 전체
+  const myTeam = profile?.team ?? "";
+  const shownEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam).slice(0, 4);
 
   return (
     <div className="space-y-8">
@@ -97,13 +101,13 @@ function HomeInner() {
             전체 보기 →
           </Link>
         </div>
-        {upcoming.length === 0 ? (
+        {shownEvents.length === 0 ? (
           <div className="card py-10 text-center text-sm text-slate-400">예정된 확정 일정이 없습니다.</div>
         ) : (
           <div className="space-y-2">
             {/* 가장 가까운 일정 — 크게 */}
             {(() => {
-              const e = upcoming[0];
+              const e = shownEvents[0];
               const dt = parseDate(e.date);
               return (
                 <Link href={`/schedule?tab=events&event=${e.id}&date=${e.date}`} className="card relative flex items-start gap-4 ring-1 ring-accent/15 transition hover:shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
@@ -113,7 +117,10 @@ function HomeInner() {
                     <p className="mb-0.5 text-xs text-slate-400">
                       {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
                     </p>
-                    <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
+                      {e.team && <span className="inline-flex shrink-0 items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">{e.team}</span>}
+                    </div>
                     <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
                     {e.memo && (
                       <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
@@ -124,9 +131,9 @@ function HomeInner() {
             })()}
 
             {/* 그다음 일정 2~3개 — 아주 작게 */}
-            {upcoming.length > 1 && (
+            {shownEvents.length > 1 && (
               <div className="px-1">
-                {upcoming.slice(1, 4).map((e) => {
+                {shownEvents.slice(1, 4).map((e) => {
                   const dt = parseDate(e.date);
                   return (
                     <Link
@@ -137,6 +144,7 @@ function HomeInner() {
                       <span className="shrink-0 font-bold text-accent">{dt.getMonth() + 1}.{dt.getDate()}</span>
                       <span className="shrink-0 text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
                       <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{e.title}</span>
+                      {e.team && <span className="shrink-0 font-semibold text-accent/70">{e.team}</span>}
                       <span className="shrink-0 text-slate-400">{ddayLabel(e.date)}</span>
                     </Link>
                   );

@@ -67,6 +67,8 @@ const PRESET_COLORS = [
 
 function AdminInner() {
   const { user } = useAuth();
+  const { settings } = useTheme();
+  const teams = settings.teams ?? [];
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -101,6 +103,15 @@ function AdminInner() {
 
   async function changeRole(uid: string, role: Role) {
     await setDoc(doc(db, "users", uid), { role }, { merge: true });
+    load();
+  }
+
+  // 단원 팀 지정 (users + publicProfiles 함께 갱신 → 필터·표시 즉시 반영)
+  async function changeTeam(uid: string, team: string) {
+    await Promise.all([
+      setDoc(doc(db, "users", uid), { team }, { merge: true }),
+      setDoc(doc(db, "publicProfiles", uid), { team }, { merge: true }),
+    ]);
     load();
   }
 
@@ -158,6 +169,7 @@ function AdminInner() {
               group: u.group || "",
               avatar: u.avatar || "",
               role: u.role,
+              team: u.team || "",
             },
             { merge: true }
           )
@@ -234,6 +246,20 @@ function AdminInner() {
                     </p>
                     {u.group && <p className="truncate text-xs text-slate-400">{u.group}</p>}
                   </div>
+                  {teams.length > 0 && (
+                    <select
+                      value={u.team ?? ""}
+                      onChange={(e) => changeTeam(u.uid, e.target.value)}
+                      className={`shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold outline-none transition ${
+                        u.team ? "border-accent/20 bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-400"
+                      }`}
+                    >
+                      <option value="">팀 없음</option>
+                      {teams.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  )}
                   <select
                     value={u.role}
                     disabled={isMe}
@@ -260,6 +286,11 @@ function AdminInner() {
             })}
           </div>
         )}
+      </CollapsibleSection>
+
+      {/* 팀 관리 */}
+      <CollapsibleSection id="teams" title={<>팀 관리 {teams.length > 0 && <span className="font-normal text-slate-400">{teams.length}개</span>}</>}>
+        <TeamManager />
       </CollapsibleSection>
 
       {/* 작품 관리 */}
@@ -290,6 +321,67 @@ function AdminInner() {
           <SettingsCard />
         </div>
       </CollapsibleSection>
+    </div>
+  );
+}
+
+// ---------- 팀 관리 (A팀/B팀 등 이름·개수 자유) ----------
+function TeamManager() {
+  const { settings, saveSettings } = useTheme();
+  const teams = settings.teams ?? [];
+  const [newTeam, setNewTeam] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function addTeam() {
+    const name = newTeam.trim();
+    if (!name || teams.includes(name)) {
+      setNewTeam("");
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveSettings({ teams: [...teams, name] });
+      setNewTeam("");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function removeTeam(name: string) {
+    if (!confirm(`'${name}' 팀을 삭제할까요? 이 팀으로 지정된 단원·일정은 '팀 없음/전체'로 남습니다.`)) return;
+    setBusy(true);
+    try {
+      await saveSettings({ teams: teams.filter((t) => t !== name) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-3 text-sm text-slate-500">
+        팀을 추가하면 단원별로 팀을 지정하고, 확정 일정을 팀별로 나눌 수 있어요. (예: A팀 / B팀)
+        비워두면 팀 기능이 꺼집니다.
+      </p>
+      {teams.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {teams.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent">
+              {t}
+              <button onClick={() => removeTeam(t)} disabled={busy} aria-label={`${t} 삭제`} className="text-accent/60 hover:text-accent">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          value={newTeam}
+          onChange={(e) => setNewTeam(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") addTeam(); }}
+          placeholder="새 팀 이름"
+        />
+        <button onClick={addTeam} disabled={busy} className="btn-accent shrink-0">추가</button>
+      </div>
     </div>
   );
 }

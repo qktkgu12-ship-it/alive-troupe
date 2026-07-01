@@ -12,11 +12,12 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
-import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CalendarIcon, ChevronDownIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -72,12 +73,31 @@ function slotRanges(slots: string[]): string[] {
 const AFTERNOON = TIME_SLOTS.slice(0, 12); // 12:00~18:00
 const EVENING = TIME_SLOTS.slice(12); // 18:00~24:00
 
+// 팀 배지 (전체 공통이면 표시 안 함)
+function TeamBadge({ team, className = "" }: { team?: string; className?: string }) {
+  if (!team) return null;
+  return (
+    <span className={`inline-flex shrink-0 items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent ${className}`}>
+      {team}
+    </span>
+  );
+}
+
 function ScheduleInner() {
   const { user, profile, role } = useAuth();
+  const { settings } = useTheme();
+  const teams = settings.teams ?? [];
+  const myTeam = profile?.team ?? "";
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+  // 조율 팀 필터(기본 내 팀), 모바일 전체현황 접기
+  const [coordTeam, setCoordTeam] = useState<string>("");
+  const [availOpen, setAvailOpen] = useState(false);
+  useEffect(() => {
+    setCoordTeam(myTeam);
+  }, [myTeam]);
   const [tab, setTab] = useState<Tab>("coord");
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
@@ -174,11 +194,13 @@ function ScheduleInner() {
       setActiveDate(ds);
       setRangeAnchor(null);
       setDirty(true);
+      setAvailOpen(true); // 모바일: 날짜 누르면 현황 펼치기
     } else if (activeDate === ds) {
       removeDate(ds);
     } else {
       setActiveDate(ds);
       setRangeAnchor(null);
+      setAvailOpen(true);
     }
   }
 
@@ -241,6 +263,7 @@ function ScheduleInner() {
             uid: user.uid,
             name,
             avatar,
+            team: myTeam,
             yearMonth: ym,
             dates: v.dates,
             slots: v.slots,
@@ -261,10 +284,16 @@ function ScheduleInner() {
     }
   }
 
-  // ----- 전체 현황 집계 -----
+  // ----- 전체 현황 집계 (팀 필터 적용) -----
+  // 팀이 없거나(기능 off) 필터가 '전체'면 모두, 아니면 해당 팀 제출만
+  const scopedAvail = useMemo(
+    () => (teams.length === 0 || !coordTeam ? allAvail : allAvail.filter((a) => (a.team || "") === coordTeam)),
+    [allAvail, coordTeam, teams.length]
+  );
+
   const { slotCount, submitters } = useMemo(() => {
     const slotCount: Record<string, Record<string, number>> = {};
-    for (const a of allAvail) {
+    for (const a of scopedAvail) {
       for (const date of a.dates ?? []) {
         const specific = a.slots?.[date];
         const list = specific && specific.length > 0 ? specific : TIME_SLOTS; // 아무때나 → 전체
@@ -272,8 +301,8 @@ function ScheduleInner() {
         for (const s of list) slotCount[date][s] = (slotCount[date][s] ?? 0) + 1;
       }
     }
-    return { slotCount, submitters: allAvail.length };
-  }, [allAvail]);
+    return { slotCount, submitters: scopedAvail.length };
+  }, [scopedAvail]);
 
   const recommendations = useMemo(() => {
     const recs: { date: string; start: string; end: string; count: number; len: number }[] = [];
@@ -305,7 +334,7 @@ function ScheduleInner() {
   const othersBySlot = useMemo(() => {
     const m: Record<string, number> = {};
     if (!activeDate) return m;
-    for (const a of allAvail) {
+    for (const a of scopedAvail) {
       if (a.uid === user?.uid) continue;
       if (!(a.dates ?? []).includes(activeDate)) continue;
       const specific = a.slots?.[activeDate];
@@ -313,13 +342,13 @@ function ScheduleInner() {
       for (const s of list) m[s] = (m[s] ?? 0) + 1;
     }
     return m;
-  }, [activeDate, allAvail, user?.uid]);
+  }, [activeDate, scopedAvail, user?.uid]);
 
   // 활성 날짜에 가능한 단원 (사진·이름, 이름 내림차순)
   const membersForActive = useMemo(() => {
     if (!activeDate) return [];
     const map = new Map<string, { uid: string; name: string; avatar?: string }>();
-    for (const a of allAvail) {
+    for (const a of scopedAvail) {
       if ((a.dates ?? []).includes(activeDate)) {
         // 본인은 실시간 프로필 사진을 우선 사용 (옛 제출 데이터에 사진이 없어도 바로 보이게)
         const avatar = a.uid === user?.uid ? profile?.avatar || a.avatar : a.avatar;
@@ -327,7 +356,7 @@ function ScheduleInner() {
       }
     }
     return [...map.values()].sort((x, y) => y.name.localeCompare(x.name, "ko"));
-  }, [activeDate, allAvail, user?.uid, profile?.avatar]);
+  }, [activeDate, scopedAvail, user?.uid, profile?.avatar]);
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, ScheduleEvent[]> = {};
@@ -361,60 +390,97 @@ function ScheduleInner() {
       {tab === "coord" && (
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-[0.9fr_1.2fr_1fr]">
-            {/* 왼쪽: 전체 가능 현황 */}
-            <div className="order-3 md:order-1">
-              <div className="card h-full space-y-4">
-                <div>
-                  <h2 className="font-bold">전체 가능 현황</h2>
-                  <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-500">🏆 가장 많이 겹치는 시간</p>
-                  {recommendations.length === 0 ? (
-                    <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {recommendations.map((r, i) => {
-                        const { md, dow } = dateLabel(r.date);
-                        const tone = ["font-bold text-slate-900", "font-medium text-slate-600", "font-normal text-slate-400"][i] ?? "font-normal text-slate-400";
-                        return (
-                          <div key={r.date} className={`flex items-center gap-2 py-2 text-sm ${tone}`}>
-                            <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
-                            <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
-                            <span className="shrink-0 text-xs">{r.count}명</span>
-                            {role === "admin" && (
-                              <button
-                                onClick={() => setConfirmDraft({ date: r.date, start: r.start, end: r.end })}
-                                className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg"
-                              >
-                                확정
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                {activeDate && (
-                  <div className="border-t border-slate-100 pt-3">
-                    <p className="mb-2 text-xs font-semibold text-slate-500">
-                      {dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원 {membersForActive.length}명
-                    </p>
-                    {membersForActive.length === 0 ? (
-                      <p className="text-sm text-slate-400">아직 없어요.</p>
+            {/* 전체 가능 현황 (모바일: 최상단·접기 / PC: 왼쪽 열·항상 펼침) */}
+            <div className="order-first md:order-1">
+              <div className="card h-full space-y-3 md:space-y-4">
+                {/* 헤더 (모바일에서 눌러 접기/펼치기) */}
+                <button
+                  type="button"
+                  onClick={() => setAvailOpen((o) => !o)}
+                  className="flex w-full items-center justify-between gap-2 text-left md:cursor-default"
+                >
+                  <div>
+                    <h2 className="font-bold">전체 가능 현황</h2>
+                    <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
+                  </div>
+                  <ChevronDownIcon className={`h-5 w-5 shrink-0 text-slate-400 transition md:hidden ${availOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* 팀 필터 (팀이 있을 때만) */}
+                {teams.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
+                      <button
+                        key={val || "all"}
+                        onClick={() => setCoordTeam(val)}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                          coordTeam === val ? "border-accent bg-accent-soft text-accent" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* 접힘 요약 (모바일, 닫힘 상태) */}
+                {!availOpen && recommendations[0] && (
+                  <div className="rounded-lg bg-surface px-3 py-2 text-sm md:hidden">
+                    <span className="font-semibold text-accent">🏆 {dateLabel(recommendations[0].date).md}({dateLabel(recommendations[0].date).dow}) {recommendations[0].start}~{recommendations[0].end}</span>
+                    <span className="ml-1.5 text-xs text-slate-400">{recommendations[0].count}명 가능</span>
+                  </div>
+                )}
+
+                {/* 본문 (모바일 접힘 시 숨김 / PC 항상 표시) */}
+                <div className={`${availOpen ? "block" : "hidden"} space-y-4 md:block`}>
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-slate-500">🏆 가장 많이 겹치는 시간</p>
+                    {recommendations.length === 0 ? (
+                      <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
                     ) : (
-                      <div className="space-y-1.5">
-                        {membersForActive.map((m) => (
-                          <div key={m.uid} className="flex items-center gap-2">
-                            <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
-                            <span className="text-sm text-slate-700">{m.name}</span>
-                          </div>
-                        ))}
+                      <div className="divide-y divide-slate-100">
+                        {recommendations.map((r, i) => {
+                          const { md, dow } = dateLabel(r.date);
+                          const tone = ["font-bold text-slate-900", "font-medium text-slate-600", "font-normal text-slate-400"][i] ?? "font-normal text-slate-400";
+                          return (
+                            <div key={r.date} className={`flex items-center gap-2 py-2 text-sm ${tone}`}>
+                              <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
+                              <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
+                              <span className="shrink-0 text-xs">{r.count}명</span>
+                              {role === "admin" && (
+                                <button
+                                  onClick={() => setConfirmDraft({ date: r.date, start: r.start, end: r.end })}
+                                  className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg"
+                                >
+                                  확정
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                )}
+                  {activeDate && (
+                    <div className="border-t border-slate-100 pt-3">
+                      <p className="mb-2 text-xs font-semibold text-slate-500">
+                        {dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원 {membersForActive.length}명
+                      </p>
+                      {membersForActive.length === 0 ? (
+                        <p className="text-sm text-slate-400">아직 없어요.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {membersForActive.map((m) => (
+                            <div key={m.uid} className="flex items-center gap-2">
+                              <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                              <span className="text-sm text-slate-700">{m.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -508,7 +574,7 @@ function ScheduleInner() {
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <p className="mb-2 px-1 text-sm font-semibold text-white">확정 일정 등록</p>
                 <EventForm
-                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end }}
+                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, team: coordTeam }}
                   onSaved={() => {
                     setConfirmDraft(null);
                     loadEvents();
@@ -535,6 +601,8 @@ function ScheduleInner() {
           isAdmin={role === "admin"}
           onChanged={loadEvents}
           highlightId={highlightEvent}
+          teams={teams}
+          myTeam={myTeam}
         />
       )}
     </div>
@@ -565,16 +633,19 @@ function EventForm({
   onSaved,
   onCancel,
 }: {
-  initial: { date: string; startTime: string; endTime: string; title?: string };
+  initial: { date: string; startTime: string; endTime: string; title?: string; team?: string };
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const { settings } = useTheme();
+  const teams = settings.teams ?? [];
   const [title, setTitle] = useState(initial.title ?? "");
   const [date, setDate] = useState(initial.date);
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
   const [location, setLocation] = useState("");
   const [memo, setMemo] = useState("");
+  const [team, setTeam] = useState(initial.team ?? "");
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -592,6 +663,7 @@ function EventForm({
         endTime,
         location: location.trim(),
         memo: memo.trim(),
+        team: teams.includes(team) ? team : "",
         createdAt: Date.now(),
       });
       onSaved();
@@ -604,6 +676,27 @@ function EventForm({
 
   return (
     <div className="space-y-3">
+      {/* 대상 팀 (팀이 있을 때만) */}
+      {teams.length > 0 && (
+        <div className="card !p-3">
+          <p className="mb-2 px-1 text-xs font-semibold text-slate-500">대상</p>
+          <div className="flex flex-wrap gap-1.5">
+            {([["", "전체 공통"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
+              <button
+                key={val || "all"}
+                type="button"
+                onClick={() => setTeam(val)}
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                  team === val ? "border-accent bg-accent text-accent-fg" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 제목 + 장소 — 칸 안에 안내문 */}
       <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
         <input
@@ -674,6 +767,8 @@ function EventsSection({
   isAdmin,
   onChanged,
   highlightId,
+  teams,
+  myTeam,
 }: {
   monthLabel: string;
   onPrev: () => void;
@@ -685,10 +780,20 @@ function EventsSection({
   isAdmin: boolean;
   onChanged: () => void;
   highlightId?: string | null;
+  teams: string[];
+  myTeam: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState(`${yearMonth}-01`);
   const today = toDateStr(new Date());
+
+  // 팀 필터 (기본: 내 팀 = 공통 + 내 팀). 빈값이면 전체
+  const [evTeam, setEvTeam] = useState(myTeam);
+  useEffect(() => {
+    setEvTeam(myTeam);
+  }, [myTeam]);
+  const visibleEvents =
+    teams.length === 0 || !evTeam ? events : events.filter((e) => !e.team || e.team === evTeam);
 
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
   const loadAbsences = useCallback(async () => {
@@ -718,7 +823,7 @@ function EventsSection({
   }
 
   // 안 지난 일정 먼저(날짜·시간순), 지난 일정은 맨 아래로
-  const sortedEvents = [...events].sort((a, b) => {
+  const sortedEvents = [...visibleEvents].sort((a, b) => {
     const pa = eventPassed(a);
     const pb = eventPassed(b);
     if (pa !== pb) return pa ? 1 : -1;
@@ -785,6 +890,23 @@ function EventsSection({
           )}
         </div>
 
+        {/* 팀 필터 (팀이 있을 때만) — 기본 내 팀, '전체'로 전환 가능 */}
+        {teams.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
+              <button
+                key={val || "all"}
+                onClick={() => setEvTeam(val)}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  evTeam === val ? "border-accent bg-accent-soft text-accent" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {isAdmin && showForm && (
           <div className="mb-3">
             <EventForm
@@ -799,8 +921,8 @@ function EventsSection({
           </div>
         )}
 
-        {events.length === 0 ? (
-          <EmptyState icon={CalendarIcon} title="이번 달 확정 일정이 없습니다." />
+        {visibleEvents.length === 0 ? (
+          <EmptyState icon={CalendarIcon} title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."} />
         ) : (
           <div className="space-y-5">
             {groups.map(([date, evs]) => {
@@ -825,7 +947,10 @@ function EventsSection({
                           } ${past ? "opacity-60" : ""}`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 truncate font-semibold">{e.title}</p>
+                            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                              <p className="min-w-0 truncate font-semibold">{e.title}</p>
+                              <TeamBadge team={e.team} />
+                            </div>
                             {isAdmin && (
                               <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
                                 <TrashIcon className="h-4 w-4" />
