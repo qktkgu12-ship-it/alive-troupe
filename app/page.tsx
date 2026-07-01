@@ -84,20 +84,20 @@ function HomeInner() {
 
   return (
     <div className="space-y-8">
-      {/* 인사 — mintlify 톤: 깔끔한 세미볼드, 타이트한 자간 */}
+      {/* 인사 — 담백하게 */}
       <header className="pt-1">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{todayLabel}</p>
-        <h1 className="mt-1.5 text-[28px] font-bold leading-[1.15] tracking-[-0.02em] text-slate-900">
+        <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
+        <h1 className="mt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
           안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
         </h1>
-        <p className="mt-1.5 text-sm text-slate-400">Today here, Right now!</p>
+        <p className="mt-1 text-sm italic text-slate-400">Today here, Right now!</p>
       </header>
 
       {/* 다가오는 확정 일정 */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">다가오는 일정</h2>
-          <Link href="/schedule" className="text-sm font-medium text-slate-500 transition hover:text-slate-900">
+          <Link href="/schedule" className="text-sm font-medium text-accent hover:underline">
             전체 보기 →
           </Link>
         </div>
@@ -181,7 +181,7 @@ function HomeInner() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">전체글</h2>
-          <Link href="/board" className="text-sm font-medium text-slate-500 transition hover:text-slate-900">
+          <Link href="/board" className="text-sm font-medium text-accent hover:underline">
             게시판 →
           </Link>
         </div>
