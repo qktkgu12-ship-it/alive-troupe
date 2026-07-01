@@ -112,7 +112,7 @@ function HomeInner() {
               return (
                 <Link
                   href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
-                  className="card relative flex items-start gap-4 ring-2 ring-accent/45 transition hover:ring-accent/70"
+                  className="card relative flex items-start gap-4 border-2 border-accent/50 transition hover:border-accent/75"
                   style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgb(var(--accent) / 0.18)" }}
                 >
                   <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
