@@ -84,20 +84,20 @@ function HomeInner() {
 
   return (
     <div className="space-y-8">
-      {/* 인사 — 담백하게 */}
+      {/* 인사 — The Verge 톤: 초대형 헤드라인 + 대문자 모노 라벨 */}
       <header className="pt-1">
-        <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
-        <h1 className="mt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
-          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">{todayLabel}</p>
+        <h1 className="mt-2 text-4xl font-black leading-[0.98] tracking-[-0.03em] text-slate-900 sm:text-5xl">
+          안녕하세요,<br />{profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
         </h1>
-        <p className="mt-1 text-sm italic text-slate-400">Today here, Right now!</p>
+        <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today here, Right now!</p>
       </header>
 
       {/* 다가오는 확정 일정 */}
-      <section>
+      <section className="border-t border-slate-200 pt-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">다가오는 일정</h2>
-          <Link href="/schedule" className="text-sm font-medium text-accent hover:underline">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-900">다가오는 일정</h2>
+          <Link href="/schedule" className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500 transition hover:text-slate-900">
             전체 보기 →
           </Link>
         </div>
@@ -159,22 +159,22 @@ function HomeInner() {
         )}
       </section>
 
-      {/* 바로가기 */}
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">바로가기</h2>
+      {/* 바로가기 — Verge 스토리 타일: 그림자 없이 테두리, 호버 시 색으로 강조 */}
+      <section className="border-t border-slate-200 pt-6">
+        <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-900">바로가기</h2>
         <div className="grid grid-cols-2 gap-3">
           {FEATURES.map(({ href, title, desc, Icon }) => (
             <Link
               key={href}
               href={href}
-              className="group flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-10px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(16,24,40,0.18)]"
+              className="group flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-accent hover:bg-accent"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-accent transition group-hover:bg-accent group-hover:text-accent-fg">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-accent transition group-hover:bg-black/10 group-hover:text-accent-fg">
                 <Icon className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-slate-900">{title}</p>
-                <p className="mt-0.5 text-xs text-slate-400">{desc}</p>
+                <p className="text-sm font-bold text-slate-900 transition group-hover:text-accent-fg">{title}</p>
+                <p className="mt-0.5 text-xs text-slate-400 transition group-hover:text-accent-fg/80">{desc}</p>
               </div>
             </Link>
           ))}
@@ -182,10 +182,10 @@ function HomeInner() {
       </section>
 
       {/* 전체글 (모든 게시판 최신글) */}
-      <section>
+      <section className="border-t border-slate-200 pt-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">전체글</h2>
-          <Link href="/board" className="text-sm font-medium text-accent hover:underline">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-900">전체글</h2>
+          <Link href="/board" className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500 transition hover:text-slate-900">
             게시판 →
           </Link>
         </div>
@@ -219,10 +219,12 @@ function HomeInner() {
       </section>
 
       {role === "admin" && (
-        <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">관리</h2>
+        <section className="border-t border-slate-200 pt-6">
+          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-900">관리</h2>
           <div className="flex flex-wrap gap-3">
-            <Link href="/admin" className="btn-accent">관리 페이지</Link>
+            <Link href="/admin" className="inline-flex items-center rounded-full bg-accent px-5 py-2.5 text-xs font-bold uppercase tracking-[0.15em] text-accent-fg transition hover:brightness-105">
+              관리 페이지
+            </Link>
           </div>
         </section>
       )}
