@@ -145,6 +145,15 @@ service cloud.firestore {
         allow create: if isMember() && request.resource.data.authorUid == request.auth.uid;
         allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
       }
+
+      // 투표 기록 (문서 ID = 단원 uid, 본인 것만 쓰기)
+      match /votes/{uid} {
+        allow read: if isMember();
+        allow create, update: if isMember()
+          && uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if isAdmin() || (isMember() && uid == request.auth.uid);
+      }
     }
 
     // 좋아요 (postLikes/{postId}_{uid})

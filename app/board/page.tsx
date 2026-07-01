@@ -227,6 +227,7 @@ function BoardInner() {
             <Link key={p.id} href={`/board/${p.id}`} className="block px-4 py-3 transition hover:bg-slate-50">
               <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
+                {p.poll && <span className="shrink-0 text-xs text-slate-400">🗳️</span>}
                 {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="shrink-0 text-xs text-slate-400">📷</span>}
                 {(p.commentCount ?? 0) > 0 && (
                   <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-accent">

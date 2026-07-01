@@ -145,6 +145,24 @@ export function boardCategoryLabel(board: string): string {
   return (BOARD_LABEL as Record<string, string>)[board] ?? board;
 }
 
+// 투표(선택) — 글에 붙는 투표. 글쓴이가 단일/복수·익명 여부·마감을 정함
+export interface Poll {
+  question?: string; // 투표 질문(선택)
+  options: string[]; // 선택지
+  multiple: boolean; // 복수 선택 허용
+  anonymous: boolean; // 익명(누가 골랐는지 숨김)
+  deadline?: number; // 마감 시각(ms). 없으면 무기한
+}
+
+// 개별 투표 기록 (posts/{postId}/votes/{uid})
+export interface PollVote {
+  uid: string;
+  name: string;
+  avatar?: string;
+  choices: number[]; // 선택한 선택지 인덱스들
+  createdAt: number;
+}
+
 export interface Post {
   id: string;
   board: string; // 카테고리 이름(신규) 또는 구버전 키(free/costume/stage)
@@ -154,6 +172,7 @@ export interface Post {
   hasImages?: boolean; // 첨부 사진 존재 여부 (실제 사진은 postMedia 문서에 별도 저장)
   images?: string[]; // (구버전 호환) 예전 글은 사진이 글 문서 안에 들어있을 수 있음
   tags?: string[]; // 태그
+  poll?: Poll; // 투표(선택)
   authorUid: string;
   authorName: string;
   authorAvatar?: string; // 작성 시점의 글쓴이 프로필 사진

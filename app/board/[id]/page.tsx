@@ -15,7 +15,7 @@ import { ProfileAvatar } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
-import { boardCategoryLabel, type Comment, type Post, type PostMedia } from "@/lib/types";
+import { boardCategoryLabel, type Comment, type Post, type PostMedia, type PollVote } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
 
@@ -279,6 +279,8 @@ function PostDetailInner() {
             </div>
           )}
 
+          {post.poll && <PollBlock post={post} />}
+
           {images.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {images.map((src, i) => (
@@ -427,6 +429,159 @@ function PostDetailInner() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- 투표 블록 ----------
+function pollDeadlineLabel(ts: number) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function PollBlock({ post }: { post: Post }) {
+  const { user, profile } = useAuth();
+  const poll = post.poll!;
+  const [votes, setVotes] = useState<PollVote[]>([]);
+  const [sel, setSel] = useState<number[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const closed = !!poll.deadline && Date.now() > poll.deadline;
+
+  const load = useCallback(async () => {
+    const snap = await getDocs(collection(db, "posts", post.id, "votes"));
+    const list = snap.docs.map((d) => d.data() as PollVote);
+    setVotes(list);
+    const mine = list.find((v) => v.uid === user?.uid);
+    setSel(mine ? mine.choices : []);
+  }, [post.id, user?.uid]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const myVote = votes.find((v) => v.uid === user?.uid);
+  const total = votes.length;
+  const counts = poll.options.map((_, i) => votes.filter((v) => v.choices.includes(i)).length);
+  const votersByOption = poll.options.map((_, i) => votes.filter((v) => v.choices.includes(i)));
+
+  const selChanged = JSON.stringify([...sel].sort()) !== JSON.stringify([...(myVote?.choices ?? [])].sort());
+
+  function toggle(i: number) {
+    if (closed) return;
+    setSel((prev) => {
+      if (poll.multiple) return prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i];
+      return [i];
+    });
+  }
+
+  async function submit() {
+    if (!user || sel.length === 0 || closed) return;
+    setBusy(true);
+    try {
+      await setDoc(doc(db, "posts", post.id, "votes", user.uid), {
+        uid: user.uid,
+        name: profile?.name || profile?.displayName || "",
+        avatar: profile?.avatar || "",
+        choices: sel,
+        createdAt: Date.now(),
+      });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function cancelVote() {
+    if (!user || closed) return;
+    setBusy(true);
+    try {
+      await deleteDoc(doc(db, "posts", post.id, "votes", user.uid));
+      setSel([]);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-slate-200 p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="font-semibold text-slate-900">🗳️ {poll.question || "투표"}</p>
+        <span className="shrink-0 text-xs text-slate-400">
+          {poll.multiple ? "복수" : "단일"} · {poll.anonymous ? "익명" : "실명"}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {poll.options.map((opt, i) => {
+          const count = counts[i];
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          const chosen = sel.includes(i);
+          return (
+            <div key={i}>
+              <button
+                type="button"
+                onClick={() => toggle(i)}
+                disabled={closed}
+                className={`relative w-full overflow-hidden rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                  chosen ? "border-accent bg-accent-soft" : "border-slate-200 hover:bg-slate-50"
+                } ${closed ? "cursor-default" : ""}`}
+              >
+                {/* 결과 막대 */}
+                <span className="absolute inset-y-0 left-0 -z-0 bg-accent/10" style={{ width: `${pct}%` }} aria-hidden />
+                <span className="relative z-10 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`grid h-4 w-4 shrink-0 place-items-center border-2 ${poll.multiple ? "rounded" : "rounded-full"} ${
+                        chosen ? "border-accent bg-accent text-accent-fg" : "border-slate-300"
+                      }`}
+                    >
+                      {chosen && <span className="text-[9px] leading-none">✓</span>}
+                    </span>
+                    <span className={chosen ? "font-semibold text-slate-900" : "text-slate-700"}>{opt}</span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-slate-500">
+                    {count}표 · {pct}%
+                  </span>
+                </span>
+              </button>
+              {/* 실명 투표면 각 선택지에 투표자 표시 */}
+              {!poll.anonymous && votersByOption[i].length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-1 pl-1">
+                  {votersByOption[i].slice(0, 12).map((v) => (
+                    <ProfileAvatar key={v.uid} uid={v.uid} name={v.name} avatar={v.avatar} className="h-6 w-6 text-[10px]" />
+                  ))}
+                  {votersByOption[i].length > 12 && (
+                    <span className="text-xs text-slate-400">+{votersByOption[i].length - 12}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-slate-400">
+          총 {total}명 참여
+          {poll.deadline && <> · {closed ? "마감됨" : `${pollDeadlineLabel(poll.deadline)} 마감`}</>}
+        </p>
+        {!closed && (
+          <div className="flex gap-2">
+            {myVote && (
+              <button onClick={cancelVote} disabled={busy} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50">
+                투표 취소
+              </button>
+            )}
+            <button
+              onClick={submit}
+              disabled={busy || sel.length === 0 || !selChanged}
+              className="btn-accent !py-1.5 disabled:opacity-50"
+            >
+              {myVote ? "변경 저장" : "투표하기"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
