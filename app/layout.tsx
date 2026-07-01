@@ -17,8 +17,8 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-// 화면이 그려지기 직전에 실행 → 마지막으로 본 테마색을 즉시 칠해 깜빡임 방지
-const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}})();`;
+// 강조색은 이제 코드에 고정(globals.css). 예전에 캐시된 색이 덮어쓰지 않도록 한 번 정리.
+const themeInitScript = `(function(){try{['alive-accent','alive-accent-fg','alive-accent-2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}})();`;
 
 export default function RootLayout({
   children,

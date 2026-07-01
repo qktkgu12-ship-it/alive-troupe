@@ -54,17 +54,6 @@ function CollapsibleSection({
   );
 }
 
-const PRESET_COLORS = [
-  { name: "보라 (넥스트 투 노멀)", hex: "#7c3aed" },
-  { name: "빨강 (데스노트)", hex: "#dc2626" },
-  { name: "파랑", hex: "#2563eb" },
-  { name: "초록", hex: "#059669" },
-  { name: "분홍", hex: "#db2777" },
-  { name: "주황", hex: "#ea580c" },
-  { name: "남색", hex: "#1e293b" },
-  { name: "청록", hex: "#0d9488" },
-];
-
 function AdminInner() {
   const { user } = useAuth();
   const { settings } = useTheme();
@@ -653,19 +642,17 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
 function SettingsCard() {
   const { settings, saveSettings } = useTheme();
   const [troupeName, setTroupeName] = useState(settings.troupeName);
-  const [accentColor, setAccentColor] = useState(settings.accentColor);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setTroupeName(settings.troupeName);
-    setAccentColor(settings.accentColor);
   }, [settings]);
 
   async function save() {
     setBusy(true);
     try {
-      await saveSettings({ troupeName, accentColor });
+      await saveSettings({ troupeName });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -676,39 +663,13 @@ function SettingsCard() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-sm font-semibold text-slate-700">사이트 · 테마 설정</p>
-        <p className="text-sm text-slate-500">강조색을 자유롭게 바꿀 수 있어요. (전 단원에게 즉시 반영)</p>
+        <p className="text-sm font-semibold text-slate-700">사이트 설정</p>
+        <p className="text-sm text-slate-500">극단 이름을 바꿀 수 있어요. (전 단원에게 즉시 반영)</p>
       </div>
 
       <div>
         <label className="label">극단 이름</label>
         <input className="input" value={troupeName} onChange={(e) => setTroupeName(e.target.value)} />
-      </div>
-
-      <div>
-        <label className="label">강조색</label>
-        <div className="flex flex-wrap items-center gap-2">
-          {PRESET_COLORS.map((c) => (
-            <button
-              key={c.hex}
-              title={c.name}
-              onClick={() => setAccentColor(c.hex)}
-              className={`h-9 w-9 rounded-full ring-offset-2 transition ${accentColor.toLowerCase() === c.hex.toLowerCase() ? "ring-2 ring-slate-800" : ""}`}
-              style={{ backgroundColor: c.hex }}
-            />
-          ))}
-          <label className="ml-1 inline-flex items-center gap-2 text-sm text-slate-500">
-            직접 선택
-            <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-slate-300" />
-          </label>
-        </div>
-      </div>
-
-      {/* 미리보기 */}
-      <div className="flex items-center gap-3 rounded-xl p-4" style={{ backgroundColor: accentColor }}>
-        <span className="font-bold" style={{ color: parseInt(accentColor.replace("#", ""), 16) > 0x888888 ? "#111" : "#fff" }}>
-          {troupeName}
-        </span>
       </div>
 
       <button onClick={save} disabled={busy} className="btn-accent">

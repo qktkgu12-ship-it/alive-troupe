@@ -10,7 +10,6 @@ import {
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import type { SiteSettings } from "./types";
-import { derivePalette, hexToRgbTriplet, readableTextColor } from "./utils";
 
 const DEFAULT_SETTINGS: SiteSettings = {
   troupeName: "ALIVE 얼라이브",
@@ -32,49 +31,19 @@ const ThemeContext = createContext<ThemeState | undefined>(undefined);
 
 const SETTINGS_DOC = doc(db, "settings", "site");
 
-function applyAccent(hex: string) {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  const accent = hexToRgbTriplet(hex);
-  const accentFg = readableTextColor(hex);
-  // 배경/보조색은 중립 회색 고정(globals). 강조색과 그라데이션용 진한 강조만 교체.
-  const { accentDeep } = derivePalette(hex);
-  root.style.setProperty("--accent", accent);
-  root.style.setProperty("--accent-fg", accentFg);
-  root.style.setProperty("--accent-2", accentDeep);
-  // 다음 방문 때 깜빡임 없이 바로 칠하도록 캐시 (layout.tsx의 인라인 스크립트가 읽음)
-  try {
-    localStorage.setItem("alive-accent", accent);
-    localStorage.setItem("alive-accent-fg", accentFg);
-    localStorage.setItem("alive-accent-2", accentDeep);
-  } catch {
-    /* 무시 */
-  }
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 인라인 스크립트(layout)가 이미 캐시된 색을 칠했음.
-    // 캐시가 전혀 없을 때(최초 방문)만 기본색을 적용해 둔다.
-    try {
-      if (!localStorage.getItem("alive-accent")) applyAccent(DEFAULT_SETTINGS.accentColor);
-    } catch {
-      applyAccent(DEFAULT_SETTINGS.accentColor);
-    }
-    // 설정 문서를 실시간 구독 → 관리자가 색을 바꾸면 모두에게 즉시 반영
+    // 강조색은 코드에 고정(globals.css). 여기선 극단명·팀·카테고리 등 설정만 구독.
     const unsub = onSnapshot(
       SETTINGS_DOC,
       (snap) => {
         if (snap.exists()) {
-          const data = { ...DEFAULT_SETTINGS, ...(snap.data() as SiteSettings) };
-          setSettings(data);
-          applyAccent(data.accentColor);
+          setSettings({ ...DEFAULT_SETTINGS, ...(snap.data() as SiteSettings) });
         } else {
           setSettings(DEFAULT_SETTINGS);
-          applyAccent(DEFAULT_SETTINGS.accentColor);
         }
         setLoading(false);
       },
