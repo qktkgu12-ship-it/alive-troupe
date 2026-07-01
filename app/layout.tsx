@@ -17,9 +17,9 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-// 강조색은 코드에 고정(globals.css). 예전 캐시 색 정리 + Pretendard 폰트를 '비차단'으로 주입
-// (폰트 CDN이 렌더를 막아 화면이 멈추던 문제 방지).
-const themeInitScript = `(function(){try{['alive-accent','alive-accent-fg','alive-accent-2'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}try{var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css';document.head.appendChild(l);}catch(e){}})();`;
+// 화면 그려지기 직전: (1) 마지막으로 본 강조색을 즉시 칠해 깜빡임 방지,
+// (2) Pretendard 폰트를 '비차단'으로 주입 → CDN이 느려도 화면이 멈추지 않음(검은 화면 방지).
+const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css';document.head.appendChild(l);}catch(e){}})();`;
 
 export default function RootLayout({
   children,
