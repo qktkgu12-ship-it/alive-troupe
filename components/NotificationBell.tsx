@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { fetchNotifications, type AppNotification, type NotifType } from "@/lib/notifications";
+import { useNotifications } from "@/lib/notifications-context";
+import { type AppNotification, type NotifType } from "@/lib/notifications";
 import { relativeTime } from "@/lib/utils";
 import {
   ArchiveIcon,
@@ -44,15 +45,11 @@ function BellIcon({ className }: { className?: string }) {
 
 export default function NotificationBell() {
   const { user, profile, role } = useAuth();
+  const { items, loading, refresh } = useNotifications();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<AppNotification[]>([]);
   const [reads, setReads] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(false);
-
-  const sinceRef = useRef<number | null>(null);
-  const lastFetch = useRef(0);
   const initedReads = useRef(false);
 
   const isMember = role === "member" || role === "admin";
@@ -64,38 +61,6 @@ export default function NotificationBell() {
       initedReads.current = true;
     }
   }, [profile]);
-
-  const refresh = useCallback(
-    async (force = false) => {
-      if (!user || !isMember) return;
-      if (!force && Date.now() - lastFetch.current < 30_000) return; // 30초 쓰로틀
-      lastFetch.current = Date.now();
-
-      // 알림 기준 시각(since) 보장: 처음이면 '지금'으로 설정 → 과거 알림 폭주 방지
-      let since = sinceRef.current ?? profile?.notifSince ?? null;
-      if (since == null) {
-        since = Date.now();
-        updateDoc(doc(db, "users", user.uid), { notifSince: since }).catch(() => {});
-      }
-      sinceRef.current = since;
-
-      setLoading(true);
-      try {
-        const list = await fetchNotifications({ uid: user.uid, isAdmin: role === "admin", since });
-        setItems(list);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [user, isMember, role, profile?.notifSince]
-  );
-
-  // 최초 1회 + 3분 간격 백그라운드 갱신 (페이지 이동마다 조회하지 않아 읽기 횟수 절약)
-  useEffect(() => {
-    refresh();
-    const t = setInterval(() => refresh(), 180_000);
-    return () => clearInterval(t);
-  }, [refresh]);
 
   if (!user || !isMember) return null;
 

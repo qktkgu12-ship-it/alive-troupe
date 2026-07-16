@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useNotifications } from "@/lib/notifications-context";
 import { NAV_ICON } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 
@@ -13,16 +14,77 @@ const NAV = [
   { href: "/archive", label: "아카이브", admin: false },
   { href: "/audio", label: "자료실", admin: false },
   { href: "/board", label: "게시판", admin: false },
+  { href: "/members", label: "멤버", admin: false },
   { href: "/admin", label: "관리", admin: true },
 ];
 
+const SECTIONS = ["/schedule", "/archive", "/audio", "/board", "/members", "/admin"];
+// 경로/알림 href → 내비 섹션
+function sectionOf(path: string): string | null {
+  for (const base of SECTIONS) {
+    if (path === base || path.startsWith(base + "/") || path.startsWith(base + "?")) return base;
+  }
+  return null;
+}
+
+const SEEN_KEY = "alive-nav-seen";
+
+function NewBadge() {
+  return (
+    <span className="ml-1.5 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none tracking-wide text-accent-fg">
+      NEW
+    </span>
+  );
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, role, signOut } = useAuth();
+  const { items } = useNotifications();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
+
+  // 섹션별 '가장 최근 새 항목' 시각 (알림 데이터 재사용)
+  const latestBySection = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const n of items) {
+      const sec = sectionOf(n.href);
+      if (sec) m[sec] = Math.max(m[sec] ?? 0, n.time);
+    }
+    return m;
+  }, [items]);
+
+  // 섹션별 '마지막으로 본 시각' (방문하면 갱신, localStorage 저장)
+  const [seen, setSeen] = useState<Record<string, number>>({});
+  useEffect(() => {
+    try {
+      setSeen(JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"));
+    } catch {
+      /* 무시 */
+    }
+  }, []);
+
+  // 현재 페이지 섹션은 '봤음'으로 기록 → NEW 사라짐
+  useEffect(() => {
+    const sec = sectionOf(pathname);
+    if (!sec) return;
+    setSeen((prev) => {
+      const next = { ...prev, [sec]: Date.now() };
+      try {
+        localStorage.setItem(SEEN_KEY, JSON.stringify(next));
+      } catch {
+        /* 무시 */
+      }
+      return next;
+    });
+  }, [pathname]);
+
+  const isNew = (href: string) => {
+    const t = latestBySection[href];
+    return !!t && t > (seen[href] ?? 0);
+  };
 
   useEffect(() => {
     setOpen(false);
@@ -82,6 +144,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   {n.label}
+                  {isNew(n.href) && <NewBadge />}
                   {active && (
                     <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
                   )}
@@ -154,6 +217,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 {Icon && <Icon className={`h-5 w-5 ${active ? "text-accent" : "text-slate-400"}`} />}
                 {n.label}
+                {isNew(n.href) && <NewBadge />}
               </Link>
             );
           })}
