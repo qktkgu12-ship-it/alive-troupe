@@ -49,6 +49,8 @@ function PostDetailInner() {
   const [commentText, setCommentText] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
   const [visibleC, setVisibleC] = useState(10);
+  const [replyTo, setReplyTo] = useState<string | null>(null); // 답글 작성 중인 부모 댓글 id
+  const [replyText, setReplyText] = useState("");
   const viewedRef = useRef(false);
 
   // 같은 게시판 안에서의 이전/다음 글
@@ -145,8 +147,9 @@ function PostDetailInner() {
     }
   }
 
-  async function addComment() {
-    if (!user || !commentText.trim()) return;
+  // 댓글/대댓글 공통 등록 (parentId 있으면 대댓글)
+  async function submitComment(text: string, parentId?: string) {
+    if (!user || !text.trim()) return;
     setCommentBusy(true);
     try {
       const cid = crypto.randomUUID();
@@ -154,21 +157,35 @@ function PostDetailInner() {
         authorUid: user.uid,
         authorName: profile?.name || profile?.displayName || "",
         authorAvatar: profile?.avatar || "",
-        content: commentText.trim(),
+        content: text.trim(),
+        ...(parentId ? { parentId } : {}),
         createdAt: Date.now(),
       });
       await updateDoc(doc(db, "posts", id), { commentCount: increment(1) }).catch(() => {});
-      setCommentText("");
       await loadComments();
     } finally {
       setCommentBusy(false);
     }
   }
 
+  async function addComment() {
+    await submitComment(commentText);
+    setCommentText("");
+  }
+
+  async function submitReply(parentId: string) {
+    await submitComment(replyText, parentId);
+    setReplyText("");
+    setReplyTo(null);
+  }
+
   async function removeComment(c: Comment) {
-    if (!confirm("댓글을 삭제할까요?")) return;
+    // 최상위 댓글이면 딸린 대댓글도 함께 삭제
+    const children = comments.filter((x) => x.parentId === c.id);
+    if (!confirm(children.length > 0 ? `이 댓글과 답글 ${children.length}개를 삭제할까요?` : "댓글을 삭제할까요?")) return;
     await deleteDoc(doc(db, "posts", id, "comments", c.id));
-    await updateDoc(doc(db, "posts", id), { commentCount: increment(-1) }).catch(() => {});
+    await Promise.all(children.map((ch) => deleteDoc(doc(db, "posts", id, "comments", ch.id))));
+    await updateDoc(doc(db, "posts", id), { commentCount: increment(-(1 + children.length)) }).catch(() => {});
     await loadComments();
   }
 
@@ -362,36 +379,103 @@ function PostDetailInner() {
       {!editing && (
         <section className="card">
           <h2 className="mb-3 font-bold">댓글 {comments.length}</h2>
-          {comments.length === 0 ? (
-            <p className="py-4 text-center text-sm text-slate-400">첫 댓글을 남겨보세요.</p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {comments.slice(0, visibleC).map((c) => (
-                <div key={c.id} className="flex items-start gap-2.5 py-3">
-                  <ProfileAvatar uid={c.authorUid} name={c.authorName} avatar={c.authorAvatar} className="h-8 w-8 text-xs" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-800">{c.authorName}</span>
-                      <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
-                    </p>
-                    <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
-                      <Linkify text={c.content} />
-                    </p>
-                  </div>
-                  {(isAdmin || c.authorUid === user?.uid) && (
-                    <button onClick={() => removeComment(c)} aria-label="댓글 삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {comments.length > visibleC && (
-                <button onClick={() => setVisibleC((v) => v + 10)} className="w-full py-2.5 text-sm font-medium text-accent hover:bg-slate-50">
-                  댓글 더 보기 ({comments.length - visibleC}개)
-                </button>
-              )}
-            </div>
-          )}
+          {(() => {
+            const topLevel = comments.filter((c) => !c.parentId);
+            const repliesOf = (pid: string) => comments.filter((c) => c.parentId === pid);
+            if (topLevel.length === 0) {
+              return <p className="py-4 text-center text-sm text-slate-400">첫 댓글을 남겨보세요.</p>;
+            }
+            return (
+              <div className="divide-y divide-slate-100">
+                {topLevel.slice(0, visibleC).map((c) => {
+                  const replies = repliesOf(c.id);
+                  return (
+                    <div key={c.id} className="py-3">
+                      {/* 댓글 */}
+                      <div className="flex items-start gap-2.5">
+                        <ProfileAvatar uid={c.authorUid} name={c.authorName} avatar={c.authorAvatar} className="h-8 w-8 text-xs" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm">
+                            <span className="font-medium text-slate-800">{c.authorName}</span>
+                            <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
+                          </p>
+                          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
+                            <Linkify text={c.content} />
+                          </p>
+                          <button
+                            onClick={() => {
+                              setReplyTo((prev) => (prev === c.id ? null : c.id));
+                              setReplyText("");
+                            }}
+                            className="mt-1 text-xs font-medium text-slate-400 transition hover:text-accent"
+                          >
+                            {replyTo === c.id ? "취소" : "답글"}
+                          </button>
+                        </div>
+                        {(isAdmin || c.authorUid === user?.uid) && (
+                          <button onClick={() => removeComment(c)} aria-label="댓글 삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* 대댓글 */}
+                      {replies.length > 0 && (
+                        <div className="mt-2 space-y-2.5 border-l-2 border-slate-100 pl-3 sm:ml-10">
+                          {replies.map((r) => (
+                            <div key={r.id} className="flex items-start gap-2">
+                              <ProfileAvatar uid={r.authorUid} name={r.authorName} avatar={r.authorAvatar} className="h-7 w-7 text-[10px]" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm">
+                                  <span className="font-medium text-slate-800">{r.authorName}</span>
+                                  <span className="ml-1.5 text-xs text-slate-400">{relativeTime(r.createdAt)}</span>
+                                </p>
+                                <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
+                                  <Linkify text={r.content} />
+                                </p>
+                              </div>
+                              {(isAdmin || r.authorUid === user?.uid) && (
+                                <button onClick={() => removeComment(r)} aria-label="답글 삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
+                                  <TrashIcon className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 답글 입력 */}
+                      {replyTo === c.id && (
+                        <div className="mt-2 flex gap-2 border-l-2 border-slate-100 pl-3 sm:ml-10">
+                          <input
+                            className="input flex-1"
+                            value={replyText}
+                            autoFocus
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder={`${c.authorName}님에게 답글`}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                submitReply(c.id);
+                              }
+                            }}
+                          />
+                          <button onClick={() => submitReply(c.id)} disabled={commentBusy || !replyText.trim()} className="btn-accent">
+                            등록
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {topLevel.length > visibleC && (
+                  <button onClick={() => setVisibleC((v) => v + 10)} className="w-full py-2.5 text-sm font-medium text-accent hover:bg-slate-50">
+                    댓글 더 보기 ({topLevel.length - visibleC}개)
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           <div className="mt-3 flex gap-2">
             <input
               className="input flex-1"

@@ -196,6 +196,7 @@ export interface Comment {
   authorName: string;
   authorAvatar?: string; // 작성 시점의 프로필 사진(압축 data URL) — 다른 사람 프로필은 못 읽으므로 denormalize
   content: string;
+  parentId?: string; // 대댓글이면 부모 댓글 id (없으면 최상위 댓글)
   createdAt: number;
 }
 
