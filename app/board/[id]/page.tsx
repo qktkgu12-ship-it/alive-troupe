@@ -11,7 +11,7 @@ import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
 import PostContent from "@/components/PostContent";
 import RichEditor from "@/components/RichEditor";
-import { ProfileAvatar } from "@/components/ProfileViewer";
+import { ProfileAvatar, ProfileName } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
@@ -282,7 +282,7 @@ function PostDetailInner() {
           <div className="mt-3 flex items-center gap-2.5">
             <ProfileAvatar uid={post.authorUid} name={post.authorName} avatar={post.authorAvatar} className="h-9 w-9 text-sm" />
             <div className="leading-tight">
-              <p className="text-sm font-medium text-slate-700">{post.authorName}</p>
+              <p className="text-sm font-medium text-slate-700"><ProfileName uid={post.authorUid} name={post.authorName} /></p>
               <p className="text-xs text-slate-400">{fmtDateTime(post.createdAt)}</p>
             </div>
           </div>
@@ -396,7 +396,7 @@ function PostDetailInner() {
                         <ProfileAvatar uid={c.authorUid} name={c.authorName} avatar={c.authorAvatar} className="h-8 w-8 text-xs" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm">
-                            <span className="font-medium text-slate-800">{c.authorName}</span>
+                            <span className="font-medium text-slate-800"><ProfileName uid={c.authorUid} name={c.authorName} /></span>
                             <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
                           </p>
                           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
@@ -427,7 +427,7 @@ function PostDetailInner() {
                               <ProfileAvatar uid={r.authorUid} name={r.authorName} avatar={r.authorAvatar} className="h-7 w-7 text-[10px]" />
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm">
-                                  <span className="font-medium text-slate-800">{r.authorName}</span>
+                                  <span className="font-medium text-slate-800"><ProfileName uid={r.authorUid} name={r.authorName} /></span>
                                   <span className="ml-1.5 text-xs text-slate-400">{relativeTime(r.createdAt)}</span>
                                 </p>
                                 <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">

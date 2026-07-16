@@ -112,7 +112,8 @@ function AdminInner() {
     // 모든 작품 참여명단에서 제거
     const pr = await getDocs(query(collection(db, "productions"), where("participants", "array-contains", uid)));
     await Promise.all(pr.docs.map((d) => updateDoc(d.ref, { participants: arrayRemove(uid) })));
-    // 회원 문서 삭제
+    // 공개 프로필 삭제(멤버 명단에서 사라지도록) + 회원 문서 삭제
+    await deleteDoc(doc(db, "publicProfiles", uid)).catch(() => {});
     await deleteDoc(doc(db, "users", uid));
     load();
   }
@@ -148,6 +149,7 @@ function AdminInner() {
     try {
       const snap = await getDocs(collection(db, "users"));
       const all = snap.docs.map((d) => d.data() as UserProfile);
+      const ids = new Set(snap.docs.map((d) => d.id));
       await Promise.all(
         all.map((u) =>
           setDoc(
@@ -164,7 +166,11 @@ function AdminInner() {
           )
         )
       );
-      alert(`${all.length}명의 공개 프로필을 동기화했어요! 👍`);
+      // 탈퇴한 단원(회원 문서 없음)의 공개 프로필 정리 → 멤버 명단에서 제거
+      const pub = await getDocs(collection(db, "publicProfiles"));
+      const orphans = pub.docs.filter((d) => !ids.has(d.id));
+      await Promise.all(orphans.map((d) => deleteDoc(d.ref)));
+      alert(`${all.length}명 공개 프로필 동기화 완료${orphans.length ? ` · 탈퇴자 ${orphans.length}명 정리` : ""} 👍`);
     } catch (e) {
       console.error(e);
       alert("동기화에 실패했어요. 보안 규칙(publicProfiles의 관리자 쓰기 허용)이 게시됐는지 확인해 주세요.");

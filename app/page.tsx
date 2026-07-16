@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import DateBadge from "@/components/DateBadge";
 import EventMeta from "@/components/EventMeta";
+import { ProfileName } from "@/components/ProfileViewer";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
@@ -208,7 +209,7 @@ function HomeInner() {
                     {(p.commentCount ?? 0) > 0 && (
                       <span className="shrink-0 text-xs font-semibold text-accent">[{p.commentCount}]</span>
                     )}
-                    <span className="hidden shrink-0 text-xs text-slate-400 sm:inline">{p.authorName}</span>
+                    <span className="hidden shrink-0 text-xs text-slate-400 sm:inline"><ProfileName uid={p.authorUid} name={p.authorName} /></span>
                     <span className="shrink-0 text-xs text-slate-300">{relativeTime(p.createdAt)}</span>
                   </Link>
                 </li>

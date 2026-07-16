@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Avatar from "@/components/Avatar";
@@ -10,6 +10,8 @@ type Fallback = { name?: string; avatar?: string };
 
 interface ViewerState {
   open: (uid: string, fallback?: Fallback) => void;
+  profiles: Record<string, PublicProfile | null>;
+  ensure: (uid: string) => void;
 }
 
 const Ctx = createContext<ViewerState | undefined>(undefined);
@@ -20,11 +22,32 @@ export function useProfileViewer() {
   return ctx;
 }
 
+// 최신 공개 프로필(uid → name/avatar 등)을 캐시에서 가져온다.
+// 목록·댓글에 박제된 옛 이름/사진 대신 최신 프로필이 보이도록 사용.
+export function useLiveProfile(uid?: string): PublicProfile | null | undefined {
+  const ctx = useContext(Ctx);
+  useEffect(() => {
+    if (uid && ctx) ctx.ensure(uid);
+  }, [uid, ctx]);
+  return uid && ctx ? ctx.profiles[uid] : undefined;
+}
+
 export function ProfileViewerProvider({ children }: { children: ReactNode }) {
   const [openUid, setOpenUid] = useState<string | null>(null);
   const [data, setData] = useState<PublicProfile | null>(null);
   const [fallback, setFallback] = useState<Fallback>({});
   const [loading, setLoading] = useState(false);
+
+  // 실시간 공개 프로필 캐시 (uid당 한 번만 조회)
+  const [profiles, setProfiles] = useState<Record<string, PublicProfile | null>>({});
+  const requested = useRef<Set<string>>(new Set());
+  const ensure = useCallback((uid: string) => {
+    if (!uid || requested.current.has(uid)) return;
+    requested.current.add(uid);
+    getDoc(doc(db, "publicProfiles", uid))
+      .then((snap) => setProfiles((p) => ({ ...p, [uid]: snap.exists() ? (snap.data() as PublicProfile) : null })))
+      .catch(() => setProfiles((p) => ({ ...p, [uid]: null })));
+  }, []);
 
   const open = useCallback((uid: string, fb: Fallback = {}) => {
     setOpenUid(uid);
@@ -45,7 +68,7 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
   const avatar = data?.avatar || fallback.avatar || "";
 
   return (
-    <Ctx.Provider value={{ open }}>
+    <Ctx.Provider value={{ open, profiles, ensure }}>
       {children}
 
       {openUid && (
@@ -106,7 +129,7 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** 클릭하면 프로필 팝업이 뜨는 아바타 버튼 */
+/** 클릭하면 프로필 팝업이 뜨는 아바타 버튼 (최신 공개 프로필로 표시) */
 export function ProfileAvatar({
   uid,
   name,
@@ -119,15 +142,24 @@ export function ProfileAvatar({
   className?: string;
 }) {
   const { open } = useProfileViewer();
+  const live = useLiveProfile(uid);
+  const shownName = live?.name || name;
+  const shownAvatar = live?.avatar ?? avatar;
   if (!uid) return <Avatar src={avatar} name={name} className={className} />;
   return (
     <button
       type="button"
-      onClick={() => open(uid, { name, avatar })}
+      onClick={() => open(uid, { name: shownName, avatar: shownAvatar })}
       className="shrink-0 rounded-full transition hover:opacity-80"
-      aria-label={`${name || "단원"} 프로필 보기`}
+      aria-label={`${shownName || "단원"} 프로필 보기`}
     >
-      <Avatar src={avatar} name={name} className={className} />
+      <Avatar src={shownAvatar} name={shownName} className={className} />
     </button>
   );
+}
+
+/** 최신 이름 텍스트 (프로필 변경 시 옛 이름 대신 최신으로) */
+export function ProfileName({ uid, name }: { uid?: string; name?: string }) {
+  const live = useLiveProfile(uid);
+  return <>{live?.name || name || "단원"}</>;
 }

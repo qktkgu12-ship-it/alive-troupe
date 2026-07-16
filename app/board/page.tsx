@@ -11,6 +11,7 @@ import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon } from "@/compon
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import Select from "@/components/Select";
+import { ProfileName } from "@/components/ProfileViewer";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
@@ -244,7 +245,7 @@ function BoardInner() {
                   </span>
                 )}
                 <span className="chip !bg-slate-100 !px-1.5 !py-0">{boardCategoryLabel(p.board)}</span>
-                <span className="text-slate-500">{p.authorName}</span>
+                <span className="text-slate-500"><ProfileName uid={p.authorUid} name={p.authorName} /></span>
                 <span>·</span>
                 <span className="inline-flex items-center gap-0.5">
                   <EyeIcon className="h-3.5 w-3.5" />
