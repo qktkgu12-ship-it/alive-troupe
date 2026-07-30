@@ -12,6 +12,7 @@ interface ViewerState {
   open: (uid: string, fallback?: Fallback) => void;
   profiles: Record<string, PublicProfile | null>;
   ensure: (uid: string) => void;
+  seed: (entries: Record<string, PublicProfile>) => void;
 }
 
 const Ctx = createContext<ViewerState | undefined>(undefined);
@@ -49,6 +50,14 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
       .catch(() => setProfiles((p) => ({ ...p, [uid]: null })));
   }, []);
 
+  // 이미 한 번에 불러온 공개 프로필을 캐시에 심어 개별 재조회를 막는다. (멤버 명단 등)
+  const seed = useCallback((entries: Record<string, PublicProfile>) => {
+    const keys = Object.keys(entries);
+    if (keys.length === 0) return;
+    keys.forEach((uid) => requested.current.add(uid));
+    setProfiles((p) => ({ ...entries, ...p })); // 개별 조회로 최신화된 값이 있으면 그대로 유지
+  }, []);
+
   const open = useCallback((uid: string, fb: Fallback = {}) => {
     setOpenUid(uid);
     setFallback(fb);
@@ -68,7 +77,7 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
   const avatar = data?.avatar || fallback.avatar || "";
 
   return (
-    <Ctx.Provider value={{ open, profiles, ensure }}>
+    <Ctx.Provider value={{ open, profiles, ensure, seed }}>
       {children}
 
       {openUid && (

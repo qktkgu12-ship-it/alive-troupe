@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Guard from "@/components/Guard";
-import { ProfileAvatar } from "@/components/ProfileViewer";
+import { ProfileAvatar, useProfileViewer } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonList } from "@/components/Skeleton";
 import { MembersIcon } from "@/components/Icons";
@@ -13,6 +13,7 @@ import type { PublicProfile } from "@/lib/types";
 type Member = PublicProfile & { uid: string };
 
 function MembersInner() {
+  const { seed } = useProfileViewer();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -25,12 +26,15 @@ function MembersInner() {
           .map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }))
           .filter((m) => m.name || m.part || m.group); // 빈 프로필 제외
         setMembers(list);
+        // 방금 받은 프로필을 캐시에 심어, 카드별 아바타가 개별 재조회하지 않도록
+        seed(Object.fromEntries(list.map((m) => [m.uid, m as PublicProfile])));
       } catch (e) {
         console.error("멤버 불러오기 오류:", e);
       } finally {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {

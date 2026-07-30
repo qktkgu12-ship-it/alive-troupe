@@ -103,6 +103,27 @@ function PostDetailInner() {
   // 같은 게시판 글 목록에서 현재 글의 앞뒤를 찾아 이전/다음 글 링크 구성
   useEffect(() => {
     if (!post) return;
+
+    // 1) 목록(게시판 페이지)에서 저장해 둔 순서로 먼저 시도 → 게시판 전체 재조회 회피
+    try {
+      const raw = sessionStorage.getItem("board-order");
+      if (raw) {
+        const all = JSON.parse(raw) as { id: string; title: string; board: string }[];
+        const list = all.filter((p) => p.board === post.board);
+        const idx = list.findIndex((p) => p.id === post.id);
+        if (idx !== -1) {
+          const older = list[idx + 1]; // 먼저 쓴 글 = 이전글
+          const newer = list[idx - 1]; // 나중에 쓴 글 = 다음글
+          setPrevPost(older ? { id: older.id, title: older.title } : null);
+          setNextPost(newer ? { id: newer.id, title: newer.title } : null);
+          return;
+        }
+      }
+    } catch {
+      /* 무시 → 폴백 조회 */
+    }
+
+    // 2) 폴백: 목록을 거치지 않고 직접 들어온 경우에만 조회
     let cancelled = false;
     (async () => {
       try {

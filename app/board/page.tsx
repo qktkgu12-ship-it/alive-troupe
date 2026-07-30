@@ -70,6 +70,18 @@ function BoardInner() {
     loadBoard();
   }, [loadNotices, loadBoard]);
 
+  // 글 목록 순서를 저장 → 상세의 이전/다음글이 게시판 전체를 다시 읽지 않도록 공유
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        "board-order",
+        JSON.stringify(posts.map((p) => ({ id: p.id, title: p.title, board: p.board })))
+      );
+    } catch {
+      /* 무시 */
+    }
+  }, [posts]);
+
   // 글 상세의 '목록' 버튼 등에서 ?cat=무대 로 들어오면 해당 탭으로 시작
   useEffect(() => {
     const cat = new URLSearchParams(window.location.search).get("cat");

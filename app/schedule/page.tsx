@@ -797,8 +797,10 @@ function EventsSection({
 
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
   const loadAbsences = useCallback(async () => {
+    // 불참 의견은 '아직 안 지난 일정'만 필요 → 지난 일정은 조회 생략(읽기 절감)
+    const upcoming = events.filter((e) => !eventPassed(e));
     const entries = await Promise.all(
-      events.map(async (e) => {
+      upcoming.map(async (e) => {
         const snap = await getDocs(collection(db, "events", e.id, "absences"));
         return [e.id, snap.docs.map((d) => d.data() as Absence)] as const;
       })
