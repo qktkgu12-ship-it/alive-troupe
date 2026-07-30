@@ -12,8 +12,7 @@ export default function PendingPage() {
 
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
-  const [part, setPart] = useState("");
-  const [group, setGroup] = useState("");
+  const [bio, setBio] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -27,8 +26,7 @@ export default function PendingPage() {
     if (profile) {
       setName(profile.name || profile.displayName || "");
       setContact(profile.contact || "");
-      setPart(profile.part || "");
-      setGroup(profile.group || "");
+      setBio(profile.bio || "");
     }
   }, [profile]);
 
@@ -38,7 +36,7 @@ export default function PendingPage() {
     try {
       await setDoc(
         doc(db, "users", user.uid),
-        { name, contact, part, group },
+        { name, contact, bio },
         { merge: true }
       );
       setSaved(true);
@@ -87,12 +85,8 @@ export default function PendingPage() {
             <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="010-0000-0000" />
           </div>
           <div>
-            <label className="label">배역·파트(포지션)</label>
-            <input className="input" value={part} onChange={(e) => setPart(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">소속·기수</label>
-            <input className="input" value={group} onChange={(e) => setGroup(e.target.value)} />
+            <label className="label">소개글</label>
+            <textarea className="input min-h-[80px]" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="간단한 자기소개를 적어주세요" />
           </div>
         </div>
 

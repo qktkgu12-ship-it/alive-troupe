@@ -15,8 +15,7 @@ function ProfileInner() {
   const [avatar, setAvatar] = useState<string>("");
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
-  const [part, setPart] = useState("");
-  const [group, setGroup] = useState("");
+  const [bio, setBio] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [imgBusy, setImgBusy] = useState(false);
@@ -26,8 +25,7 @@ function ProfileInner() {
       setAvatar(profile.avatar || "");
       setName(profile.name || profile.displayName || "");
       setContact(profile.contact || "");
-      setPart(profile.part || "");
-      setGroup(profile.group || "");
+      setBio(profile.bio || "");
     }
   }, [profile]);
 
@@ -52,13 +50,13 @@ function ProfileInner() {
     try {
       await setDoc(
         doc(db, "users", user.uid),
-        { avatar, name, contact, part, group },
+        { avatar, name, contact, bio },
         { merge: true }
       );
       // 단원끼리 보이는 공개 프로필도 함께 갱신 (연락처는 제외)
       await setDoc(
         doc(db, "publicProfiles", user.uid),
-        { name, part, group, avatar, role: profile?.role },
+        { name, bio, avatar, role: profile?.role },
         { merge: true }
       );
       await refreshProfile();
@@ -99,12 +97,13 @@ function ProfileInner() {
           <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="010-0000-0000" />
         </div>
         <div>
-          <label className="label">배역·파트(포지션)</label>
-          <input className="input" value={part} onChange={(e) => setPart(e.target.value)} />
-        </div>
-        <div>
-          <label className="label">소속·기수</label>
-          <input className="input" value={group} onChange={(e) => setGroup(e.target.value)} />
+          <label className="label">소개글</label>
+          <textarea
+            className="input min-h-[96px]"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="간단한 자기소개를 적어주세요"
+          />
         </div>
 
         <button onClick={save} disabled={busy} className="btn-accent w-full">

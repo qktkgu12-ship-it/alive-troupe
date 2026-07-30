@@ -83,7 +83,25 @@ function ArchiveInner() {
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ArchiveItem | null>(null);
-  const [view, setView] = useState<ViewMode>("card");
+  const [view, setViewState] = useState<ViewMode>("card");
+  // 카드/리스트 선택을 계정별로 기억 (기기 내 localStorage, uid별)
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const v = localStorage.getItem(`archive-view-${user.uid}`);
+      if (v === "card" || v === "list") setViewState(v);
+    } catch {
+      /* 무시 */
+    }
+  }, [user]);
+  function setView(v: ViewMode) {
+    setViewState(v);
+    try {
+      if (user) localStorage.setItem(`archive-view-${user.uid}`, v);
+    } catch {
+      /* 무시 */
+    }
+  }
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const PAGE = 30;
   const [visible, setVisible] = useState(PAGE);

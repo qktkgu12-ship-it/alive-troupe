@@ -105,24 +105,10 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
 
             {loading ? (
               <p className="mt-2 text-sm text-slate-400">불러오는 중…</p>
+            ) : data?.bio ? (
+              <p className="mt-3 whitespace-pre-wrap text-sm text-slate-600">{data.bio}</p>
             ) : (
-              <div className="mt-3 space-y-1.5 text-sm">
-                {data?.part ? (
-                  <p className="flex items-center justify-center gap-2">
-                    <span className="text-slate-400">배역·파트</span>
-                    <span className="font-medium text-slate-700">{data.part}</span>
-                  </p>
-                ) : null}
-                {data?.group ? (
-                  <p className="flex items-center justify-center gap-2">
-                    <span className="text-slate-400">소속·기수</span>
-                    <span className="font-medium text-slate-700">{data.group}</span>
-                  </p>
-                ) : null}
-                {!data?.part && !data?.group && (
-                  <p className="text-sm text-slate-400">등록된 추가 정보가 없어요.</p>
-                )}
-              </div>
+              <p className="mt-3 text-sm text-slate-400">등록된 소개글이 없어요.</p>
             )}
 
             <button

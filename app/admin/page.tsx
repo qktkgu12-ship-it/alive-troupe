@@ -84,7 +84,7 @@ function AdminInner() {
     const s = memberSearch.trim().toLowerCase();
     if (!s) return approved;
     return approved.filter((u) =>
-      [u.name, u.displayName, u.part, u.group, u.contact, u.email]
+      [u.name, u.displayName, u.bio, u.contact, u.email]
         .filter(Boolean)
         .some((v) => (v as string).toLowerCase().includes(s))
     );
@@ -156,8 +156,7 @@ function AdminInner() {
             doc(db, "publicProfiles", u.uid),
             {
               name: u.name || u.displayName || "",
-              part: u.part || "",
-              group: u.group || "",
+              bio: u.bio || "",
               avatar: u.avatar || "",
               role: u.role,
               team: u.team || "",
@@ -202,7 +201,7 @@ function AdminInner() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{u.name || u.displayName || u.email}</p>
                   <p className="text-xs text-slate-500">
-                    {[u.email, u.part, u.group, u.contact].filter(Boolean).join(" · ")}
+                    {[u.email, u.contact, u.bio].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <button onClick={() => changeRole(u.uid, "member")} className="btn-accent !py-1.5">승인 (정단원)</button>
@@ -239,7 +238,7 @@ function AdminInner() {
                     <p className="truncate font-medium text-slate-900">
                       {u.name || u.displayName} {isMe && <span className="text-xs font-normal text-slate-400">(나)</span>}
                     </p>
-                    {u.group && <p className="truncate text-xs text-slate-400">{u.group}</p>}
+                    {u.bio && <p className="truncate text-xs text-slate-400">{u.bio}</p>}
                   </div>
                   {teams.length > 0 && (
                     <select

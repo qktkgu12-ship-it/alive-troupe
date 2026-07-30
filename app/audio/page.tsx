@@ -240,7 +240,7 @@ function AudioInner() {
             </div>
             <div className="flex items-center gap-2">
               <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
-                {([["newest", "최신순"], ["name", "가나다순"]] as ["newest" | "name", string][]).map(([v, label]) => (
+                {([["newest", "최신순"], ["name", "이름순"]] as ["newest" | "name", string][]).map(([v, label]) => (
                   <button
                     key={v}
                     onClick={() => setSortOrder(v)}

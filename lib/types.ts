@@ -13,8 +13,9 @@ export interface UserProfile {
   role: Role;
   name: string; // 실명
   contact: string; // 연락처 (관리자만 열람)
-  part: string; // 배역·파트(포지션)
-  group: string; // 소속·기수
+  part: string; // (구버전) 배역·파트 — 소개글로 대체됨
+  group: string; // (구버전) 소속·기수 — 소개글로 대체됨
+  bio?: string; // 소개글
   avatar?: string; // 프로필 사진 (압축된 data URL)
   team?: string; // 소속 팀 (A팀/B팀 등, 관리자 지정) — 빈값이면 팀 미지정(전체)
   createdAt: number;
@@ -26,8 +27,9 @@ export interface UserProfile {
 // users 문서는 본인·관리자만 읽을 수 있어, 명단/댓글에서 서로 프로필을 보려면 별도 공개본이 필요
 export interface PublicProfile {
   name: string;
-  part: string; // 배역·파트
-  group: string; // 소속·기수
+  part: string; // (구버전) 배역·파트
+  group: string; // (구버전) 소속·기수
+  bio?: string; // 소개글
   avatar?: string;
   role?: Role; // 표시용(배지) — 실제 권한은 users 문서 기준
   team?: string; // 소속 팀 (표시·필터용)

@@ -24,7 +24,7 @@ function MembersInner() {
         const snap = await getDocs(collection(db, "publicProfiles"));
         const list = snap.docs
           .map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }))
-          .filter((m) => m.name || m.part || m.group); // 빈 프로필 제외
+          .filter((m) => m.name || m.bio); // 빈 프로필 제외
         setMembers(list);
         // 방금 받은 프로필을 캐시에 심어, 카드별 아바타가 개별 재조회하지 않도록
         seed(Object.fromEntries(list.map((m) => [m.uid, m as PublicProfile])));
@@ -41,7 +41,7 @@ function MembersInner() {
     const s = search.trim().toLowerCase();
     const base = s
       ? members.filter((m) =>
-          [m.name, m.part, m.group].filter(Boolean).some((v) => (v as string).toLowerCase().includes(s))
+          [m.name, m.bio].filter(Boolean).some((v) => (v as string).toLowerCase().includes(s))
         )
       : members;
     // 이름 가나다순
@@ -57,7 +57,7 @@ function MembersInner() {
 
       <input
         className="input"
-        placeholder="이름 · 배역 · 기수로 검색"
+        placeholder="이름 · 소개글로 검색"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
@@ -88,7 +88,7 @@ function MembersInner() {
                   )}
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-400">
-                  {[m.part, m.group].filter(Boolean).join(" · ") || "정보 없음"}
+                  {m.bio || "소개글 없음"}
                 </p>
               </div>
             </div>
