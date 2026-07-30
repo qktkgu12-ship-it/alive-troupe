@@ -216,7 +216,7 @@ function AudioInner() {
           {/* 검색 (현재 작품 안 전체) */}
           <input
             className="input"
-            placeholder="제목 · 메모 · 올린이로 검색"
+            placeholder="제목 · 메모 · 작성자로 검색"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

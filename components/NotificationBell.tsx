@@ -30,7 +30,7 @@ const ICON: Record<NotifType, React.FC<{ className?: string }>> = {
 
 function BellIcon({ className }: { className?: string }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className={className}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className={className}>
       <path
         d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
         stroke="currentColor"
@@ -148,11 +148,11 @@ export default function NotificationBell() {
             if (willOpen) refresh(true);
           }}
           aria-label="알림"
-          className="relative grid h-14 w-14 place-items-center rounded-full bg-accent text-accent-fg shadow-lg shadow-accent/30 transition hover:brightness-110 active:scale-95"
+          className="relative grid h-11 w-11 place-items-center rounded-full bg-accent text-accent-fg shadow-lg shadow-accent/30 transition hover:brightness-110 active:scale-95"
         >
           <BellIcon className={unreadCount > 0 ? "animate-bell" : ""} />
           {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white ring-2 ring-white">
+            <span className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
