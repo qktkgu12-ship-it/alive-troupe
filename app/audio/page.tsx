@@ -23,6 +23,8 @@ import Select from "@/components/Select";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
+const DAY = 86_400_000;
+const isRecent = (t: AudioTrack) => (t.createdAt ?? 0) > Date.now() - 7 * DAY;
 
 // 항상 http(s)만 새 탭으로 열기 (위험 링크 차단)
 function openLink(url: string) {
@@ -55,7 +57,9 @@ function AudioInner() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [items, setItems] = useState<AudioTrack[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
-  const [activeCat, setActiveCat] = useState<string>(categories[0] ?? "음원");
+  const [activeCat, setActiveCat] = useState<string>(""); // "" = 전체
+  const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "name">("newest");
   const [showAdd, setShowAdd] = useState(false);
   const [manageCats, setManageCats] = useState(false);
   const [newCat, setNewCat] = useState("");
@@ -91,20 +95,33 @@ function AudioInner() {
     else setItems([]);
   }, [activeId, loadItems]);
 
-  // 활성 종류가 목록에서 사라지면 첫 종류로
+  // 활성 종류가 목록에서 사라지면 전체로
   useEffect(() => {
-    if (!categories.includes(activeCat)) setActiveCat(categories[0] ?? "음원");
+    if (activeCat !== "" && !categories.includes(activeCat)) setActiveCat("");
   }, [categories, activeCat]);
 
   const active = productions.find((p) => p.id === activeId) ?? null;
   const countByCat = (c: string) => items.filter((t) => itemCategory(t) === c).length;
-  const catItems = useMemo(
-    () =>
-      items
-        .filter((t) => itemCategory(t) === activeCat)
-        .sort((a, b) => itemTitle(a).localeCompare(itemTitle(b), "ko")),
-    [items, activeCat]
-  );
+
+  // 검색(작품 전체) 우선 → 없으면 종류 필터 → 정렬
+  const catItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = items;
+    if (q) {
+      list = items.filter((t) =>
+        [itemTitle(t), itemMemo(t), t.addedByName].filter(Boolean).some((v) => (v as string).toLowerCase().includes(q))
+      );
+    } else if (activeCat) {
+      list = items.filter((t) => itemCategory(t) === activeCat);
+    }
+    return [...list].sort((a, b) =>
+      sortOrder === "newest"
+        ? (b.createdAt ?? 0) - (a.createdAt ?? 0)
+        : itemTitle(a).localeCompare(itemTitle(b), "ko")
+    );
+  }, [items, activeCat, search, sortOrder]);
+
+  const searching = search.trim().length > 0;
 
   async function removeItem(t: AudioTrack) {
     if (!confirm("이 자료를 삭제할까요?")) return;
@@ -196,25 +213,49 @@ function AudioInner() {
             />
           )}
 
-          {/* 종류(탭) */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* 검색 (현재 작품 안 전체) */}
+          <input
+            className="input"
+            placeholder="제목 · 메모 · 올린이로 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          {/* 종류(탭) + 정렬 */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setActiveCat(c)}
-                  className={`rounded-lg px-3 py-1.5 transition ${activeCat === c ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-                >
-                  {c}
-                  {countByCat(c) > 0 && <span className="ml-1 text-xs text-slate-400">{countByCat(c)}</span>}
-                </button>
-              ))}
+              {([["", "전체"], ...categories.map((c) => [c, c] as [string, string])] as [string, string][]).map(([val, label]) => {
+                const cnt = val === "" ? items.length : countByCat(val);
+                return (
+                  <button
+                    key={val || "all"}
+                    onClick={() => setActiveCat(val)}
+                    className={`rounded-lg px-3 py-1.5 transition ${activeCat === val && !searching ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+                  >
+                    {label}
+                    {cnt > 0 && <span className="ml-1 text-xs text-slate-400">{cnt}</span>}
+                  </button>
+                );
+              })}
             </div>
-            {isAdmin && (
-              <button onClick={() => setManageCats((v) => !v)} className="text-xs font-medium text-slate-500 hover:underline">
-                {manageCats ? "완료" : "종류 편집"}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
+                {([["newest", "최신순"], ["name", "가나다순"]] as ["newest" | "name", string][]).map(([v, label]) => (
+                  <button
+                    key={v}
+                    onClick={() => setSortOrder(v)}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 transition ${sortOrder === v ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {isAdmin && (
+                <button onClick={() => setManageCats((v) => !v)} className="text-xs font-medium text-slate-500 hover:underline">
+                  {manageCats ? "완료" : "종류 편집"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 종류 편집 패널 (관리자만) */}
@@ -255,16 +296,24 @@ function AudioInner() {
             <SkeletonList rows={4} />
           ) : catItems.length === 0 ? (
             <div className="card">
-              <EmptyState icon={MusicIcon} title={`‘${activeCat}’ 자료가 없습니다.`} />
+              <EmptyState
+                icon={MusicIcon}
+                title={searching ? "검색 결과가 없습니다." : activeCat ? `‘${activeCat}’ 자료가 없습니다.` : "자료가 없습니다."}
+              />
             </div>
           ) : (
             <div className="card divide-y divide-slate-100 !p-0">
               {catItems.map((t) => (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{itemTitle(t)}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      <span className="truncate">{itemTitle(t)}</span>
+                      {isRecent(t) && (
+                        <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
+                      )}
+                    </p>
                     <p className="truncate text-xs text-slate-400">
-                      {[itemMemo(t), t.addedByName].filter(Boolean).join(" · ")}
+                      {[(searching || !activeCat) ? itemCategory(t) : "", itemMemo(t), t.addedByName].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <button onClick={() => openLink(t.url)} className="btn-ghost shrink-0 !px-3 !py-1.5">

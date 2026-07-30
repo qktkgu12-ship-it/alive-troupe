@@ -91,7 +91,7 @@ function HomeInner() {
         <h1 className="mt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
           안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
         </h1>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today here, Right now!</p>
+        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today, Here, Right now!</p>
       </header>
 
       {/* 다가오는 확정 일정 */}
