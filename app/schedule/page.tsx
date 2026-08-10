@@ -5,20 +5,24 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
+  orderBy,
   query,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
+import Select from "@/components/Select";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
-import { CalendarIcon, ChevronDownIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
-import type { Absence, Availability, ScheduleEvent } from "@/lib/types";
+import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
+import type { Absence, Availability, Coordination, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
   slotEnd,
@@ -40,6 +44,11 @@ const TAB_INFO: Record<Tab, { label: string; desc: string }> = {
 function dateLabel(ds: string) {
   const d = new Date(ds + "T00:00:00");
   return { md: `${d.getMonth() + 1}/${d.getDate()}`, dow: WEEKDAYS_KO[d.getDay()] };
+}
+
+function deadlineLabel(ts: number) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 // 종료시간(없으면 시작시간, 둘 다 없으면 그날 자정)이 지났으면 '지난 일정'
@@ -101,12 +110,12 @@ function ScheduleInner() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-  // 조율 팀 필터(기본 내 팀), 모바일 전체현황 접기
-  const [coordTeam, setCoordTeam] = useState<string>("");
-  const [availOpen, setAvailOpen] = useState(false);
-  useEffect(() => {
-    setCoordTeam(myTeam);
-  }, [myTeam]);
+  // 조율 카드(Doodle식): 카드 목록 + 지금 연 카드(바텀시트)
+  const [coords, setCoords] = useState<Coordination[]>([]);
+  const [openCoordId, setOpenCoordId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const openCoord = coords.find((c) => c.id === openCoordId) ?? null;
+  const coordClosed = !!openCoord?.deadline && Date.now() > openCoord.deadline;
   const [tab, setTab] = useState<Tab>("events");
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
@@ -149,26 +158,41 @@ function ScheduleInner() {
   // 확정 일정
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
 
-  // 내 가능 일정: 월에 상관없이 전체를 한 번에 불러와 누적 유지 (제출 전까지 달을 넘겨도 유지)
-  const loadMine = useCallback(async () => {
-    if (!user) return;
-    const snap = await getDocs(query(collection(db, "availability"), where("uid", "==", user.uid)));
-    const dates: string[] = [];
-    const slots: Record<string, string[]> = {};
-    for (const d of snap.docs) {
-      const a = d.data() as Availability;
-      for (const dt of a.dates ?? []) dates.push(dt);
-      if (a.slots) for (const k in a.slots) slots[k] = a.slots[k];
-    }
-    setMyDates([...new Set(dates)].sort());
-    setSlotsByDate(slots);
-    setDirty(false);
-  }, [user]);
+  // 조율 카드 목록
+  const loadCoords = useCallback(async () => {
+    const snap = await getDocs(query(collection(db, "coordinations"), orderBy("createdAt", "desc")));
+    setCoords(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Coordination, "id">) })));
+  }, []);
 
+  // 지금 연 카드에 대한 '내 가능 일정'
+  const loadMine = useCallback(async () => {
+    if (!user || !openCoordId) {
+      setMyDates([]);
+      setSlotsByDate({});
+      setDirty(false);
+      return;
+    }
+    const snap = await getDoc(doc(db, "coordinations", openCoordId, "availability", user.uid));
+    if (snap.exists()) {
+      const a = snap.data() as Availability;
+      setMyDates([...(a.dates ?? [])].sort());
+      setSlotsByDate(a.slots ?? {});
+    } else {
+      setMyDates([]);
+      setSlotsByDate({});
+    }
+    setDirty(false);
+  }, [user, openCoordId]);
+
+  // 지금 연 카드의 '전체 가능 현황'
   const loadAll = useCallback(async () => {
-    const snap = await getDocs(query(collection(db, "availability"), where("yearMonth", "==", yearMonth)));
+    if (!openCoordId) {
+      setAllAvail([]);
+      return;
+    }
+    const snap = await getDocs(collection(db, "coordinations", openCoordId, "availability"));
     setAllAvail(snap.docs.map((d) => d.data() as Availability));
-  }, [yearMonth]);
+  }, [openCoordId]);
 
   const loadEvents = useCallback(async () => {
     const snap = await getDocs(
@@ -181,39 +205,44 @@ function ScheduleInner() {
     );
   }, [yearMonth]);
 
-  // 내 일정은 한 번만 (달 넘겨도 선택 유지)
+  // 조율 카드 목록 로드
+  useEffect(() => {
+    loadCoords();
+  }, [loadCoords]);
+
+  // 연 카드가 바뀌면 그 카드의 내/전체 가능일정 로드
   useEffect(() => {
     loadMine();
-  }, [loadMine]);
-
-  // 다른 단원 현황·확정일정은 보는 달이 바뀌면 새로 로드
-  useEffect(() => {
     loadAll();
-    loadEvents();
     setActiveDate(null);
     setRangeAnchor(null);
-  }, [loadAll, loadEvents]);
+  }, [loadMine, loadAll]);
+
+  // 확정/지난 일정은 보는 달이 바뀌면 새로 로드
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   // ----- 내 가능 일정 편집 -----
   // 탭: 미선택 → 선택+열기 / 선택&활성 → 해제 / 선택&비활성 → 열기(편집)
   function tapDate(ds: string) {
+    if (coordClosed) return;
     const selected = myDates.includes(ds);
     if (!selected) {
       setMyDates((prev) => [...prev, ds].sort());
       setActiveDate(ds);
       setRangeAnchor(null);
       setDirty(true);
-      setAvailOpen(true); // 모바일: 날짜 누르면 현황 펼치기
     } else if (activeDate === ds) {
       removeDate(ds);
     } else {
       setActiveDate(ds);
       setRangeAnchor(null);
-      setAvailOpen(true);
     }
   }
 
   function removeDate(ds: string) {
+    if (coordClosed) return;
     setMyDates((prev) => prev.filter((d) => d !== ds));
     setSlotsByDate((s) => {
       const n = { ...s };
@@ -226,7 +255,7 @@ function ScheduleInner() {
 
   // 시작→끝 두 번 탭하면 사이를 채움
   function pickSlot(slot: string) {
-    if (!activeDate) return;
+    if (!activeDate || coordClosed) return;
     if (rangeAnchor === null) {
       setRangeAnchor(slot);
       return;
@@ -245,47 +274,30 @@ function ScheduleInner() {
   }
 
   function setPreset(slots: string[]) {
-    if (!activeDate) return;
+    if (!activeDate || coordClosed) return;
     setSlotsByDate((prev) => ({ ...prev, [activeDate]: slots }));
     setRangeAnchor(null);
     setDirty(true);
   }
 
   async function saveMine() {
-    if (!user) return;
+    if (!user || !openCoordId) return;
     setSaving(true);
     try {
-      const name = profile?.name || profile?.displayName || "";
-      const avatar = profile?.avatar || "";
-      // 날짜를 월별로 묶어서 각 월 문서에 저장
-      const byMonth: Record<string, { dates: string[]; slots: Record<string, string[]> }> = {};
+      const cleanedSlots: Record<string, string[]> = {};
       for (const d of myDates) {
-        const ym = d.slice(0, 7);
-        (byMonth[ym] ??= { dates: [], slots: {} }).dates.push(d);
         const arr = slotsByDate[d];
-        if (arr && arr.length > 0) byMonth[ym].slots[d] = arr;
+        if (arr && arr.length > 0) cleanedSlots[d] = arr;
       }
-      const existing = await getDocs(query(collection(db, "availability"), where("uid", "==", user.uid)));
-      await Promise.all(
-        Object.entries(byMonth).map(([ym, v]) =>
-          setDoc(doc(db, "availability", `${user.uid}_${ym}`), {
-            uid: user.uid,
-            name,
-            avatar,
-            team: myTeam,
-            yearMonth: ym,
-            dates: v.dates,
-            slots: v.slots,
-            updatedAt: Date.now(),
-          })
-        )
-      );
-      // 이번에 날짜가 하나도 없는 달의 기존 문서는 삭제
-      await Promise.all(
-        existing.docs
-          .filter((d) => !byMonth[(d.data() as Availability).yearMonth])
-          .map((d) => deleteDoc(d.ref))
-      );
+      await setDoc(doc(db, "coordinations", openCoordId, "availability", user.uid), {
+        uid: user.uid,
+        name: profile?.name || profile?.displayName || "",
+        avatar: profile?.avatar || "",
+        team: myTeam,
+        dates: myDates,
+        slots: cleanedSlots,
+        updatedAt: Date.now(),
+      });
       setDirty(false);
       await loadAll();
     } finally {
@@ -293,12 +305,31 @@ function ScheduleInner() {
     }
   }
 
-  // ----- 전체 현황 집계 (팀 필터 적용) -----
-  // 팀이 없거나(기능 off) 필터가 '전체'면 모두, 아니면 해당 팀 제출만
-  const scopedAvail = useMemo(
-    () => (teams.length === 0 || !coordTeam ? allAvail : allAvail.filter((a) => (a.team || "") === coordTeam)),
-    [allAvail, coordTeam, teams.length]
-  );
+  // 조율 카드 만들기 (누구나) / 삭제
+  async function createCoord(fields: Omit<Coordination, "id" | "createdBy" | "createdByName" | "status" | "createdAt">) {
+    if (!user) return;
+    const id = crypto.randomUUID();
+    await setDoc(doc(db, "coordinations", id), {
+      ...fields,
+      createdBy: user.uid,
+      createdByName: profile?.name || profile?.displayName || "",
+      status: "open",
+      createdAt: Date.now(),
+    });
+    setShowCreate(false);
+    await loadCoords();
+  }
+  async function removeCoord(c: Coordination) {
+    if (!confirm(`'${c.title}' 조율을 삭제할까요? 제출된 가능시간도 함께 사라져요.`)) return;
+    const av = await getDocs(collection(db, "coordinations", c.id, "availability"));
+    await Promise.all(av.docs.map((d) => deleteDoc(d.ref)));
+    await deleteDoc(doc(db, "coordinations", c.id));
+    if (openCoordId === c.id) setOpenCoordId(null);
+    await loadCoords();
+  }
+
+  // ----- 전체 현황 집계 (카드별이라 팀 필터 불필요) -----
+  const scopedAvail = allAvail;
 
   const { slotCount, submitters } = useMemo(() => {
     const slotCount: Record<string, Record<string, number>> = {};
@@ -390,200 +421,267 @@ function ScheduleInner() {
       </div>
       <p className="-mt-2 text-center text-xs text-slate-400">{TAB_INFO[tab].desc}</p>
 
-      {/* ===== 일정 조율 (전체현황 + 내 가능 일정 통합) ===== */}
+      {/* ===== 잡는 중 (조율 카드 목록 → 누르면 바텀시트) ===== */}
       {tab === "coord" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-[0.9fr_1.4fr]">
-            {/* 전체 가능 현황 (모바일: 최상단·접기 / PC: 왼쪽 열·항상 펼침) */}
-            <div className="order-first md:order-1">
-              <div className="card h-full space-y-3 md:space-y-4">
-                {/* 헤더 (모바일에서 눌러 접기/펼치기) */}
-                <button
-                  type="button"
-                  onClick={() => setAvailOpen((o) => !o)}
-                  className="flex w-full items-center justify-between gap-2 text-left md:cursor-default"
-                >
-                  <div>
-                    <h2 className="font-bold">전체 가능 현황</h2>
-                    <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
-                  </div>
-                  <ChevronDownIcon className={`h-5 w-5 shrink-0 text-slate-400 transition md:hidden ${availOpen ? "rotate-180" : ""}`} />
-                </button>
-
-                {/* 팀 필터 (팀이 있을 때만) */}
-                {teams.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
-                      <button
-                        key={val || "all"}
-                        onClick={() => setCoordTeam(val)}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                          coordTeam === val ? "border-accent bg-accent-soft text-accent" : "border-slate-200 text-slate-500 hover:bg-slate-50"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* 접힘 요약 (모바일, 닫힘 상태) */}
-                {!availOpen && recommendations[0] && (
-                  <div className="rounded-lg bg-surface px-3 py-2 text-sm md:hidden">
-                    <span className="font-semibold text-accent">🏆 {dateLabel(recommendations[0].date).md}({dateLabel(recommendations[0].date).dow}) {recommendations[0].start}~{recommendations[0].end}</span>
-                    <span className="ml-1.5 text-xs text-slate-400">{recommendations[0].count}명 가능</span>
-                  </div>
-                )}
-
-                {/* 본문 (모바일 접힘 시 숨김 / PC 항상 표시) */}
-                <div className={`${availOpen ? "block" : "hidden"} space-y-4 md:block`}>
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold text-slate-500">🏆 가장 많이 겹치는 시간</p>
-                    {recommendations.length === 0 ? (
-                      <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
-                    ) : (
-                      <div className="divide-y divide-slate-100">
-                        {recommendations.map((r, i) => {
-                          const { md, dow } = dateLabel(r.date);
-                          const tone = ["font-bold text-slate-900", "font-medium text-slate-600", "font-normal text-slate-400"][i] ?? "font-normal text-slate-400";
-                          return (
-                            <div key={r.date} className={`flex items-center gap-2 py-2 text-sm ${tone}`}>
-                              <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
-                              <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
-                              <span className="shrink-0 text-xs">{r.count}명</span>
-                              {role === "admin" && (
-                                <button
-                                  onClick={() => setConfirmDraft({ date: r.date, start: r.start, end: r.end })}
-                                  className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg"
-                                >
-                                  확정
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  {activeDate && (
-                    <div className="border-t border-slate-100 pt-3">
-                      <p className="mb-2 text-xs font-semibold text-slate-500">
-                        {dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원 {membersForActive.length}명
-                      </p>
-                      {membersForActive.length === 0 ? (
-                        <p className="text-sm text-slate-400">아직 없어요.</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {membersForActive.map((m) => (
-                            <div key={m.uid} className="flex items-center gap-2">
-                              <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
-                              <span className="text-sm text-slate-700">{m.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 오른쪽: 달력 → 날짜 고르면 바로 밑에 시간 선택이 펼쳐짐 */}
-            <div className="order-1 md:order-2">
-              <div className="card h-full">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-lg font-bold text-slate-900">{year}년 {month0 + 1}월</span>
-                  <div className="flex gap-1">
-                    <button onClick={() => changeMonth(-1)} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
-                    <button onClick={() => changeMonth(1)} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
-                  </div>
-                </div>
-                <CalendarGrid
-                  grid={grid}
-                  renderCell={(d) => {
-                    const ds = toDateStr(d);
-                    const mine = myDates.includes(ds);
-                    const active = activeDate === ds;
-                    return (
-                      <button
-                        onClick={() => tapDate(ds)}
-                        className={`flex h-full w-full items-center justify-center rounded-full text-sm transition ${
-                          mine ? "bg-accent font-bold text-accent-fg" : "text-slate-700 hover:bg-slate-100"
-                        } ${active ? "ring-2 ring-accent ring-offset-1" : !mine && ds === todayStr ? "ring-1 ring-accent" : ""}`}
-                      >
-                        {d.getDate()}
-                      </button>
-                    );
-                  }}
-                />
-                {!activeDate ? (
-                  <p className="mt-3 text-xs text-slate-400">날짜를 눌러 선택하면 아래에 시간 선택이 열려요. 같은 날을 다시 누르면 해제돼요.</p>
-                ) : (
-                  /* ===== 인라인 시간 선택 (선택한 날짜 밑으로 펼쳐짐) ===== */
-                  <div className="mt-4 border-t border-slate-100 pt-4">
-                    <div className="mb-1 flex items-center justify-between">
-                      <h3 className="font-bold text-slate-900">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 가능 시간</h3>
-                      <button onClick={() => removeDate(activeDate)} className="text-xs font-medium text-slate-400 transition hover:text-red-500">이 날 빼기</button>
-                    </div>
-                    <p className="mb-2.5 text-xs text-slate-400">
-                      {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
-                    </p>
-                    <div className="mb-3 flex flex-wrap gap-1.5">
-                      {([["오전", MORNING], ["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
-                        <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50">{label}</button>
-                      ))}
-                    </div>
-                    <div className="space-y-3">
-                      {SLOT_GROUPS.map(([label, group]) => (
-                        <div key={label}>
-                          <p className="mb-1.5 text-[11px] font-semibold text-slate-400">{label}</p>
-                          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-                            {group.map((s) => {
-                              const sel = (slotsByDate[activeDate] ?? []).includes(s);
-                              const isAnchor = rangeAnchor === s;
-                              const others = othersBySlot[s] ?? 0;
-                              return (
-                                <button
-                                  key={s}
-                                  onClick={() => pickSlot(s)}
-                                  title={`${s} ~ ${slotEnd(s)}${others > 0 ? ` · ${others}명 가능` : ""}`}
-                                  className={`rounded-lg border py-1.5 text-xs tabular-nums transition ${
-                                    isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  {s}
-                                  {others > 0 && <span className={`ml-0.5 text-[9px] ${isAnchor ? "opacity-80" : "text-slate-400"}`}>·{others}</span>}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 제출 바 */}
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <span className="text-sm text-slate-500">선택한 날짜 <b className="text-accent">{myDates.length}</b>일</span>
-            <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent">
-              {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-slate-500">조율할 주제를 만들고, 각자 가능 시간을 제출하세요.</p>
+            <button
+              onClick={() => setShowCreate((v) => !v)}
+              aria-label={showCreate ? "닫기" : "조율 만들기"}
+              title={showCreate ? "닫기" : "조율 만들기"}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+            >
+              {showCreate ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
             </button>
           </div>
 
-          {/* 추천 → 확정 등록 모달 (관리자) */}
+          {showCreate && <CoordForm teams={teams} onCreate={createCoord} onCancel={() => setShowCreate(false)} />}
+
+          {coords.length === 0 ? (
+            <div className="card">
+              <EmptyState icon={CalendarIcon} title="진행 중인 조율이 없습니다." hint="위 + 버튼으로 새 조율을 만들어 보세요." />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {coords.map((c) => {
+                const closed = !!c.deadline && Date.now() > c.deadline;
+                const canManage = role === "admin" || c.createdBy === user?.uid;
+                return (
+                  <div
+                    key={c.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenCoordId(c.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter") setOpenCoordId(c.id); }}
+                    className={`card flex cursor-pointer items-start gap-3 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${c.status === "done" ? "opacity-70" : ""}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-bold text-slate-900">{c.title}</p>
+                        <TeamBadge team={c.team} />
+                        {c.status === "done" ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">완료</span>
+                        ) : closed ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">마감</span>
+                        ) : null}
+                      </div>
+                      {c.memo && <p className="mt-0.5 truncate text-sm text-slate-500">{c.memo}</p>}
+                      <p className="mt-1 text-xs text-slate-400">
+                        {[
+                          c.targetMonth ? `${c.targetMonth.slice(0, 4)}년 ${Number(c.targetMonth.slice(5, 7))}월` : "",
+                          c.deadline ? `${deadlineLabel(c.deadline)} 마감` : "",
+                          c.createdByName,
+                        ].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                    {canManage && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeCoord(c); }}
+                        aria-label="삭제"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                    <span className="shrink-0 self-center text-sm font-semibold text-accent">열기 ›</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ===== 바텀시트: 카드를 누르면 조율 화면이 올라옴 ===== */}
+          {openCoord && (
+            <div
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
+              onClick={() => setOpenCoordId(null)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-canvas shadow-2xl sm:rounded-2xl"
+              >
+                {/* 헤더 */}
+                <div className="flex items-start justify-between gap-2 border-b border-slate-200 bg-white p-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate font-bold text-slate-900">{openCoord.title}</p>
+                      <TeamBadge team={openCoord.team} />
+                    </div>
+                    {openCoord.memo && <p className="mt-0.5 truncate text-xs text-slate-500">{openCoord.memo}</p>}
+                    {openCoord.deadline && (
+                      <p className="mt-0.5 text-[11px] text-slate-400">{coordClosed ? "제출 마감됨" : `${deadlineLabel(openCoord.deadline)} 제출 마감`}</p>
+                    )}
+                  </div>
+                  <button onClick={() => setOpenCoordId(null)} aria-label="닫기" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100">
+                    <XIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* 본문 (스크롤) */}
+                <div className="flex-1 space-y-4 overflow-y-auto p-4">
+                  {coordClosed && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">제출이 마감된 조율이에요. 결과만 볼 수 있어요.</p>
+                  )}
+
+                  {/* 전체 가능 현황 */}
+                  <div className="card space-y-4">
+                    <div>
+                      <h2 className="font-bold">전체 가능 현황</h2>
+                      <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-xs font-semibold text-slate-500">🏆 가장 많이 겹치는 시간</p>
+                      {recommendations.length === 0 ? (
+                        <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {recommendations.map((r, i) => {
+                            const { md, dow } = dateLabel(r.date);
+                            const tone = ["font-bold text-slate-900", "font-medium text-slate-600", "font-normal text-slate-400"][i] ?? "font-normal text-slate-400";
+                            return (
+                              <div key={r.date} className={`flex items-center gap-2 py-2 text-sm ${tone}`}>
+                                <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
+                                <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
+                                <span className="shrink-0 text-xs">{r.count}명</span>
+                                {role === "admin" && (
+                                  <button
+                                    onClick={() => setConfirmDraft({ date: r.date, start: r.start, end: r.end })}
+                                    className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg"
+                                  >
+                                    확정
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {activeDate && (
+                      <div className="border-t border-slate-100 pt-3">
+                        <p className="mb-2 text-xs font-semibold text-slate-500">
+                          {dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원 {membersForActive.length}명
+                        </p>
+                        {membersForActive.length === 0 ? (
+                          <p className="text-sm text-slate-400">아직 없어요.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                            {membersForActive.map((m) => (
+                              <div key={m.uid} className="flex items-center gap-2">
+                                <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                                <span className="text-sm text-slate-700">{m.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 달력 → 날짜 고르면 밑에 시간 선택 */}
+                  <div className="card">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-lg font-bold text-slate-900">{year}년 {month0 + 1}월</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => changeMonth(-1)} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
+                        <button onClick={() => changeMonth(1)} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+                      </div>
+                    </div>
+                    <CalendarGrid
+                      grid={grid}
+                      renderCell={(d) => {
+                        const ds = toDateStr(d);
+                        const mine = myDates.includes(ds);
+                        const active = activeDate === ds;
+                        return (
+                          <button
+                            onClick={() => tapDate(ds)}
+                            className={`flex h-full w-full items-center justify-center rounded-full text-sm transition ${
+                              mine ? "bg-accent font-bold text-accent-fg" : "text-slate-700 hover:bg-slate-100"
+                            } ${active ? "ring-2 ring-accent ring-offset-1" : !mine && ds === todayStr ? "ring-1 ring-accent" : ""}`}
+                          >
+                            {d.getDate()}
+                          </button>
+                        );
+                      }}
+                    />
+                    {!activeDate ? (
+                      <p className="mt-3 text-xs text-slate-400">{coordClosed ? "마감된 조율이에요." : "날짜를 눌러 선택하면 아래에 시간 선택이 열려요. 같은 날을 다시 누르면 해제돼요."}</p>
+                    ) : (
+                      <div className="mt-4 border-t border-slate-100 pt-4">
+                        <div className="mb-1 flex items-center justify-between">
+                          <h3 className="font-bold text-slate-900">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 가능 시간</h3>
+                          {!coordClosed && (
+                            <button onClick={() => removeDate(activeDate)} className="text-xs font-medium text-slate-400 transition hover:text-red-500">이 날 빼기</button>
+                          )}
+                        </div>
+                        <p className="mb-2.5 text-xs text-slate-400">
+                          {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
+                        </p>
+                        <div className="mb-3 flex flex-wrap gap-1.5">
+                          {([["오전", MORNING], ["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
+                            <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50">{label}</button>
+                          ))}
+                        </div>
+                        <div className="space-y-3">
+                          {SLOT_GROUPS.map(([label, group]) => (
+                            <div key={label}>
+                              <p className="mb-1.5 text-[11px] font-semibold text-slate-400">{label}</p>
+                              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                                {group.map((s) => {
+                                  const sel = (slotsByDate[activeDate] ?? []).includes(s);
+                                  const isAnchor = rangeAnchor === s;
+                                  const others = othersBySlot[s] ?? 0;
+                                  return (
+                                    <button
+                                      key={s}
+                                      onClick={() => pickSlot(s)}
+                                      title={`${s} ~ ${slotEnd(s)}${others > 0 ? ` · ${others}명 가능` : ""}`}
+                                      className={`rounded-lg border py-1.5 text-xs tabular-nums transition ${
+                                        isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      {s}
+                                      {others > 0 && <span className={`ml-0.5 text-[9px] ${isAnchor ? "opacity-80" : "text-slate-400"}`}>·{others}</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 제출 바 (마감 전에만) */}
+                {!coordClosed && (
+                  <div className="flex items-center justify-between border-t border-slate-200 bg-white p-4">
+                    <span className="text-sm text-slate-500">선택한 날짜 <b className="text-accent">{myDates.length}</b>일</span>
+                    <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent">
+                      {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 추천 → 확정 등록 모달 (관리자) : 확정 시 카드 완료 처리 */}
           {confirmDraft && (
-            <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4" onClick={() => setConfirmDraft(null)}>
+            <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-900/50 p-4" onClick={() => setConfirmDraft(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <p className="mb-2 px-1 text-sm font-semibold text-white">확정 일정 등록</p>
                 <EventForm
-                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, team: coordTeam }}
-                  onSaved={() => {
+                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, team: openCoord?.team ?? "" }}
+                  onSaved={async () => {
+                    if (openCoordId) await updateDoc(doc(db, "coordinations", openCoordId), { status: "done" }).catch(() => {});
                     setConfirmDraft(null);
-                    loadEvents();
+                    setOpenCoordId(null);
+                    await loadCoords();
+                    await loadEvents();
                     setTab("events");
                   }}
                   onCancel={() => setConfirmDraft(null)}
@@ -644,6 +742,75 @@ function CalendarGrid({ grid, renderCell }: { grid: (Date | null)[]; renderCell:
         {grid.map((d, i) => (
           <div key={i} className="aspect-square">{d ? renderCell(d) : null}</div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------- 조율 카드 만들기 폼 ----------
+function CoordForm({
+  teams,
+  onCreate,
+  onCancel,
+}: {
+  teams: string[];
+  onCreate: (fields: Omit<Coordination, "id" | "createdBy" | "createdByName" | "status" | "createdAt">) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [memo, setMemo] = useState("");
+  const [team, setTeam] = useState("");
+  const [month, setMonth] = useState(""); // YYYY-MM
+  const [deadline, setDeadline] = useState(""); // datetime-local
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (!title.trim()) {
+      alert("제목을 입력해 주세요.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onCreate({
+        title: title.trim(),
+        ...(memo.trim() ? { memo: memo.trim() } : {}),
+        ...(team ? { team } : {}),
+        ...(month ? { targetMonth: month } : {}),
+        ...(deadline ? { deadline: new Date(deadline).getTime() } : {}),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card space-y-3">
+      <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="조율 제목 (예: 1월 워크샵 일정)" />
+      <textarea className="input min-h-[60px]" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="설명 (선택)" />
+      {teams.length > 0 && (
+        <div>
+          <label className="label">대상 팀</label>
+          <Select value={team} onChange={(e) => setTeam(e.target.value)}>
+            <option value="">전체</option>
+            {teams.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </Select>
+        </div>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="label">대상 달 (선택)</label>
+          <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">마감일 (선택)</label>
+          <input type="datetime-local" className="input" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="btn-ghost">취소</button>
+        <button onClick={submit} disabled={busy} className="btn-accent flex-1">{busy ? "만드는 중…" : "조율 만들기"}</button>
       </div>
     </div>
   );

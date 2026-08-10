@@ -84,14 +84,29 @@ export interface ScheduleEvent {
   createdAt: number;
 }
 
+// 일정 조율 카드 (조율할 주제 하나). 카드마다 가능일정을 따로 모음(Doodle식)
+// availability 문서: coordinations/{id}/availability/{uid}
+export interface Coordination {
+  id: string;
+  title: string;
+  memo?: string; // 설명
+  team?: string; // 대상 팀 (빈값이면 전체)
+  deadline?: number; // 가능시간 제출 마감(ms)
+  targetMonth?: string; // 대상 기간(달) YYYY-MM — 달력 기본 이동
+  createdBy: string;
+  createdByName: string;
+  status: "open" | "done"; // 진행중 / 완료(확정됨)
+  createdAt: number;
+}
+
 // 개인 가능 일정 (단원이 본인 가능 날짜를 체크)
-// 문서 ID = `${uid}_${yearMonth}` 형태, 월 단위로 저장
+// (구) 전역 조율: 문서 ID = `${uid}_${yearMonth}`. (신) 카드별: coordinations/{cid}/availability/{uid}
 export interface Availability {
   uid: string;
   name: string;
   avatar?: string; // 제출 시점의 프로필 사진 (명단 표시용)
   team?: string; // 제출 시점의 소속 팀 (팀별 조율 집계용)
-  yearMonth: string; // YYYY-MM
+  yearMonth?: string; // YYYY-MM (구 전역 방식에서만 사용)
   dates: string[]; // 가능한 날짜 목록 (YYYY-MM-DD)
   // 날짜별 가능 시간 슬롯(30분 단위, "HH:mm"). 비어있거나 없으면 그 날은 '아무때나 가능'
   slots?: { [date: string]: string[] };
