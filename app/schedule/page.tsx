@@ -28,11 +28,13 @@ import {
   WEEKDAYS_KO,
 } from "@/lib/utils";
 
-type Tab = "coord" | "events";
+type Tab = "events" | "coord" | "past";
 
+const TAB_ORDER: Tab[] = ["events", "coord", "past"];
 const TAB_INFO: Record<Tab, { label: string; desc: string }> = {
-  coord: { label: "일정 조율", desc: "내 가능 시간을 제출하고, 단원들과 겹치는 시간을 한눈에 확인하세요." },
-  events: { label: "확정 일정", desc: "확정된 일정을 확인하세요." },
+  events: { label: "확정", desc: "확정된 다가오는 일정을 확인하세요." },
+  coord: { label: "잡는 중", desc: "내 가능 시간을 제출하고, 단원들과 겹치는 시간을 한눈에 확인하세요." },
+  past: { label: "지난 일정", desc: "이미 지난 일정을 모아 봅니다." },
 };
 
 function dateLabel(ds: string) {
@@ -105,7 +107,7 @@ function ScheduleInner() {
   useEffect(() => {
     setCoordTeam(myTeam);
   }, [myTeam]);
-  const [tab, setTab] = useState<Tab>("coord");
+  const [tab, setTab] = useState<Tab>("events");
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
 
@@ -376,7 +378,7 @@ function ScheduleInner() {
 
       {/* 탭 */}
       <div className="flex gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
-        {(["coord", "events"] as Tab[]).map((t) => (
+        {TAB_ORDER.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -592,9 +594,27 @@ function ScheduleInner() {
         </div>
       )}
 
-      {/* ===== 확정 일정 ===== */}
+      {/* ===== 확정 (다가오는 일정) ===== */}
       {tab === "events" && (
         <EventsSection
+          mode="upcoming"
+          monthLabel={`${year}년 ${month0 + 1}월`}
+          onPrev={() => changeMonth(-1)}
+          onNext={() => changeMonth(1)}
+          yearMonth={yearMonth}
+          events={events}
+          isAdmin={role === "admin"}
+          onChanged={loadEvents}
+          highlightId={highlightEvent}
+          teams={teams}
+          myTeam={myTeam}
+        />
+      )}
+
+      {/* ===== 지난 일정 ===== */}
+      {tab === "past" && (
+        <EventsSection
+          mode="past"
           monthLabel={`${year}년 ${month0 + 1}월`}
           onPrev={() => changeMonth(-1)}
           onNext={() => changeMonth(1)}
@@ -757,8 +777,9 @@ function EventForm({
   );
 }
 
-// ---------- 확정 일정 (월 표시 + 일정 리스트) ----------
+// ---------- 확정/지난 일정 (월 표시 + 일정 리스트) ----------
 function EventsSection({
+  mode,
   monthLabel,
   onPrev,
   onNext,
@@ -770,6 +791,7 @@ function EventsSection({
   teams,
   myTeam,
 }: {
+  mode: "upcoming" | "past";
   monthLabel: string;
   onPrev: () => void;
   onNext: () => void;
@@ -781,6 +803,8 @@ function EventsSection({
   teams: string[];
   myTeam: string;
 }) {
+  const isPast = mode === "past";
+  const canAdd = isAdmin && !isPast; // 지난 일정 탭에서는 추가 없음
   const [showForm, setShowForm] = useState(false);
   const formDate = `${yearMonth}-01`; // 등록 폼 기본 날짜(달 1일) — 실제 날짜는 폼에서 선택
 
@@ -789,8 +813,9 @@ function EventsSection({
   useEffect(() => {
     setEvTeam(myTeam);
   }, [myTeam]);
-  const visibleEvents =
-    teams.length === 0 || !evTeam ? events : events.filter((e) => !e.team || e.team === evTeam);
+  const visibleEvents = events
+    .filter((e) => teams.length === 0 || !evTeam || !e.team || e.team === evTeam)
+    .filter((e) => (isPast ? eventPassed(e) : !eventPassed(e))); // 탭에 따라 지난/다가오는 것만
 
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
   const loadAbsences = useCallback(async () => {
@@ -821,12 +846,11 @@ function EventsSection({
     onChanged();
   }
 
-  // 안 지난 일정 먼저(날짜·시간순), 지난 일정은 맨 아래로
+  // 다가오는 일정은 가까운 순(오름차순), 지난 일정은 최근 순(내림차순)
   const sortedEvents = [...visibleEvents].sort((a, b) => {
-    const pa = eventPassed(a);
-    const pb = eventPassed(b);
-    if (pa !== pb) return pa ? 1 : -1;
-    return (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || ""));
+    const ka = a.date + (a.startTime || "");
+    const kb = b.date + (b.startTime || "");
+    return isPast ? kb.localeCompare(ka) : ka.localeCompare(kb);
   });
 
   // 날짜별로 묶기 (왼쪽 날짜 1개 + 그 날 일정 카드들)
@@ -845,7 +869,7 @@ function EventsSection({
           <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
           <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
         </div>
-        {isAdmin && (
+        {canAdd && (
           <button
             onClick={() => setShowForm((v) => !v)}
             aria-label={showForm ? "닫기" : "일정 추가"}
@@ -874,7 +898,7 @@ function EventsSection({
           </div>
         )}
 
-        {isAdmin && showForm && (
+        {canAdd && showForm && (
           <div className="mb-3">
             <EventForm
               key={formDate}
@@ -889,7 +913,7 @@ function EventsSection({
         )}
 
         {visibleEvents.length === 0 ? (
-          <EmptyState icon={CalendarIcon} title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."} />
+          <EmptyState icon={CalendarIcon} title={isPast ? "이번 달 지난 일정이 없습니다." : teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."} />
         ) : (
           <div className="space-y-5">
             {groups.map(([date, evs]) => {
@@ -926,7 +950,7 @@ function EventsSection({
                           </div>
                           <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-0.5 text-sm text-slate-500" />
                           {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
-                          <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
+                          {!isPast && <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />}
                         </div>
                       );
                     })}
