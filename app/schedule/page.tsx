@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -116,6 +116,30 @@ function ScheduleInner() {
   const [showCreate, setShowCreate] = useState(false);
   const openCoord = coords.find((c) => c.id === openCoordId) ?? null;
   const coordClosed = !!openCoord?.deadline && Date.now() > openCoord.deadline;
+  // 바텀시트 드래그로 닫기
+  const [sheetDrag, setSheetDrag] = useState(0);
+  const [sheetDragging, setSheetDragging] = useState(false);
+  const sheetStartY = useRef(0);
+  function closeSheet() {
+    setOpenCoordId(null);
+    setSheetDrag(0);
+    setSheetDragging(false);
+  }
+  function onSheetDown(e: React.PointerEvent) {
+    setSheetDragging(true);
+    sheetStartY.current = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onSheetMove(e: React.PointerEvent) {
+    if (!sheetDragging) return;
+    setSheetDrag(Math.max(0, e.clientY - sheetStartY.current));
+  }
+  function onSheetUp() {
+    if (!sheetDragging) return;
+    setSheetDragging(false);
+    if (sheetDrag > 110) closeSheet();
+    else setSheetDrag(0);
+  }
   const [tab, setTab] = useState<Tab>("events");
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
@@ -494,15 +518,30 @@ function ScheduleInner() {
           {/* ===== 바텀시트: 카드를 누르면 조율 화면이 올라옴 ===== */}
           {openCoord && (
             <div
-              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
-              onClick={() => setOpenCoordId(null)}
+              className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
+              onClick={closeSheet}
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-canvas shadow-2xl sm:rounded-2xl"
+                style={{
+                  transform: sheetDrag ? `translateY(${sheetDrag}px)` : undefined,
+                  transition: sheetDragging ? "none" : "transform 0.25s ease",
+                }}
+                className="animate-sheet-up flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-canvas shadow-2xl sm:rounded-2xl"
               >
+                {/* 그래버(아래로 슬라이드해서 닫기) */}
+                <div
+                  onPointerDown={onSheetDown}
+                  onPointerMove={onSheetMove}
+                  onPointerUp={onSheetUp}
+                  onPointerCancel={onSheetUp}
+                  className="flex shrink-0 cursor-grab touch-none justify-center bg-white pb-1 pt-2.5 active:cursor-grabbing"
+                >
+                  <span className="h-1.5 w-10 rounded-full bg-slate-300" />
+                </div>
+
                 {/* 헤더 */}
-                <div className="flex items-start justify-between gap-2 border-b border-slate-200 bg-white p-4">
+                <div className="border-b border-slate-200 bg-white px-4 pb-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="truncate font-bold text-slate-900">{openCoord.title}</p>
@@ -513,9 +552,6 @@ function ScheduleInner() {
                       <p className="mt-0.5 text-[11px] text-slate-400">{coordClosed ? "제출 마감됨" : `${deadlineLabel(openCoord.deadline)} 제출 마감`}</p>
                     )}
                   </div>
-                  <button onClick={() => setOpenCoordId(null)} aria-label="닫기" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100">
-                    <XIcon className="h-5 w-5" />
-                  </button>
                 </div>
 
                 {/* 본문 (스크롤) */}
@@ -671,7 +707,7 @@ function ScheduleInner() {
 
           {/* 추천 → 확정 등록 모달 (관리자) : 확정 시 카드 완료 처리 */}
           {confirmDraft && (
-            <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-900/50 p-4" onClick={() => setConfirmDraft(null)}>
+            <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-900/50 p-4" onClick={() => setConfirmDraft(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <p className="mb-2 px-1 text-sm font-semibold text-white">확정 일정 등록</p>
                 <EventForm

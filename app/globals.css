@@ -100,6 +100,18 @@ body {
   font-style: italic;
 }
 
+/* 바텀시트: 아래에서 올라오는 애니메이션 */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up { animation: none; }
+}
+
 /* 알림 벨: 알림 있을 때 주기적으로 딸랑딸랑 흔들림 */
 @keyframes bell-ring {
   0% { transform: rotate(0); }
