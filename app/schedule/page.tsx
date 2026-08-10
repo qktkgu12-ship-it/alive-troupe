@@ -70,8 +70,15 @@ function slotRanges(slots: string[]): string[] {
   return out;
 }
 
-const AFTERNOON = TIME_SLOTS.slice(0, 12); // 12:00~18:00
-const EVENING = TIME_SLOTS.slice(12); // 18:00~24:00
+const hourOf = (s: string) => parseInt(s.slice(0, 2), 10);
+const MORNING = TIME_SLOTS.filter((s) => hourOf(s) < 12); // 09:00~12:00
+const AFTERNOON = TIME_SLOTS.filter((s) => hourOf(s) >= 12 && hourOf(s) < 18); // 12:00~18:00
+const EVENING = TIME_SLOTS.filter((s) => hourOf(s) >= 18); // 18:00~24:00
+const SLOT_GROUPS: [string, string[]][] = [
+  ["오전", MORNING],
+  ["오후", AFTERNOON],
+  ["저녁", EVENING],
+];
 
 // 팀 배지 (전체 공통이면 표시 안 함)
 function TeamBadge({ team, className = "" }: { team?: string; className?: string }) {
@@ -358,11 +365,6 @@ function ScheduleInner() {
     return [...map.values()].sort((x, y) => y.name.localeCompare(x.name, "ko"));
   }, [activeDate, scopedAvail, user?.uid, profile?.avatar]);
 
-  const eventsByDate = useMemo(() => {
-    const map: Record<string, ScheduleEvent[]> = {};
-    for (const e of events) (map[e.date] ??= []).push(e);
-    return map;
-  }, [events]);
 
   function changeMonth(delta: number) {
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
@@ -389,7 +391,7 @@ function ScheduleInner() {
       {/* ===== 일정 조율 (전체현황 + 내 가능 일정 통합) ===== */}
       {tab === "coord" && (
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-[0.9fr_1.2fr_1fr]">
+          <div className="grid gap-4 md:grid-cols-[0.9fr_1.4fr]">
             {/* 전체 가능 현황 (모바일: 최상단·접기 / PC: 왼쪽 열·항상 펼침) */}
             <div className="order-first md:order-1">
               <div className="card h-full space-y-3 md:space-y-4">
@@ -484,7 +486,7 @@ function ScheduleInner() {
               </div>
             </div>
 
-            {/* 가운데: 달력 (월 선택 카드 안 + 내 선택만) */}
+            {/* 오른쪽: 달력 → 날짜 고르면 바로 밑에 시간 선택이 펼쳐짐 */}
             <div className="order-1 md:order-2">
               <div className="card h-full">
                 <div className="mb-3 flex items-center justify-between">
@@ -512,49 +514,51 @@ function ScheduleInner() {
                     );
                   }}
                 />
-                <p className="mt-3 text-xs text-slate-400">날짜를 눌러 선택, 같은 날을 다시 누르면 해제돼요. 달을 넘겨도 선택은 유지됩니다.</p>
-              </div>
-            </div>
-
-            {/* 오른쪽: 내 시간 선택 */}
-            <div className="order-2 md:order-3">
-              <div className="card h-full">
                 {!activeDate ? (
-                  <p className="py-10 text-center text-sm text-slate-400">날짜를 선택하면<br />시간을 고를 수 있어요.</p>
+                  <p className="mt-3 text-xs text-slate-400">날짜를 눌러 선택하면 아래에 시간 선택이 열려요. 같은 날을 다시 누르면 해제돼요.</p>
                 ) : (
-                  <>
-                    <h2 className="font-bold">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 시간</h2>
-                    <p className="mb-2 mt-1 text-xs text-slate-400">
+                  /* ===== 인라인 시간 선택 (선택한 날짜 밑으로 펼쳐짐) ===== */
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="mb-1 flex items-center justify-between">
+                      <h3 className="font-bold text-slate-900">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 가능 시간</h3>
+                      <button onClick={() => removeDate(activeDate)} className="text-xs font-medium text-slate-400 transition hover:text-red-500">이 날 빼기</button>
+                    </div>
+                    <p className="mb-2.5 text-xs text-slate-400">
                       {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
                     </p>
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {([["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
-                        <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">{label}</button>
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {([["오전", MORNING], ["오후", AFTERNOON], ["저녁", EVENING], ["하루 종일", [...TIME_SLOTS]], ["해제", []]] as [string, string[]][]).map(([label, slots]) => (
+                        <button key={label} onClick={() => setPreset(slots)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50">{label}</button>
                       ))}
                     </div>
-                    <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
-                      {TIME_SLOTS.map((s) => {
-                        const sel = (slotsByDate[activeDate] ?? []).includes(s);
-                        const isAnchor = rangeAnchor === s;
-                        const others = othersBySlot[s] ?? 0;
-                        return (
-                          <button
-                            key={s}
-                            onClick={() => pickSlot(s)}
-                            className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                              isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 hover:bg-slate-50"
-                            }`}
-                          >
-                            <span className="tabular-nums">{s} ~ {slotEnd(s)}</span>
-                            <span className="flex items-center gap-2">
-                              {others > 0 && <span className={`text-xs ${isAnchor ? "opacity-80" : "text-slate-400"}`}>{others}명</span>}
-                              {isAnchor ? <span className="text-xs">시작</span> : sel ? <span className="text-xs">✓</span> : null}
-                            </span>
-                          </button>
-                        );
-                      })}
+                    <div className="space-y-3">
+                      {SLOT_GROUPS.map(([label, group]) => (
+                        <div key={label}>
+                          <p className="mb-1.5 text-[11px] font-semibold text-slate-400">{label}</p>
+                          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                            {group.map((s) => {
+                              const sel = (slotsByDate[activeDate] ?? []).includes(s);
+                              const isAnchor = rangeAnchor === s;
+                              const others = othersBySlot[s] ?? 0;
+                              return (
+                                <button
+                                  key={s}
+                                  onClick={() => pickSlot(s)}
+                                  title={`${s} ~ ${slotEnd(s)}${others > 0 ? ` · ${others}명 가능` : ""}`}
+                                  className={`rounded-lg border py-1.5 text-xs tabular-nums transition ${
+                                    isAnchor ? "border-accent bg-accent text-accent-fg" : sel ? "border-accent/30 bg-accent-soft text-accent" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {s}
+                                  {others > 0 && <span className={`ml-0.5 text-[9px] ${isAnchor ? "opacity-80" : "text-slate-400"}`}>·{others}</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
@@ -596,8 +600,6 @@ function ScheduleInner() {
           onNext={() => changeMonth(1)}
           yearMonth={yearMonth}
           events={events}
-          eventsByDate={eventsByDate}
-          grid={grid}
           isAdmin={role === "admin"}
           onChanged={loadEvents}
           highlightId={highlightEvent}
@@ -755,15 +757,13 @@ function EventForm({
   );
 }
 
-// ---------- 확정 일정 (왼쪽 달력 + 오른쪽 리스트) ----------
+// ---------- 확정 일정 (월 표시 + 일정 리스트) ----------
 function EventsSection({
   monthLabel,
   onPrev,
   onNext,
   yearMonth,
   events,
-  eventsByDate,
-  grid,
   isAdmin,
   onChanged,
   highlightId,
@@ -775,8 +775,6 @@ function EventsSection({
   onNext: () => void;
   yearMonth: string;
   events: ScheduleEvent[];
-  eventsByDate: Record<string, ScheduleEvent[]>;
-  grid: (Date | null)[];
   isAdmin: boolean;
   onChanged: () => void;
   highlightId?: string | null;
@@ -784,8 +782,7 @@ function EventsSection({
   myTeam: string;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [formDate, setFormDate] = useState(`${yearMonth}-01`);
-  const today = toDateStr(new Date());
+  const formDate = `${yearMonth}-01`; // 등록 폼 기본 날짜(달 1일) — 실제 날짜는 폼에서 선택
 
   // 팀 필터 (기본: 내 팀 = 공통 + 내 팀). 빈값이면 전체
   const [evTeam, setEvTeam] = useState(myTeam);
@@ -841,56 +838,24 @@ function EventsSection({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {/* 왼쪽: 달력 (월 선택 카드 안 + 일정 있는 날 동그라미) */}
-      <div className="card h-full">
-        <div className="mb-3 flex items-center justify-between">
+    <div className="card">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
           <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
-          <div className="flex gap-1">
-            <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
-            <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
-          </div>
+          <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
         </div>
-        <CalendarGrid
-          grid={grid}
-          renderCell={(d) => {
-            const ds = toDateStr(d);
-            const has = (eventsByDate[ds] ?? []).length > 0;
-            return (
-              <button
-                onClick={() => {
-                  if (isAdmin) {
-                    setFormDate(ds);
-                    setShowForm(true);
-                  }
-                }}
-                className={`flex h-full w-full items-center justify-center rounded-full text-sm transition ${
-                  has ? "bg-accent font-bold text-accent-fg" : "text-slate-700"
-                } ${isAdmin && !has ? "hover:bg-slate-100" : ""} ${ds === today && !has ? "ring-1 ring-accent" : ""}`}
-              >
-                {d.getDate()}
-              </button>
-            );
-          }}
-        />
-        {isAdmin && <p className="mt-3 text-xs text-slate-400">날짜를 누르면 그 날로 등록 폼이 열려요.</p>}
+        {isAdmin && (
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            aria-label={showForm ? "닫기" : "일정 추가"}
+            title={showForm ? "닫기" : "일정 추가"}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+          >
+            {showForm ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
+          </button>
+        )}
       </div>
-
-      {/* 오른쪽: 일정 리스트 */}
-      <div className="card h-full">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-bold">이번 달 일정</h2>
-          {isAdmin && (
-            <button
-              onClick={() => setShowForm((v) => !v)}
-              aria-label={showForm ? "닫기" : "일정 추가"}
-              title={showForm ? "닫기" : "일정 추가"}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
-            >
-              {showForm ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
-            </button>
-          )}
-        </div>
 
         {/* 팀 필터 (팀이 있을 때만) — 기본 내 팀, '전체'로 전환 가능 */}
         {teams.length > 0 && (
@@ -972,7 +937,6 @@ function EventsSection({
           </div>
         )}
       </div>
-    </div>
   );
 }
 

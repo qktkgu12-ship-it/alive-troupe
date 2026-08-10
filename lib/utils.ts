@@ -119,10 +119,10 @@ export function buildMonthGrid(year: number, month0: number): (Date | null)[] {
 
 export const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
-// 가능 시간 30분 슬롯 (12:00 ~ 24:00, 시작시간 기준 24칸)
+// 가능 시간 30분 슬롯 (09:00 ~ 24:00, 시작시간 기준) — 오전/오후/저녁
 export const TIME_SLOTS: string[] = (() => {
   const out: string[] = [];
-  for (let h = 12; h < 24; h++) {
+  for (let h = 9; h < 24; h++) {
     out.push(`${String(h).padStart(2, "0")}:00`);
     out.push(`${String(h).padStart(2, "0")}:30`);
   }
