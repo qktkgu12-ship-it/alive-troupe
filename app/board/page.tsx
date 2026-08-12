@@ -235,9 +235,9 @@ function BoardInner() {
           />
         </div>
       ) : (
-        <div className="card divide-y divide-slate-100 !p-0">
+        <div className="space-y-2">
           {pageItems.map((p) => (
-            <Link key={p.id} href={`/board/${p.id}`} className="block px-4 py-3 transition hover:bg-slate-50">
+            <Link key={p.id} href={`/board/${p.id}`} className="card block !p-3 transition hover:ring-1 hover:ring-accent/30">
               <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
                 {p.poll && <span className="shrink-0 text-xs text-slate-400">🗳️</span>}

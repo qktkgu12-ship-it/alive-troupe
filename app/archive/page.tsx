@@ -22,7 +22,7 @@ import Select from "@/components/Select";
 import BottomSheet from "@/components/BottomSheet";
 import ArchiveForm, { itemClips } from "@/components/forms/ArchiveForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
-import { ArchiveIcon, CalendarIcon, PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { ArchiveIcon, CalendarIcon, CheckIcon, LinkIcon, PencilIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
 
@@ -34,24 +34,50 @@ function openLink(url: string) {
 
 // (todayStr·itemClips 는 ArchiveForm 으로 이동 — itemClips 는 거기서 import)
 
+// 링크 복사 버튼 (복사 후 2초 체크 표시)
+function CopyBtn({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent) => void }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    onClick?.(e);
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      aria-label="링크 복사"
+      className={`grid h-8 w-8 place-items-center rounded-lg transition ${
+        copied ? "text-green-500" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+      }`}
+    >
+      {copied ? <CheckIcon className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
+    </button>
+  );
+}
+
 // 영상 칩들 (라벨이 비면 '영상 N') — ▶ 재생 아이콘으로 '눌러서 보기' 표시
 function ClipChips({ clips }: { clips: ArchiveClip[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {clips.map((c, i) => (
-        <button
-          key={i}
-          onClick={(e) => {
-            e.stopPropagation();
-            openLink(c.url);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
-        >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-            <path d="M3 2l7 4-7 4z" />
-          </svg>
-          {c.label || `영상 ${i + 1}`}
-        </button>
+        <div key={i} className="inline-flex items-center gap-0.5">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openLink(c.url);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
+          >
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <path d="M3 2l7 4-7 4z" />
+            </svg>
+            {c.label || `영상 ${i + 1}`}
+          </button>
+          <CopyBtn url={c.url} />
+        </div>
       ))}
     </div>
   );
@@ -316,10 +342,8 @@ function ArchiveInner() {
                   <CalendarIcon className="h-3.5 w-3.5" />
                   {it.date}
                 </span>
-                {multi ? (
+                {multi && (
                   <span className="ml-auto text-xs font-semibold text-slate-400">영상 {clips.length}개</span>
-                ) : (
-                  <span className="ml-auto text-sm font-semibold text-accent">열기 ↗</span>
                 )}
               </div>
               <h3 className="font-semibold">{it.title}</h3>
@@ -352,8 +376,83 @@ function ArchiveInner() {
                 ) : (
                   <span className="text-xs text-slate-400">{it.createdByName}</span>
                 )}
+                <div className="flex shrink-0 items-center gap-1">
+                  {!multi && clips[0] && <CopyBtn url={clips[0].url} />}
+                  {canDelete(it) && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowForm(false);
+                          setEditItem(it);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        aria-label="수정"
+                        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeItem(it);
+                        }}
+                        aria-label="삭제"
+                        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            );
+          })}
+        </div>
+        {sorted.length > visible && (
+          <button onClick={() => setVisible((v) => v + PAGE)} className="btn-ghost mt-3 w-full">
+            더 보기 ({sorted.length - visible}개)
+          </button>
+        )}
+        </div>
+      ) : (
+        /* ===== 리스트 보기 ===== */
+        <div className="space-y-2">
+          {sorted.slice(0, visible).map((it) => {
+            const clips = itemClips(it);
+            const multi = clips.length > 1;
+            return (
+            <div
+              key={it.id}
+              role={multi ? undefined : "link"}
+              tabIndex={multi ? undefined : 0}
+              onClick={() => {
+                if (!multi && clips[0]) openLink(clips[0].url);
+              }}
+              onKeyDown={(e) => {
+                if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url);
+              }}
+              className={`card flex items-center gap-3 !p-3 transition ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
+            >
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
+                {ARCHIVE_KIND_LABEL[it.kind]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{it.title}</p>
+                <p className="truncate text-xs text-slate-400">
+                  {[prodLabel(it), it.date, it.createdByName].filter(Boolean).join(" · ")}
+                </p>
+                {multi && (
+                  <div className="mt-1.5">
+                    <ClipChips clips={clips} />
+                  </div>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {!multi && clips[0] && <CopyBtn url={clips[0].url} />}
                 {canDelete(it) && (
-                  <div className="flex shrink-0 items-center gap-2.5">
+                  <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -376,84 +475,14 @@ function ArchiveInner() {
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
-            </div>
-            );
-          })}
-        </div>
-        {sorted.length > visible && (
-          <button onClick={() => setVisible((v) => v + PAGE)} className="btn-ghost mt-3 w-full">
-            더 보기 ({sorted.length - visible}개)
-          </button>
-        )}
-        </div>
-      ) : (
-        /* ===== 리스트 보기 ===== */
-        <div className="card divide-y divide-slate-100 !p-0">
-          {sorted.slice(0, visible).map((it) => {
-            const clips = itemClips(it);
-            const multi = clips.length > 1;
-            return (
-            <div
-              key={it.id}
-              role={multi ? undefined : "link"}
-              tabIndex={multi ? undefined : 0}
-              onClick={() => {
-                if (!multi && clips[0]) openLink(clips[0].url);
-              }}
-              onKeyDown={(e) => {
-                if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url);
-              }}
-              className={`flex items-center gap-3 px-4 py-3 transition ${multi ? "" : "cursor-pointer hover:bg-slate-50"}`}
-            >
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
-                {ARCHIVE_KIND_LABEL[it.kind]}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{it.title}</p>
-                <p className="truncate text-xs text-slate-400">
-                  {[prodLabel(it), it.date, it.createdByName].filter(Boolean).join(" · ")}
-                </p>
-                {multi && (
-                  <div className="mt-1.5">
-                    <ClipChips clips={clips} />
-                  </div>
-                )}
-              </div>
-              {!multi && <span className="shrink-0 text-sm font-semibold text-accent">열기 ↗</span>}
-              {canDelete(it) && (
-                <div className="flex shrink-0 items-center gap-2.5">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowForm(false);
-                      setEditItem(it);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    aria-label="수정"
-                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeItem(it);
-                    }}
-                    aria-label="삭제"
-                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
             </div>
             );
           })}
           {sorted.length > visible && (
-            <button onClick={() => setVisible((v) => v + PAGE)} className="w-full py-3 text-sm font-medium text-accent hover:bg-slate-50">
+            <button onClick={() => setVisible((v) => v + PAGE)} className="btn-ghost mt-1 w-full">
               더 보기 ({sorted.length - visible}개)
             </button>
           )}

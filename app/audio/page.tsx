@@ -18,7 +18,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { FolderIcon, MusicIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CheckIcon, FolderIcon, LinkIcon, MusicIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import Select from "@/components/Select";
 import BottomSheet from "@/components/BottomSheet";
 import AudioForm from "@/components/forms/AudioForm";
@@ -28,6 +28,29 @@ import type { AudioTrack, Production } from "@/lib/types";
 const DEFAULT_CATEGORIES = ["음원", "기타"];
 const DAY = 86_400_000;
 const isRecent = (t: AudioTrack) => (t.createdAt ?? 0) > Date.now() - 7 * DAY;
+
+// 링크 복사 버튼
+function CopyBtn({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      aria-label="링크 복사"
+      className={`grid h-8 w-8 place-items-center rounded-lg transition ${
+        copied ? "text-green-500" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+      }`}
+    >
+      {copied ? <CheckIcon className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
+    </button>
+  );
+}
 
 // 항상 http(s)만 새 탭으로 열기 (위험 링크 차단)
 function openLink(url: string) {
@@ -314,13 +337,20 @@ function AudioInner() {
             <div className="card">
               <EmptyState
                 icon={MusicIcon}
-                title={searching ? "검색 결과가 없습니다." : activeCat ? `‘${activeCat}’ 자료가 없습니다.` : "자료가 없습니다."}
+                title={searching ? "검색 결과가 없습니다." : activeCat ? `’${activeCat}’ 자료가 없습니다.` : "자료가 없습니다."}
               />
             </div>
           ) : (
-            <div className="card divide-y divide-slate-100 !p-0">
+            <div className="space-y-2">
               {catItems.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
+                <div
+                  key={t.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => openLink(t.url)}
+                  onKeyDown={(e) => { if (e.key === "Enter") openLink(t.url); }}
+                  className="card flex cursor-pointer items-center gap-3 !p-3 transition hover:ring-1 hover:ring-accent/30"
+                >
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 text-sm font-medium">
                       <span className="truncate">{itemTitle(t)}</span>
@@ -332,14 +362,18 @@ function AudioInner() {
                       {[(searching || !activeCat) ? itemCategory(t) : "", itemMemo(t), t.addedByName].filter(Boolean).join(" · ")}
                     </p>
                   </div>
-                  <button onClick={() => openLink(t.url)} className="btn-ghost shrink-0 !px-3 !py-1.5">
-                    열기 ↗
-                  </button>
-                  {isAdmin && (
-                    <button onClick={() => removeItem(t)} aria-label="삭제" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500">
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1">
+                    <CopyBtn url={t.url} />
+                    {isAdmin && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeItem(t); }}
+                        aria-label="삭제"
+                        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
