@@ -96,6 +96,9 @@ export interface Coordination {
   createdBy: string;
   createdByName: string;
   status: "open" | "done"; // 진행중 / 완료(확정됨)
+  confirmedDate?: string; // 확정된 날짜 YYYY-MM-DD (status==="done")
+  confirmedStart?: string; // 확정 시작 HH:mm
+  confirmedEnd?: string; // 확정 종료 HH:mm
   createdAt: number;
 }
 

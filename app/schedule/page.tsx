@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -22,7 +22,7 @@ import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
 import { CalendarIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
-import type { Absence, Availability, Coordination, ScheduleEvent } from "@/lib/types";
+import type { Absence, Availability, Coordination, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
   slotEnd,
@@ -49,6 +49,12 @@ function dateLabel(ds: string) {
 function deadlineLabel(ts: number) {
   const d = new Date(ts);
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// "2026년 8월 27일 (목)"
+function fullDateLabel(ds: string) {
+  const d = new Date(ds + "T00:00:00");
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS_KO[d.getDay()]})`;
 }
 
 // 종료시간(없으면 시작시간, 둘 다 없으면 그날 자정)이 지났으면 '지난 일정'
@@ -110,36 +116,18 @@ function ScheduleInner() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-  // 조율 카드(Doodle식): 카드 목록 + 지금 연 카드(바텀시트)
+  // 조율 카드(Doodle식): 카드 목록 + 지금 연 카드(전체화면 상세)
   const [coords, setCoords] = useState<Coordination[]>([]);
   const [openCoordId, setOpenCoordId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const openCoord = coords.find((c) => c.id === openCoordId) ?? null;
   const coordClosed = !!openCoord?.deadline && Date.now() > openCoord.deadline;
-  // 바텀시트 드래그로 닫기
-  const [sheetDrag, setSheetDrag] = useState(0);
-  const [sheetDragging, setSheetDragging] = useState(false);
-  const sheetStartY = useRef(0);
-  function closeSheet() {
+  const coordLocked = coordClosed || openCoord?.status === "done"; // 수정 불가(마감 또는 확정)
+  function closeCoord() {
     setOpenCoordId(null);
-    setSheetDrag(0);
-    setSheetDragging(false);
   }
-  function onSheetDown(e: React.PointerEvent) {
-    setSheetDragging(true);
-    sheetStartY.current = e.clientY;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onSheetMove(e: React.PointerEvent) {
-    if (!sheetDragging) return;
-    setSheetDrag(Math.max(0, e.clientY - sheetStartY.current));
-  }
-  function onSheetUp() {
-    if (!sheetDragging) return;
-    setSheetDragging(false);
-    if (sheetDrag > 110) closeSheet();
-    else setSheetDrag(0);
-  }
+  // 팀별 단원 수(총원 분모) — publicProfiles 1회 집계
+  const [memberStat, setMemberStat] = useState<{ total: number; byTeam: Record<string, number> }>({ total: 0, byTeam: {} });
   const [tab, setTab] = useState<Tab>("events");
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
@@ -188,6 +176,19 @@ function ScheduleInner() {
     setCoords(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Coordination, "id">) })));
   }, []);
 
+  // 팀별 단원 수(응답 진행률의 분모) — publicProfiles 1회 집계
+  const loadMemberStat = useCallback(async () => {
+    const snap = await getDocs(collection(db, "publicProfiles"));
+    const byTeam: Record<string, number> = {};
+    let total = 0;
+    snap.forEach((d) => {
+      total++;
+      const p = d.data() as PublicProfile;
+      if (p.team) byTeam[p.team] = (byTeam[p.team] ?? 0) + 1;
+    });
+    setMemberStat({ total, byTeam });
+  }, []);
+
   // 지금 연 카드에 대한 '내 가능 일정'
   const loadMine = useCallback(async () => {
     if (!user || !openCoordId) {
@@ -229,10 +230,11 @@ function ScheduleInner() {
     );
   }, [yearMonth]);
 
-  // 조율 카드 목록 로드
+  // 조율 카드 목록 + 단원 수 로드
   useEffect(() => {
     loadCoords();
-  }, [loadCoords]);
+    loadMemberStat();
+  }, [loadCoords, loadMemberStat]);
 
   // 연 카드가 바뀌면 그 카드의 내/전체 가능일정 로드
   useEffect(() => {
@@ -242,6 +244,16 @@ function ScheduleInner() {
     setRangeAnchor(null);
   }, [loadMine, loadAll]);
 
+  // 카드를 열면 '대상 달'로 달력 이동 (설정돼 있을 때만)
+  useEffect(() => {
+    if (!openCoordId) return;
+    const c = coords.find((x) => x.id === openCoordId);
+    if (c?.targetMonth && /^\d{4}-\d{2}$/.test(c.targetMonth)) {
+      const [y, m] = c.targetMonth.split("-").map(Number);
+      setCursor(new Date(y, m - 1, 1));
+    }
+  }, [openCoordId, coords]);
+
   // 확정/지난 일정은 보는 달이 바뀌면 새로 로드
   useEffect(() => {
     loadEvents();
@@ -250,7 +262,7 @@ function ScheduleInner() {
   // ----- 내 가능 일정 편집 -----
   // 탭: 미선택 → 선택+열기 / 선택&활성 → 해제 / 선택&비활성 → 열기(편집)
   function tapDate(ds: string) {
-    if (coordClosed) return;
+    if (coordLocked) return;
     const selected = myDates.includes(ds);
     if (!selected) {
       setMyDates((prev) => [...prev, ds].sort());
@@ -266,7 +278,7 @@ function ScheduleInner() {
   }
 
   function removeDate(ds: string) {
-    if (coordClosed) return;
+    if (coordLocked) return;
     setMyDates((prev) => prev.filter((d) => d !== ds));
     setSlotsByDate((s) => {
       const n = { ...s };
@@ -279,7 +291,7 @@ function ScheduleInner() {
 
   // 시작→끝 두 번 탭하면 사이를 채움
   function pickSlot(slot: string) {
-    if (!activeDate || coordClosed) return;
+    if (!activeDate || coordLocked) return;
     if (rangeAnchor === null) {
       setRangeAnchor(slot);
       return;
@@ -298,7 +310,7 @@ function ScheduleInner() {
   }
 
   function setPreset(slots: string[]) {
-    if (!activeDate || coordClosed) return;
+    if (!activeDate || coordLocked) return;
     setSlotsByDate((prev) => ({ ...prev, [activeDate]: slots }));
     setRangeAnchor(null);
     setDirty(true);
@@ -368,12 +380,23 @@ function ScheduleInner() {
     return { slotCount, submitters: scopedAvail.length };
   }, [scopedAvail]);
 
-  const recommendations = useMemo(() => {
-    const recs: { date: string; start: string; end: string; count: number; len: number }[] = [];
-    for (const date in slotCount) {
-      const counts = TIME_SLOTS.map((s) => slotCount[date][s] ?? 0);
+  // 날짜별 가능 인원(히트맵용) — 그 날 가능하다고 제출한 사람 수
+  const dateCount = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const a of scopedAvail) for (const ds of a.dates ?? []) m[ds] = (m[ds] ?? 0) + 1;
+    return m;
+  }, [scopedAvail]);
+  const maxDateCount = useMemo(() => Math.max(0, ...Object.values(dateCount)), [dateCount]);
+
+  // 응답 진행률의 분모(대상 팀 인원, 전체 공통이면 전체 단원)
+  const denom = openCoord ? (openCoord.team ? memberStat.byTeam[openCoord.team] ?? 0 : memberStat.total) : 0;
+
+  // 특정 날짜에서 가장 많이 겹치는 연속 시간대
+  const bestRangeForDate = useCallback(
+    (date: string): { start: string; end: string; count: number } | null => {
+      const counts = TIME_SLOTS.map((s) => slotCount[date]?.[s] ?? 0);
       const maxC = Math.max(...counts, 0);
-      if (maxC <= 0) continue;
+      if (maxC <= 0) return null;
       let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
       for (let i = 0; i < counts.length; i++) {
         if (counts[i] === maxC) {
@@ -382,17 +405,10 @@ function ScheduleInner() {
           if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
         } else { curStart = -1; curLen = 0; }
       }
-      recs.push({
-        date,
-        start: TIME_SLOTS[bestStart],
-        end: slotEnd(TIME_SLOTS[bestStart + bestLen - 1]),
-        count: maxC,
-        len: bestLen,
-      });
-    }
-    recs.sort((a, b) => b.count - a.count || b.len - a.len || a.date.localeCompare(b.date));
-    return recs.slice(0, 3);
-  }, [slotCount]);
+      return { start: TIME_SLOTS[bestStart], end: slotEnd(TIME_SLOTS[bestStart + bestLen - 1]), count: maxC };
+    },
+    [slotCount]
+  );
 
   // 활성 날짜에서 '나 말고' 시간대별 가능 인원
   const othersBySlot = useMemo(() => {
@@ -515,93 +531,165 @@ function ScheduleInner() {
             </div>
           )}
 
-          {/* ===== 바텀시트: 카드를 누르면 조율 화면이 올라옴 ===== */}
+          {/* ===== 전체화면 상세: 카드를 누르면 열림 ===== */}
           {openCoord && (
-            <div
-              className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
-              onClick={closeSheet}
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  transform: sheetDrag ? `translateY(${sheetDrag}px)` : undefined,
-                  transition: sheetDragging ? "none" : "transform 0.25s ease",
-                }}
-                className="animate-sheet-up flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-canvas shadow-2xl sm:rounded-2xl"
-              >
-                {/* 그래버(아래로 슬라이드해서 닫기) */}
-                <div
-                  onPointerDown={onSheetDown}
-                  onPointerMove={onSheetMove}
-                  onPointerUp={onSheetUp}
-                  onPointerCancel={onSheetUp}
-                  className="flex shrink-0 cursor-grab touch-none justify-center bg-white pb-1 pt-2.5 active:cursor-grabbing"
-                >
-                  <span className="h-1.5 w-10 rounded-full bg-slate-300" />
-                </div>
-
-                {/* 헤더 */}
-                <div className="border-b border-slate-200 bg-white px-4 pb-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="truncate font-bold text-slate-900">{openCoord.title}</p>
-                      <TeamBadge team={openCoord.team} />
-                    </div>
-                    {openCoord.memo && <p className="mt-0.5 truncate text-xs text-slate-500">{openCoord.memo}</p>}
-                    {openCoord.deadline && (
-                      <p className="mt-0.5 text-[11px] text-slate-400">{coordClosed ? "제출 마감됨" : `${deadlineLabel(openCoord.deadline)} 제출 마감`}</p>
-                    )}
+            <div className="fixed inset-0 z-[60] flex flex-col bg-canvas">
+              {/* 상단 바 */}
+              <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-200 bg-white/95 px-2 py-2.5 backdrop-blur">
+                <button onClick={closeCoord} aria-label="뒤로" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100">
+                  <span className="text-2xl leading-none">‹</span>
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate font-bold text-slate-900">{openCoord.title}</p>
+                    <TeamBadge team={openCoord.team} />
                   </div>
                 </div>
+                {(role === "admin" || openCoord.createdBy === user?.uid) && (
+                  <button onClick={() => removeCoord(openCoord)} aria-label="삭제" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500">
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </header>
 
-                {/* 본문 (스크롤) */}
-                <div className="flex-1 space-y-4 overflow-y-auto p-4">
-                  {coordClosed && (
-                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">제출이 마감된 조율이에요. 결과만 볼 수 있어요.</p>
-                  )}
+              {/* 본문 (스크롤) */}
+              <div className="animate-sheet-up mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-y-auto p-4">
+                {/* 응답 진행 헤더 */}
+                <div className="card space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-700">
+                      {openCoord.status === "done" ? "약속이 확정됐어요" : coordClosed ? "제출이 마감됐어요" : "단원들의 응답을 기다리고 있어요"}
+                    </p>
+                    {maxDateCount > 0 && openCoord.status !== "done" && (
+                      <span className="shrink-0 text-xs text-slate-400">최고 후보 {maxDateCount}명</span>
+                    )}
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-surface">
+                    <div
+                      className="h-full rounded-full bg-accent transition-all"
+                      style={{ width: `${denom > 0 ? Math.min(100, Math.round((submitters / denom) * 100)) : submitters > 0 ? 100 : 0}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>응답 <b className="text-accent">{submitters}</b>{denom > 0 ? `/${denom}` : ""}명</span>
+                    {openCoord.deadline && <span>{coordClosed ? "마감됨" : `${deadlineLabel(openCoord.deadline)} 마감`}</span>}
+                  </div>
+                  {openCoord.memo && <p className="border-t border-slate-100 pt-2.5 text-sm text-slate-500">{openCoord.memo}</p>}
+                </div>
 
-                  {/* 전체 가능 현황 */}
-                  <div className="card space-y-4">
-                    <div>
-                      <h2 className="font-bold">전체 가능 현황</h2>
-                      <p className="mt-0.5 text-xs text-slate-400">가능 일정 제출 {submitters}명</p>
+                {/* 확정 결과 카드 */}
+                {openCoord.status === "done" && openCoord.confirmedDate && (() => {
+                  const cd = new Date(openCoord.confirmedDate + "T00:00:00");
+                  const cnt = dateCount[openCoord.confirmedDate] ?? 0;
+                  const timeStr = openCoord.confirmedStart
+                    ? `${openCoord.confirmedStart}${openCoord.confirmedEnd ? `~${openCoord.confirmedEnd}` : ""}`
+                    : "";
+                  return (
+                    <div className="rounded-2xl bg-accent p-5 text-center text-accent-fg shadow-[0_10px_30px_-8px_rgba(0,0,0,0.35)]">
+                      <p className="inline-flex items-center gap-1.5 text-sm font-semibold opacity-90">
+                        <span className="grid h-5 w-5 place-items-center rounded-full bg-white/25 text-xs">✓</span>
+                        약속 확정 완료
+                      </p>
+                      <p className="mt-2 text-3xl font-extrabold tracking-tight">{cd.getMonth() + 1}월 {cd.getDate()}일</p>
+                      <p className="mt-1 text-sm opacity-90">{WEEKDAYS_KO[cd.getDay()]}요일{timeStr ? ` · ${timeStr}` : ""}</p>
+                      {cnt > 0 && <p className="mt-0.5 text-xs opacity-75">{cnt}{denom > 0 ? `/${denom}` : ""}명 가능</p>}
                     </div>
-                    <div>
-                      <p className="mb-1.5 text-xs font-semibold text-slate-500">🏆 가장 많이 겹치는 시간</p>
-                      {recommendations.length === 0 ? (
-                        <p className="text-sm text-slate-400">아직 제출된 일정이 없어요.</p>
-                      ) : (
-                        <div className="divide-y divide-slate-100">
-                          {recommendations.map((r, i) => {
-                            const { md, dow } = dateLabel(r.date);
-                            const tone = ["font-bold text-slate-900", "font-medium text-slate-600", "font-normal text-slate-400"][i] ?? "font-normal text-slate-400";
-                            return (
-                              <div key={r.date} className={`flex items-center gap-2 py-2 text-sm ${tone}`}>
-                                <span className="w-4 shrink-0 text-center tabular-nums">{i + 1}</span>
-                                <span className="min-w-0 flex-1 truncate">{md}({dow}) {r.start}~{r.end}</span>
-                                <span className="shrink-0 text-xs">{r.count}명</span>
-                                {role === "admin" && (
-                                  <button
-                                    onClick={() => setConfirmDraft({ date: r.date, start: r.start, end: r.end })}
-                                    className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg"
-                                  >
-                                    확정
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
+                  );
+                })()}
+
+                {/* 날짜별 현황 (히트맵) */}
+                <div className="card">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="font-bold text-slate-900">날짜별 현황</h2>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => changeMonth(-1)} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
+                      <span className="min-w-[84px] text-center text-sm font-semibold text-slate-700">{year}년 {month0 + 1}월</span>
+                      <button onClick={() => changeMonth(1)} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+                    </div>
+                  </div>
+                  <CalendarGrid
+                    grid={grid}
+                    renderCell={(d) => {
+                      const ds = toDateStr(d);
+                      const cnt = dateCount[ds] ?? 0;
+                      const active = activeDate === ds;
+                      const ratio = denom > 0 ? cnt / denom : maxDateCount > 0 ? cnt / maxDateCount : 0;
+                      const style = cnt > 0
+                        ? {
+                            backgroundColor: `rgba(16,185,129,${0.12 + 0.55 * Math.min(1, ratio)})`,
+                            borderColor: `rgba(16,185,129,${0.35 + 0.4 * Math.min(1, ratio)})`,
+                          }
+                        : undefined;
+                      return (
+                        <button
+                          onClick={() => setActiveDate(active ? null : ds)}
+                          style={style}
+                          className={`flex h-full w-full flex-col items-center justify-center rounded-lg border text-[13px] leading-none transition ${
+                            cnt > 0 ? "font-semibold text-slate-800" : "border-transparent text-slate-500 hover:bg-slate-100"
+                          } ${active ? "ring-2 ring-accent ring-offset-1" : ds === todayStr ? "ring-1 ring-accent/40" : ""}`}
+                        >
+                          <span>{d.getDate()}</span>
+                          {cnt > 0 && <span className="mt-0.5 text-[9px] font-bold text-emerald-700">{cnt}{denom > 0 ? `/${denom}` : ""}</span>}
+                        </button>
+                      );
+                    }}
+                  />
+                  <p className="mt-3 text-xs text-slate-400">
+                    {maxDateCount > 0 ? "날짜를 누르면 그날 가능한 단원과 시간대를 볼 수 있어요." : "아직 제출된 가능일이 없어요."}
+                  </p>
+                </div>
+
+                {/* 선택한 날짜 상세 */}
+                {activeDate && (() => {
+                  const cnt = dateCount[activeDate] ?? 0;
+                  const best = bestRangeForDate(activeDate);
+                  return (
+                    <div className="card space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-400">선택한 날짜</p>
+                          <p className="font-bold text-slate-900">{fullDateLabel(activeDate)}</p>
                         </div>
+                        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{cnt}{denom > 0 ? `/${denom}` : ""} 가능</span>
+                      </div>
+
+                      {cnt > 0 ? (
+                        <>
+                          {best && (
+                            <p className="text-xs text-slate-500">가장 겹치는 시간 <b className="text-slate-800">{best.start}~{best.end}</b> · {best.count}명</p>
+                          )}
+                          <div className="space-y-2">
+                            {SLOT_GROUPS.map(([label, group]) => (
+                              <div key={label}>
+                                <p className="mb-1 text-[10px] font-semibold text-slate-400">{label}</p>
+                                <div className="grid grid-cols-4 gap-1 sm:grid-cols-6">
+                                  {group.map((s) => {
+                                    const c = slotCount[activeDate]?.[s] ?? 0;
+                                    const r = denom > 0 ? c / denom : maxDateCount > 0 ? c / maxDateCount : 0;
+                                    return (
+                                      <div
+                                        key={s}
+                                        title={`${s}~${slotEnd(s)} · ${c}명`}
+                                        style={c > 0 ? { backgroundColor: `rgba(16,185,129,${0.12 + 0.55 * Math.min(1, r)})` } : undefined}
+                                        className={`rounded-md py-1 text-center text-[11px] tabular-nums ${c > 0 ? "font-semibold text-slate-800" : "bg-surface text-slate-300"}`}
+                                      >
+                                        {s.slice(0, 2)}
+                                        {c > 0 && <span className="ml-0.5 text-[9px] text-emerald-700">·{c}</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-slate-400">이 날 가능한 단원이 아직 없어요.</p>
                       )}
-                    </div>
-                    {activeDate && (
-                      <div className="border-t border-slate-100 pt-3">
-                        <p className="mb-2 text-xs font-semibold text-slate-500">
-                          {dateLabel(activeDate).md}({dateLabel(activeDate).dow}) 가능 단원 {membersForActive.length}명
-                        </p>
-                        {membersForActive.length === 0 ? (
-                          <p className="text-sm text-slate-400">아직 없어요.</p>
-                        ) : (
+
+                      {membersForActive.length > 0 && (
+                        <div className="border-t border-slate-100 pt-3">
+                          <p className="mb-2 text-xs font-semibold text-slate-500">가능한 단원 {membersForActive.length}명</p>
                           <div className="flex flex-wrap gap-x-3 gap-y-1.5">
                             {membersForActive.map((m) => (
                               <div key={m.uid} className="flex items-center gap-2">
@@ -610,16 +698,31 @@ function ScheduleInner() {
                               </div>
                             ))}
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
 
-                  {/* 달력 → 날짜 고르면 밑에 시간 선택 */}
+                      {role === "admin" && openCoord.status !== "done" && cnt > 0 && (
+                        <button
+                          onClick={() => setConfirmDraft({ date: activeDate, start: best?.start ?? "", end: best?.end ?? "" })}
+                          className="btn-accent w-full"
+                        >
+                          이 날짜로 확정하기
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 내 가능 시간 수정 */}
+                {coordLocked ? (
+                  <p className="rounded-xl bg-surface px-3 py-3 text-center text-xs text-slate-400">
+                    {openCoord.status === "done" ? "확정된 조율이라 가능 시간을 수정할 수 없어요." : "마감된 조율이라 가능 시간을 수정할 수 없어요."}
+                  </p>
+                ) : (
                   <div className="card">
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-lg font-bold text-slate-900">{year}년 {month0 + 1}월</span>
-                      <div className="flex gap-1">
+                      <h2 className="font-bold text-slate-900">내 가능 시간 수정</h2>
+                      <div className="flex items-center gap-1">
                         <button onClick={() => changeMonth(-1)} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
                         <button onClick={() => changeMonth(1)} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
                       </div>
@@ -642,15 +745,11 @@ function ScheduleInner() {
                         );
                       }}
                     />
-                    {!activeDate ? (
-                      <p className="mt-3 text-xs text-slate-400">{coordClosed ? "마감된 조율이에요." : "날짜를 눌러 선택하면 아래에 시간 선택이 열려요. 같은 날을 다시 누르면 해제돼요."}</p>
-                    ) : (
+                    {activeDate && myDates.includes(activeDate) ? (
                       <div className="mt-4 border-t border-slate-100 pt-4">
                         <div className="mb-1 flex items-center justify-between">
                           <h3 className="font-bold text-slate-900">{dateLabel(activeDate).md} ({dateLabel(activeDate).dow}) 가능 시간</h3>
-                          {!coordClosed && (
-                            <button onClick={() => removeDate(activeDate)} className="text-xs font-medium text-slate-400 transition hover:text-red-500">이 날 빼기</button>
-                          )}
+                          <button onClick={() => removeDate(activeDate)} className="text-xs font-medium text-slate-400 transition hover:text-red-500">이 날 빼기</button>
                         </div>
                         <p className="mb-2.5 text-xs text-slate-400">
                           {rangeAnchor ? `${rangeAnchor} 부터… 끝 시간을 누르세요` : "시작 시간을 누르고 끝 시간을 누르면 사이가 채워져요."}
@@ -688,37 +787,42 @@ function ScheduleInner() {
                           ))}
                         </div>
                       </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-slate-400">가능한 날짜를 눌러 선택하면 그 아래에서 시간을 고를 수 있어요. 같은 날을 다시 누르면 해제돼요.</p>
                     )}
-                  </div>
-                </div>
-
-                {/* 제출 바 (마감 전에만) */}
-                {!coordClosed && (
-                  <div className="flex items-center justify-between border-t border-slate-200 bg-white p-4">
-                    <span className="text-sm text-slate-500">선택한 날짜 <b className="text-accent">{myDates.length}</b>일</span>
-                    <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent">
-                      {saving ? "저장 중…" : dirty ? "제출하기" : "제출됨 ✓"}
-                    </button>
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                      <span className="text-sm text-slate-500">선택 <b className="text-accent">{myDates.length}</b>일</span>
+                      <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent">
+                        {saving ? "저장 중…" : dirty ? "내 시간 저장" : "저장됨 ✓"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* 추천 → 확정 등록 모달 (관리자) : 확정 시 카드 완료 처리 */}
+          {/* 확정 등록 모달 (관리자) : 확정 시 카드 완료 + 확정 정보 기록 */}
           {confirmDraft && (
             <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-900/50 p-4" onClick={() => setConfirmDraft(null)}>
               <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <p className="mb-2 px-1 text-sm font-semibold text-white">확정 일정 등록</p>
                 <EventForm
-                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, team: openCoord?.team ?? "" }}
-                  onSaved={async () => {
-                    if (openCoordId) await updateDoc(doc(db, "coordinations", openCoordId), { status: "done" }).catch(() => {});
+                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, title: openCoord?.title, team: openCoord?.team ?? "" }}
+                  onSaved={async (saved) => {
+                    if (openCoordId) {
+                      await updateDoc(doc(db, "coordinations", openCoordId), {
+                        status: "done",
+                        confirmedDate: saved.date,
+                        confirmedStart: saved.startTime || "",
+                        confirmedEnd: saved.endTime || "",
+                      }).catch(() => {});
+                    }
+                    const dt = saved.date;
                     setConfirmDraft(null);
-                    setOpenCoordId(null);
                     await loadCoords();
                     await loadEvents();
-                    setTab("events");
+                    setActiveDate(dt);
                   }}
                   onCancel={() => setConfirmDraft(null)}
                 />
@@ -859,7 +963,7 @@ function EventForm({
   onCancel,
 }: {
   initial: { date: string; startTime: string; endTime: string; title?: string; team?: string };
-  onSaved: () => void;
+  onSaved: (saved: { date: string; startTime: string; endTime: string; title: string; team: string }) => void;
   onCancel: () => void;
 }) {
   const { settings } = useTheme();
@@ -881,6 +985,7 @@ function EventForm({
     }
     setBusy(true);
     try {
+      const finalTeam = teams.includes(team) ? team : "";
       await setDoc(doc(db, "events", crypto.randomUUID()), {
         title: title.trim(),
         date,
@@ -888,10 +993,10 @@ function EventForm({
         endTime,
         location: location.trim(),
         memo: memo.trim(),
-        team: teams.includes(team) ? team : "",
+        team: finalTeam,
         createdAt: Date.now(),
       });
-      onSaved();
+      onSaved({ date, startTime, endTime, title: title.trim(), team: finalTeam });
     } finally {
       setBusy(false);
     }
