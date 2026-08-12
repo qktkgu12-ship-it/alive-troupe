@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { NAV_ICON } from "@/components/Icons";
+import { ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, NAV_ICON, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
+import NotificationBell from "@/components/NotificationBell";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -27,6 +28,21 @@ function sectionOf(path: string): string | null {
   return null;
 }
 
+// '+' 등록 메뉴 — 누르면 각 페이지의 등록 화면이 바로 열림(?new=1)
+const CREATE_MENU: {
+  href: string;
+  label: string;
+  desc: string;
+  icon: React.FC<{ className?: string }>;
+  admin: boolean;
+}[] = [
+  { href: "/board/write", label: "글쓰기", desc: "게시판에 새 글 올리기", icon: BoardIcon, admin: false },
+  { href: "/archive?new=1", label: "자료 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
+  { href: "/schedule?tab=coord&new=1", label: "일정 조율", desc: "가능 시간 모으는 조율 만들기", icon: CalendarIcon, admin: false },
+  { href: "/audio?new=1", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
+  { href: "/schedule?tab=events&new=1", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
+];
+
 const SEEN_KEY = "alive-nav-seen";
 
 function NewBadge() {
@@ -43,8 +59,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // 헤더: 검색 모드 / '+' 등록 메뉴
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [term, setTerm] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
+  const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
+
+  // 검색 모드로 들어가면 입력창에 포커스
+  useEffect(() => {
+    if (searchOpen) searchRef.current?.focus();
+  }, [searchOpen]);
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const t = term.trim();
+    if (!t) return;
+    setSearchOpen(false);
+    setTerm("");
+    router.push(`/search?q=${encodeURIComponent(t)}`);
+  }
 
   // 섹션별 '가장 최근 새 항목' 시각 (알림 데이터 재사용)
   const latestBySection = useMemo(() => {
@@ -88,6 +124,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setOpen(false);
+    setCreateOpen(false);
+    setSearchOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -109,70 +147,156 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-canvas">
-      {/* 뉴트럴 헤더 */}
+      {/* 헤더 */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-          {/* 모바일: 햄버거 */}
-          <button
-            onClick={() => setOpen(true)}
-            aria-label="메뉴 열기"
-            className="-ml-1 grid h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100 md:hidden"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 md:gap-4">
+          {searchOpen ? (
+            /* ===== 검색 모드: 로고 + 검색창 + 닫기 ===== */
+            <>
+              <Link href="/" className="hidden shrink-0 items-center sm:flex">
+                <Wordmark />
+              </Link>
+              <form onSubmit={submitSearch} className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-surface px-4 py-2.5">
+                <SearchIcon className="h-5 w-5 shrink-0 text-slate-400" />
+                <input
+                  ref={searchRef}
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                  placeholder="ALIVE 전체 검색"
+                  className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-slate-400"
+                />
+                {term && (
+                  <button
+                    type="button"
+                    onClick={() => setTerm("")}
+                    aria-label="검색어 지우기"
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </form>
+              <button
+                onClick={() => {
+                  setSearchOpen(false);
+                  setTerm("");
+                }}
+                aria-label="검색 닫기"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            /* ===== 기본 모드 ===== */
+            <>
+              {/* 모바일: 햄버거 */}
+              <button
+                onClick={() => setOpen(true)}
+                aria-label="메뉴 열기"
+                className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100 md:hidden"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
 
-          {/* 로고 (모바일 가운데 / PC 왼쪽) */}
-          <Link
-            href="/"
-            className="flex flex-1 items-center justify-center md:flex-none md:justify-start"
-          >
-            <Wordmark />
-          </Link>
+              {/* 로고 */}
+              <Link href="/" className="flex shrink-0 items-center">
+                <Wordmark />
+              </Link>
 
-          {/* PC: 가로 메뉴 */}
-          <nav className="hidden flex-1 items-center justify-center gap-1 md:flex">
-            {links.map((n) => {
-              const active = pathname === n.href;
-              return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className={`relative flex h-16 items-center px-3.5 text-sm font-medium transition ${
-                    active ? "text-accent" : "text-slate-500 hover:text-slate-900"
-                  }`}
+              {/* PC: 가로 메뉴 */}
+              <nav className="hidden flex-1 items-center justify-center gap-1 md:flex">
+                {links.map((n) => {
+                  const active = pathname === n.href;
+                  return (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      className={`relative flex h-16 items-center px-3.5 text-sm font-medium transition ${
+                        active ? "text-accent" : "text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      {n.label}
+                      {isNew(n.href) && <NewBadge />}
+                      {active && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* 오른쪽 아이콘들: 검색 · + · 알림 · 프로필 */}
+              <div className="ml-auto flex items-center gap-0.5 md:gap-1">
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  aria-label="검색"
+                  className="grid h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100"
                 >
-                  {n.label}
-                  {isNew(n.href) && <NewBadge />}
-                  {active && (
-                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
+                  <SearchIcon className="h-[22px] w-[22px]" />
+                </button>
+
+                {/* + 등록 메뉴 */}
+                <div className="relative">
+                  <button
+                    onClick={() => setCreateOpen((v) => !v)}
+                    aria-label="등록"
+                    aria-expanded={createOpen}
+                    className={`grid h-10 w-10 place-items-center rounded-full transition ${
+                      createOpen ? "bg-slate-100 text-accent" : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <PlusIcon className={`h-[22px] w-[22px] transition-transform ${createOpen ? "rotate-45" : ""}`} />
+                  </button>
+
+                  {createOpen && (
+                    <>
+                      {/* 바깥 클릭 시 닫기 */}
+                      <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
+                      <div className="absolute right-0 top-12 z-50 w-[min(88vw,300px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(16,24,40,0.25)]">
+                        <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-400">등록하기</p>
+                        {createItems.map((c) => {
+                          const Icon = c.icon;
+                          return (
+                            <Link
+                              key={c.href}
+                              href={c.href}
+                              onClick={() => setCreateOpen(false)}
+                              className="flex items-center gap-3 border-b border-slate-50 px-4 py-3 transition last:border-0 hover:bg-slate-50"
+                            >
+                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+                                <Icon className="h-5 w-5" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold text-slate-800">{c.label}</span>
+                                <span className="block truncate text-xs text-slate-400">{c.desc}</span>
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </>
                   )}
+                </div>
+
+                {/* 알림 (오른쪽 슬라이드 패널) */}
+                <NotificationBell />
+
+                {/* 프로필 */}
+                <Link href="/profile" aria-label="내 프로필" className="ml-0.5 grid h-10 w-10 place-items-center">
+                  <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
                 </Link>
-              );
-            })}
-          </nav>
 
-          {/* PC: 사용자 */}
-          <div className="hidden items-center gap-3 md:flex">
-            <Link href="/profile" className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition hover:bg-slate-100">
-              <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
-              <span className="text-sm font-medium text-slate-600">
-                {profile?.name || profile?.displayName}
-              </span>
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-            >
-              로그아웃
-            </button>
-          </div>
-
-          {/* 모바일: 프로필 사진 (오른쪽 상단) */}
-          <Link href="/profile" className="grid h-10 w-10 place-items-center md:hidden">
-            <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
-          </Link>
+                {/* PC: 로그아웃 */}
+                <button
+                  onClick={handleSignOut}
+                  className="ml-2 hidden rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 md:block"
+                >
+                  로그아웃
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </header>
 

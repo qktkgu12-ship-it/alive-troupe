@@ -3,7 +3,6 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
-import NotificationBell from "@/components/NotificationBell";
 import { ProfileViewerProvider } from "@/components/ProfileViewer";
 
 export const metadata: Metadata = {
@@ -37,10 +36,8 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <ProfileViewerProvider>
-              <NotificationsProvider>
-                {children}
-                <NotificationBell />
-              </NotificationsProvider>
+              {/* 알림 버튼은 AppShell 헤더 안에 있음 */}
+              <NotificationsProvider>{children}</NotificationsProvider>
             </ProfileViewerProvider>
           </ThemeProvider>
         </AuthProvider>

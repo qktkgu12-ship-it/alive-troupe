@@ -132,10 +132,21 @@ function ScheduleInner() {
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
 
+  // 헤더 '+' 등록 메뉴에서 확정 일정 등록으로 들어온 경우
+  const [openNewEvent, setOpenNewEvent] = useState(false);
+
   // 홈 '다가오는 일정'에서 넘어온 경우: 확정 일정 탭으로 이동 + 해당 일정 강조
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.get("tab") === "events") setTab("events");
+    const tabParam = p.get("tab");
+    if (tabParam === "events") setTab("events");
+    else if (tabParam === "coord") setTab("coord");
+    else if (tabParam === "past") setTab("past");
+    // '+' 등록 메뉴: 해당 탭의 등록 폼을 바로 열기
+    if (p.get("new") === "1") {
+      if (tabParam === "coord") setShowCreate(true);
+      else setOpenNewEvent(true);
+    }
     // 일정 날짜가 넘어오면 그 달로 달력 이동 (7월 일정인데 6월이 보이던 버그 수정)
     const dateParam = p.get("date");
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
@@ -846,6 +857,7 @@ function ScheduleInner() {
           highlightId={highlightEvent}
           teams={teams}
           myTeam={myTeam}
+          openNew={openNewEvent}
         />
       )}
 
@@ -1098,6 +1110,7 @@ function EventsSection({
   highlightId,
   teams,
   myTeam,
+  openNew = false,
 }: {
   mode: "upcoming" | "past";
   monthLabel: string;
@@ -1110,11 +1123,16 @@ function EventsSection({
   highlightId?: string | null;
   teams: string[];
   myTeam: string;
+  openNew?: boolean; // 헤더 '+' 등록 메뉴로 들어오면 등록 폼 바로 열기
 }) {
   const isPast = mode === "past";
   const canAdd = isAdmin && !isPast; // 지난 일정 탭에서는 추가 없음
   const [showForm, setShowForm] = useState(false);
   const formDate = `${yearMonth}-01`; // 등록 폼 기본 날짜(달 1일) — 실제 날짜는 폼에서 선택
+  // 헤더 '+' 등록 메뉴에서 들어온 경우 (관리자만)
+  useEffect(() => {
+    if (openNew && canAdd) setShowForm(true);
+  }, [openNew, canAdd]);
 
   // 팀 필터 (기본: 내 팀 = 공통 + 내 팀). 빈값이면 전체
   const [evTeam, setEvTeam] = useState(myTeam);

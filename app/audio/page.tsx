@@ -63,6 +63,10 @@ function AudioInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [manageCats, setManageCats] = useState(false);
   const [newCat, setNewCat] = useState("");
+  // 헤더 '+' 등록 메뉴에서 들어오면(?new=1) 등록 폼을 바로 열기
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") setShowAdd(true);
+  }, []);
 
   const loadProductions = useCallback(async () => {
     const q = isAdmin

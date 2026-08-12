@@ -83,6 +83,10 @@ function ArchiveInner() {
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ArchiveItem | null>(null);
+  // 헤더 '+' 등록 메뉴에서 들어오면(?new=1) 등록 폼을 바로 열기
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
+  }, []);
   const [view, setViewState] = useState<ViewMode>("card");
   // 카드/리스트 선택을 계정별로 기억 (기기 내 localStorage, uid별)
   useEffect(() => {
