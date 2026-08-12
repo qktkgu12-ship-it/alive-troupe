@@ -151,15 +151,15 @@ function BoardInner() {
         </Link>
       </div>
 
-      {/* 탭 (카테고리가 늘어나면 가로로 스크롤) */}
-      <div className="flex items-center gap-2">
-        <div className="flex flex-1 gap-1 overflow-x-auto rounded-xl bg-surface p-1 text-sm font-medium">
+      {/* 탭 → 칩 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-1 flex-wrap gap-1.5">
           {["all", ...categories].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 transition ${
-                tab === t ? "bg-white text-accent shadow-sm" : "text-slate-500"
+              className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium transition ${
+                tab === t ? "bg-accent text-accent-fg" : "border border-slate-200 text-slate-500 hover:border-accent/50 hover:text-accent"
               }`}
             >
               {t === "all" ? "전체" : t}

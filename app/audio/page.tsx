@@ -85,7 +85,7 @@ function AudioInner() {
   const [loadingItems, setLoadingItems] = useState(false);
   const [activeCat, setActiveCat] = useState<string>(""); // "" = 전체
   const [search, setSearch] = useState("");
-  const [sortOrder, setSortOrder] = useState<"newest" | "name">("newest");
+  const sortOrder = "newest";
   const [showAdd, setShowAdd] = useState(false);
   const [manageCats, setManageCats] = useState(false);
   const [newCat, setNewCat] = useState("");
@@ -260,41 +260,28 @@ function AudioInner() {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          {/* 종류(탭) + 정렬 */}
+          {/* 종류(칩) */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
+            <div className="flex flex-wrap gap-1.5">
               {([["", "전체"], ...categories.map((c) => [c, c] as [string, string])] as [string, string][]).map(([val, label]) => {
                 const cnt = val === "" ? items.length : countByCat(val);
                 return (
                   <button
                     key={val || "all"}
                     onClick={() => setActiveCat(val)}
-                    className={`rounded-lg px-3 py-1.5 transition ${activeCat === val && !searching ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${activeCat === val && !searching ? "bg-accent text-accent-fg" : "border border-slate-200 text-slate-500 hover:border-accent/50 hover:text-accent"}`}
                   >
                     {label}
-                    {cnt > 0 && <span className="ml-1 text-xs text-slate-400">{cnt}</span>}
+                    {cnt > 0 && <span className="ml-1 text-xs opacity-70">{cnt}</span>}
                   </button>
                 );
               })}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
-                {([["newest", "최신순"], ["name", "이름순"]] as ["newest" | "name", string][]).map(([v, label]) => (
-                  <button
-                    key={v}
-                    onClick={() => setSortOrder(v)}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 transition ${sortOrder === v ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {isAdmin && (
-                <button onClick={() => setManageCats((v) => !v)} className="text-xs font-medium text-slate-500 hover:underline">
-                  {manageCats ? "완료" : "종류 편집"}
-                </button>
-              )}
-            </div>
+            {isAdmin && (
+              <button onClick={() => setManageCats((v) => !v)} className="text-xs font-medium text-slate-500 hover:underline">
+                {manageCats ? "완료" : "종류 편집"}
+              </button>
+            )}
           </div>
 
           {/* 종류 편집 패널 (관리자만) */}
