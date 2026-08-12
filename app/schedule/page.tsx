@@ -284,7 +284,7 @@ function CalendarGrid({ grid, renderCell }: { grid: (Date | null)[]; renderCell:
   );
 }
 
-// ---------- 시간 타임바 (가로 스크롤, 1시간 칸을 반으로 나눠 30분 단위 선택) ----------
+// ---------- 시간 타임바 (가로 스크롤, 1자 막대 · 1시간 단위 레이블 · 30분 점선) ----------
 function TimeRangeBar({
   mySlots,
   othersBySlot,
@@ -301,40 +301,52 @@ function TimeRangeBar({
   const hours = useMemo(() => [...new Set(TIME_SLOTS.map((s) => s.slice(0, 2)))], []);
 
   return (
-    <div className="-mx-4 overflow-x-auto px-4 pb-1">
-      <div className="flex w-max gap-px">
-        {hours.map((h, i) => {
-          const s0 = `${h}:00`;
-          const s1 = `${h}:30`;
-          const on0 = mySlots.includes(s0);
-          const on1 = mySlots.includes(s1);
-          const n = Number(h);
-          const isPM = n >= 12;
-          const disp = n === 12 ? 12 : n % 12;
-          const prevIsPM = i > 0 ? Number(hours[i - 1]) >= 12 : null;
-          const label = prevIsPM === null || prevIsPM !== isPM ? `${isPM ? "오후" : "오전"} ${disp}시` : `${disp}시`;
-          return (
-            <div key={h} className="flex shrink-0 flex-col items-center">
-              <span className="mb-1 block w-12 whitespace-nowrap text-center text-[10px] font-semibold text-slate-400">{label}</span>
-              <div className="flex h-11 w-12 overflow-hidden rounded-lg border border-slate-200">
+    <div className="-mx-4 overflow-x-auto px-4 pb-2">
+      <div className="w-max">
+        {/* 1시간 단위 레이블 */}
+        <div className="flex">
+          {hours.map((h, i) => {
+            const n = Number(h);
+            const isPM = n >= 12;
+            const disp = n === 12 ? 12 : n % 12;
+            const prevIsPM = i > 0 ? Number(hours[i - 1]) >= 12 : null;
+            const label = prevIsPM === null || prevIsPM !== isPM ? `${isPM ? "오후" : "오전"} ${disp}시` : `${disp}시`;
+            return (
+              <div key={h} className="w-[52px] shrink-0">
+                <span className="block whitespace-nowrap text-[10px] font-semibold text-slate-400">{label}</span>
+              </div>
+            );
+          })}
+        </div>
+        {/* 1자 막대: 시간 경계는 실선, 30분 경계는 점선 */}
+        <div className="mt-1 flex h-11 overflow-hidden rounded-xl border border-slate-200">
+          {hours.map((h, i) => {
+            const s0 = `${h}:00`;
+            const s1 = `${h}:30`;
+            const on0 = mySlots.includes(s0);
+            const on1 = mySlots.includes(s1);
+            return (
+              <div key={h} className={`flex h-full w-[52px] shrink-0${i > 0 ? " border-l border-slate-300" : ""}`}>
+                {/* :00 슬롯 — 오른쪽에 점선(30분 구분선) */}
                 <button
                   type="button"
                   onClick={() => onToggle(s0)}
                   title={`${s0}~${slotEnd(s0)}${othersBySlot[s0] ? ` · ${othersBySlot[s0]}명 가능` : ""}`}
                   style={!on0 ? heatStyle(othersBySlot[s0] ?? 0, denom, maxDateCount) : undefined}
-                  className={`h-full w-1/2 transition ${on0 ? "bg-accent" : ""}`}
+                  className={`h-full w-[26px] border-r border-dashed border-slate-300 transition ${on0 ? "bg-accent" : ""}`}
                 />
+                {/* :30 슬롯 */}
                 <button
                   type="button"
                   onClick={() => onToggle(s1)}
                   title={`${s1}~${slotEnd(s1)}${othersBySlot[s1] ? ` · ${othersBySlot[s1]}명 가능` : ""}`}
                   style={!on1 ? heatStyle(othersBySlot[s1] ?? 0, denom, maxDateCount) : undefined}
-                  className={`h-full w-1/2 border-l border-slate-200 transition ${on1 ? "bg-accent" : ""}`}
+                  className={`h-full w-[26px] transition ${on1 ? "bg-accent" : ""}`}
                 />
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -1211,7 +1223,23 @@ function CoordDetail({
             return (
               <div className="relative h-full w-full">
                 <button
-                  onClick={() => setActiveDate(active ? null : ds)}
+                  onClick={() => {
+                    if (locked) { setActiveDate(active ? null : ds); return; }
+                    if (active) {
+                      // 두 번째 탭: 패널 닫기 + 가능 해제
+                      setActiveDate(null);
+                      setMyDates((prev) => prev.filter((d) => d !== ds));
+                      setSlotsByDate((s) => { const n = { ...s }; delete n[ds]; return n; });
+                      setDirty(true);
+                    } else {
+                      // 첫 번째 탭: 패널 열기 + 가능으로 표시
+                      setActiveDate(ds);
+                      if (!myDates.includes(ds)) {
+                        setMyDates((prev) => [...prev, ds].sort());
+                        setDirty(true);
+                      }
+                    }
+                  }}
                   style={isConfirmed ? undefined : heatStyle(cnt, denom, maxDateCount)}
                   className={`flex h-full w-full flex-col items-center justify-center rounded-lg border text-[13px] leading-none transition ${
                     isConfirmed
@@ -1260,19 +1288,6 @@ function CoordDetail({
                 {denom > 0 ? `/${denom}` : ""}명 가능
               </span>
             </div>
-
-            {!locked && (
-              <button
-                onClick={() => toggleMyDate(activeDate)}
-                className={`flex w-full items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
-                  mine
-                    ? "border-accent bg-accent text-accent-fg"
-                    : "border-dashed border-slate-300 text-slate-500 hover:border-accent hover:text-accent"
-                }`}
-              >
-                {mine ? "✓ 이 날짜 가능해요" : "+ 이 날짜 가능으로 표시"}
-              </button>
-            )}
 
             {!locked && mine && (
               <div className="space-y-2.5 border-t border-slate-100 pt-3">
