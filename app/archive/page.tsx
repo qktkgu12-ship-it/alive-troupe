@@ -123,7 +123,7 @@ function ArchiveInner() {
       /* 무시 */
     }
   }
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const sortOrder = "newest";
   const PAGE = 30;
   const [visible, setVisible] = useState(PAGE);
 
@@ -273,33 +273,20 @@ function ArchiveInner() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
+          <div className="flex flex-wrap gap-1.5">
             {([["all", "전체"], ["rehearsal", "연습"], ["performance", "공연"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
               ([k, label]) => (
                 <button
                   key={k}
                   onClick={() => setKindFilter(k)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 transition ${kindFilter === k ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${kindFilter === k ? "bg-accent text-accent-fg" : "border border-slate-200 text-slate-500 hover:border-accent/50 hover:text-accent"}`}
                 >
                   {label}
                 </button>
               )
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex shrink-0 gap-1 rounded-xl bg-surface p-1 text-sm font-medium">
-              {([["newest", "최신순"], ["oldest", "오래된순"]] as ["newest" | "oldest", string][]).map(([v, label]) => (
-                <button
-                  key={v}
-                  onClick={() => setSortOrder(v)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 transition ${sortOrder === v ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <ViewToggle value={view} onChange={setView} />
-          </div>
+          <ViewToggle value={view} onChange={setView} />
         </div>
       </div>
 

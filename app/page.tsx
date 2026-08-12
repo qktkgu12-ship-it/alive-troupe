@@ -97,9 +97,9 @@ function HomeInner() {
       {/* 다가오는 확정 일정 */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">다가오는 일정</h2>
-          <Link href="/schedule" className="text-sm font-medium text-accent hover:underline">
-            전체 보기 →
+          <h2 className="text-lg font-bold text-slate-900">다가오는 일정</h2>
+          <Link href="/schedule" aria-label="전체 보기" className="grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-accent">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </Link>
         </div>
         {shownEvents.length === 0 ? (
@@ -162,7 +162,7 @@ function HomeInner() {
 
       {/* 바로가기 */}
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">바로가기</h2>
+        <h2 className="mb-3 text-lg font-bold text-slate-900">바로가기</h2>
         <div className="grid grid-cols-2 gap-3">
           {FEATURES.map(({ href, title, desc, Icon }) => (
             <Link
@@ -185,9 +185,9 @@ function HomeInner() {
       {/* 전체글 (모든 게시판 최신글) */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">전체글</h2>
-          <Link href="/board" className="text-sm font-medium text-accent hover:underline">
-            게시판 →
+          <h2 className="text-lg font-bold text-slate-900">전체글</h2>
+          <Link href="/board" aria-label="게시판" className="grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-accent">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </Link>
         </div>
         <div className="card !p-0">
@@ -221,7 +221,7 @@ function HomeInner() {
 
       {role === "admin" && (
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">관리</h2>
+          <h2 className="mb-3 text-lg font-bold text-slate-900">관리</h2>
           <div className="flex flex-wrap gap-3">
             <Link href="/admin" className="btn-accent">관리 페이지</Link>
           </div>
