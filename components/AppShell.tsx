@@ -143,9 +143,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }
 
-  const Wordmark = () => (
+  const Wordmark = ({ className = "h-7" }: { className?: string }) => (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/wordmark.png" alt="ALIVE" className="h-7 w-auto select-none" draggable={false} />
+    <img src="/wordmark.png" alt="ALIVE" className={`${className} w-auto select-none`} draggable={false} />
   );
 
   return (
@@ -206,7 +206,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
               {/* 로고 */}
               <Link href="/" className="flex shrink-0 items-center">
-                <Wordmark />
+                <Wordmark className="h-5" />
               </Link>
 
               {/* PC: 가로 메뉴 */}
@@ -256,15 +256,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <>
                       {/* 바깥 클릭 시 닫기 */}
                       <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-                      <div className="absolute right-0 top-12 z-50 w-[min(88vw,300px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(16,24,40,0.25)]">
-                        <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-400">등록하기</p>
+                      <div className="absolute right-0 top-full z-50 mt-2 w-[min(88vw,280px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(16,24,40,0.25)]">
+                        <p className="px-4 pb-1.5 pt-3 text-xs font-semibold text-slate-400">등록하기</p>
                         {createItems.map((c) => {
                           const Icon = c.icon;
                           const inner = (
                             <>
-                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
-                                <Icon className="h-5 w-5" />
-                              </span>
+                              <Icon className="h-5 w-5 shrink-0 text-accent" />
                               <span className="min-w-0 text-left">
                                 <span className="block text-sm font-semibold text-slate-800">{c.label}</span>
                                 <span className="block truncate text-xs text-slate-400">{c.desc}</span>
@@ -272,7 +270,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                             </>
                           );
                           const cls =
-                            "flex w-full items-center gap-3 border-b border-slate-50 px-4 py-3 transition last:border-0 hover:bg-slate-50";
+                            "flex w-full items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50";
                           // 게시판 글쓰기만 페이지 이동, 나머지는 그 자리에서 바텀시트
                           return c.sheet ? (
                             <button

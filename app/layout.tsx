@@ -9,6 +9,9 @@ import { ProfileViewerProvider } from "@/components/ProfileViewer";
 export const metadata: Metadata = {
   title: "ALIVE 얼라이브",
   description: "뮤지컬 극단 ALIVE 단원 전용 공간",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
