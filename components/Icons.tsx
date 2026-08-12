@@ -125,6 +125,8 @@ export const ListOrderedIcon = makeIcon(
 
 export const XIcon = makeIcon(<path d="M6 6l12 12M18 6 6 18" />);
 
+export const CheckIcon = makeIcon(<path d="M5 13l4 4L19 7" />);
+
 export const SearchIcon = makeIcon(
   <>
     <circle cx="11" cy="11" r="7" />
