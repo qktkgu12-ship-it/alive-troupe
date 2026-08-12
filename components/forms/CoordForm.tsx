@@ -3,7 +3,6 @@
 // 일정 조율 카드 만들기 폼 (일정 페이지 + 전역 바텀시트 공용)
 
 import { useState } from "react";
-import Select from "@/components/Select";
 import type { Coordination } from "@/lib/types";
 
 export type CoordFields = Omit<Coordination, "id" | "createdBy" | "createdByName" | "status" | "createdAt">;
@@ -12,12 +11,10 @@ export default function CoordForm({
   teams,
   onCreate,
   onCancel,
-  bare = false,
 }: {
   teams: string[];
   onCreate: (fields: CoordFields) => Promise<void>;
   onCancel: () => void;
-  bare?: boolean; // true = 카드 테두리 없이 (바텀시트 안에서 사용)
 }) {
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
@@ -46,33 +43,54 @@ export default function CoordForm({
   }
 
   return (
-    <div className={bare ? "space-y-3" : "card space-y-3"}>
-      <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="조율 제목 (예: 1월 워크샵 일정)" />
-      <textarea className="input min-h-[60px]" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="설명 (선택)" />
+    <div className="space-y-3">
+      {/* 대상 팀 (팀이 있을 때만) */}
       {teams.length > 0 && (
-        <div>
-          <label className="label">대상 팀</label>
-          <Select value={team} onChange={(e) => setTeam(e.target.value)}>
-            <option value="">전체</option>
-            {teams.map((t) => (
-              <option key={t} value={t}>{t}</option>
+        <div className="card !p-3">
+          <p className="mb-2 px-1 text-xs font-semibold text-slate-500">대상</p>
+          <div className="flex flex-wrap gap-1.5">
+            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
+              <button
+                key={val || "all"}
+                type="button"
+                onClick={() => setTeam(val)}
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                  team === val ? "border-accent bg-accent text-accent-fg" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {label}
+              </button>
             ))}
-          </Select>
+          </div>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">대상 달 (선택)</label>
-          <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
+
+      {/* 제목 + 설명 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="조율 제목" />
+        <textarea
+          className="field min-h-[72px] resize-none"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="설명 (선택)"
+        />
+      </div>
+
+      {/* 대상 달 · 마감일 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">대상 달</span>
+          <input type="month" className="field-chip" value={month} onChange={(e) => setMonth(e.target.value)} />
         </div>
-        <div>
-          <label className="label">마감일 (선택)</label>
-          <input type="datetime-local" className="input" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">마감일</span>
+          <input type="datetime-local" className="field-chip" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
         </div>
       </div>
+
       <div className="flex gap-2">
-        <button onClick={onCancel} className="btn-ghost">취소</button>
         <button onClick={submit} disabled={busy} className="btn-accent flex-1">{busy ? "만드는 중…" : "조율 만들기"}</button>
+        <button onClick={onCancel} className="btn-ghost">취소</button>
       </div>
     </div>
   );

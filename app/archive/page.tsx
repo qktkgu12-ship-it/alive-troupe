@@ -221,7 +221,6 @@ function ArchiveInner() {
         }}
       >
         <ArchiveForm
-          bare
           key={editItem?.id ?? "new"}
           edit={editItem ?? undefined}
           productions={productions}

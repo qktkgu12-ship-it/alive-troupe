@@ -498,7 +498,7 @@ function ScheduleInner() {
           </div>
 
           <BottomSheet open={showCreate} title="일정 조율 만들기" onClose={() => setShowCreate(false)}>
-            <CoordForm bare teams={teams} onCreate={createCoord} onCancel={() => setShowCreate(false)} />
+            <CoordForm teams={teams} onCreate={createCoord} onCancel={() => setShowCreate(false)} />
           </BottomSheet>
 
           {coords.length === 0 ? (

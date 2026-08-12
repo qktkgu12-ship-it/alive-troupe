@@ -216,7 +216,6 @@ function AudioInner() {
           {isAdmin && (
             <BottomSheet open={showAdd} title="자료실 등록" onClose={() => setShowAdd(false)}>
               <AudioForm
-                bare
                 productionId={active.id}
                 categories={categories}
                 defaultCat={activeCat || categories[0]}

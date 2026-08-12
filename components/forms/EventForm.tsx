@@ -54,7 +54,7 @@ export default function EventForm({
     }
   }
 
-  const chip = "rounded-lg bg-surface px-3 py-1.5 text-[15px] text-slate-800 outline-none focus:ring-2 focus:ring-accent/20";
+  const chip = "field-chip";
 
   return (
     <div className="space-y-3">
@@ -82,13 +82,13 @@ export default function EventForm({
       {/* 제목 + 장소 — 칸 안에 안내문 */}
       <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
         <input
-          className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+          className="field"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
         />
         <input
-          className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+          className="field"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           placeholder="장소"
@@ -115,7 +115,7 @@ export default function EventForm({
       {more && (
         <div className="card !p-0 overflow-hidden">
           <textarea
-            className="w-full min-h-[80px] resize-none bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
+            className="field min-h-[80px] resize-none"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="메모·준비물"

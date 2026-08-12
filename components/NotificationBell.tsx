@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -42,6 +43,9 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [reads, setReads] = useState<Record<string, number>>({});
   const initedReads = useRef(false);
+  // 헤더에 backdrop-blur가 있어 fixed 자식이 헤더 안에 갇혀 잘림 → body로 포털
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const isMember = role === "member" || role === "admin";
 
@@ -112,66 +116,72 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* 오버레이 */}
-      <div
-        onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      />
-
-      {/* 오른쪽 슬라이드 패널 */}
-      <aside
-        className={`fixed right-0 top-0 z-[61] flex h-full w-[86%] max-w-[380px] flex-col bg-white shadow-2xl transition-transform duration-300 ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
-          <p className="text-lg font-bold text-slate-900">알림</p>
-          <div className="flex items-center gap-1">
-            {unreadCount > 0 && (
-              <button onClick={markAll} className="rounded-lg px-2 py-1 text-xs font-semibold text-accent transition hover:bg-accent-soft">
-                모두 읽음
-              </button>
-            )}
-            <button
+      {mounted &&
+        createPortal(
+          <>
+            {/* 오버레이 */}
+            <div
               onClick={() => setOpen(false)}
-              aria-label="닫기"
-              className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100"
-            >
-              <XIcon className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+              className={`fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${
+                open ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            />
 
-        <div className="flex-1 overflow-y-auto">
-          {loading && visibleItems.length === 0 ? (
-            <p className="py-16 text-center text-sm text-slate-400">불러오는 중…</p>
-          ) : visibleItems.length === 0 ? (
-            <p className="py-16 text-center text-sm text-slate-400">새로운 알림이 없어요.</p>
-          ) : (
-            visibleItems.map((n) => {
-              const Icon = ICON[n.type];
-              return (
-                <button
-                  key={n.id}
-                  onClick={() => openItem(n)}
-                  className="flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3.5 text-left transition hover:bg-slate-50"
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-slate-800">{n.title}</span>
-                    {n.sub && <span className="mt-0.5 block truncate text-xs text-slate-500">{n.sub}</span>}
-                    <span className="mt-0.5 block text-[11px] text-slate-400">{relativeTime(n.time)}</span>
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </aside>
+            {/* 오른쪽 슬라이드 패널 */}
+            <aside
+              className={`fixed right-0 top-0 z-[61] flex h-full w-[86%] max-w-[380px] flex-col bg-white shadow-2xl transition-transform duration-300 ${
+                open ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
+                <p className="text-lg font-bold text-slate-900">알림</p>
+                <div className="flex items-center gap-1">
+                  {unreadCount > 0 && (
+                    <button onClick={markAll} className="rounded-lg px-2 py-1 text-xs font-semibold text-accent transition hover:bg-accent-soft">
+                      모두 읽음
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setOpen(false)}
+                    aria-label="닫기"
+                    className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+                  >
+                    <XIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {loading && visibleItems.length === 0 ? (
+                  <p className="py-16 text-center text-sm text-slate-400">불러오는 중…</p>
+                ) : visibleItems.length === 0 ? (
+                  <p className="py-16 text-center text-sm text-slate-400">새로운 알림이 없어요.</p>
+                ) : (
+                  visibleItems.map((n) => {
+                    const Icon = ICON[n.type];
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => openItem(n)}
+                        className="flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3.5 text-left transition hover:bg-slate-50"
+                      >
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium text-slate-800">{n.title}</span>
+                          {n.sub && <span className="mt-0.5 block truncate text-xs text-slate-500">{n.sub}</span>}
+                          <span className="mt-0.5 block text-[11px] text-slate-400">{relativeTime(n.time)}</span>
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+                  </div>
+          </aside>
+        </>,
+        document.body
+      )}
     </>
   );
 }

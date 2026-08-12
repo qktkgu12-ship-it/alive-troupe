@@ -17,7 +17,6 @@ export default function AudioForm({
   addedByName,
   onAdded,
   onCancel,
-  bare = false,
 }: {
   productionId?: string; // 고정 작품 (페이지에서 사용). 없으면 선택 UI 표시
   productions?: Production[]; // 작품 선택 목록 (바텀시트에서 사용)
@@ -26,7 +25,6 @@ export default function AudioForm({
   addedByName: string;
   onAdded: () => void;
   onCancel?: () => void;
-  bare?: boolean; // true = 카드 테두리 없이 (바텀시트 안에서 사용)
 }) {
   const fixed = !!productionId;
   const [pid, setPid] = useState(productionId ?? productions?.[0]?.id ?? "");
@@ -77,37 +75,57 @@ export default function AudioForm({
   }
 
   return (
-    <div className={bare ? "space-y-3" : "card space-y-3"}>
+    <div className="space-y-3">
+      {/* 작품 (전역 시트에서만) */}
       {!fixed && (
-        <div>
-          <Select value={pid} onChange={(e) => setPid(e.target.value)}>
-            <option value="">작품을 선택하세요</option>
-            {(productions ?? []).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+        <>
+          <div className="card !p-0 overflow-hidden">
+            <Select
+              className="!border-0 !bg-transparent !px-4 !py-3.5 !text-[15px] !ring-0"
+              value={pid}
+              onChange={(e) => setPid(e.target.value)}
+            >
+              <option value="">작품을 선택하세요</option>
+              {(productions ?? []).map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+          </div>
+          {(productions ?? []).length === 0 && (
+            <p className="px-1 text-xs text-amber-600">참여 중인 작품이 없습니다.</p>
+          )}
+        </>
+      )}
+
+      {/* 종류 + 제목 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+          <span className="text-[15px] font-medium text-slate-700">종류</span>
+          <Select
+            wrapperClassName="w-32"
+            className="!border-0 !bg-surface !py-1.5 !text-[15px] !ring-0"
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
+          >
+            {categories.map((c) => (
+              <option key={c} value={c}>{c}</option>
             ))}
           </Select>
-          {(productions ?? []).length === 0 && (
-            <p className="mt-1 text-xs text-amber-600">참여 중인 작품이 없습니다.</p>
-          )}
         </div>
-      )}
-      <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
-        <Select value={cat} onChange={(e) => setCat(e.target.value)}>
-          {categories.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </Select>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
+        <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
       </div>
-      <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="구글 드라이브 등 공유 링크 (https://drive.google.com/...)" />
-      <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모 (선택)" />
+
+      {/* 링크 + 메모 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <input className="field" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="구글 드라이브 등 공유 링크" />
+        <input className="field" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모 (선택)" />
+      </div>
+
       <div className="flex gap-2">
-        {onCancel && (
-          <button onClick={onCancel} className="btn-ghost">취소</button>
-        )}
         <button onClick={add} disabled={busy} className="btn-accent flex-1">
           {busy ? "추가 중…" : "자료 추가"}
         </button>
+        {onCancel && <button onClick={onCancel} className="btn-ghost">취소</button>}
       </div>
     </div>
   );

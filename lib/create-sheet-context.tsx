@@ -114,7 +114,6 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
       <BottomSheet open={!!kind} title={kind ? SHEET_TITLE[kind] : undefined} onClose={closeCreate}>
         {kind === "archive" && user && (
           <ArchiveForm
-            bare
             productions={productions}
             isAdmin={isAdmin}
             author={{ uid: user.uid, name: authorName }}
@@ -125,7 +124,6 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
 
         {kind === "audio" && (
           <AudioForm
-            bare
             productions={productions}
             categories={categories}
             defaultCat={categories[0] ?? "음원"}
@@ -135,7 +133,7 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
           />
         )}
 
-        {kind === "coord" && <CoordForm bare teams={teams} onCreate={createCoord} onCancel={closeCreate} />}
+        {kind === "coord" && <CoordForm teams={teams} onCreate={createCoord} onCancel={closeCreate} />}
 
         {kind === "event" && (
           <EventForm

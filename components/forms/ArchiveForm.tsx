@@ -30,7 +30,6 @@ export default function ArchiveForm({
   onCancel,
   author,
   edit,
-  bare = false,
 }: {
   productions: Production[];
   isAdmin: boolean;
@@ -38,7 +37,6 @@ export default function ArchiveForm({
   onCancel: () => void;
   author: { uid: string; name: string };
   edit?: ArchiveItem;
-  bare?: boolean; // true = 카드 테두리 없이 (바텀시트 안에서 사용)
 }) {
   const { settings } = useTheme();
   // 새 자료: 현재 진행 작품을 기본 선택(접근 가능한 작품일 때만), 날짜는 오늘
@@ -112,80 +110,101 @@ export default function ArchiveForm({
   }
 
   return (
-    <div className={bare ? "space-y-3" : "card space-y-3"}>
-      {!bare && <p className="font-bold text-slate-900">{edit ? "자료 수정" : "자료 등록"}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <Select value={productionId} onChange={(e) => setProductionId(e.target.value)}>
-            <option value="">{isAdmin ? "미지정 (관리자만 볼 수 있음)" : "작품을 선택하세요"}</option>
-            {productions.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </Select>
-          {productions.length === 0 && (
-            <p className="mt-1 text-xs text-amber-600">
-              {isAdmin ? "작품 관리에서 작품을 먼저 만들어 주세요." : "참여 중인 작품이 없습니다."}
-            </p>
-          )}
-        </div>
-        <div className="sm:col-span-2">
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
-        </div>
-        <div>
-          <Select value={kind} onChange={(e) => setKind(e.target.value as ArchiveKind)}>
+    <div className="space-y-3">
+      {/* 작품 */}
+      <div className="card !p-0 overflow-hidden">
+        <Select
+          className="!border-0 !bg-transparent !px-4 !py-3.5 !text-[15px] !ring-0"
+          value={productionId}
+          onChange={(e) => setProductionId(e.target.value)}
+        >
+          <option value="">{isAdmin ? "미지정 (관리자만 볼 수 있음)" : "작품을 선택하세요"}</option>
+          {productions.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </Select>
+      </div>
+      {productions.length === 0 && (
+        <p className="px-1 text-xs text-amber-600">
+          {isAdmin ? "작품 관리에서 작품을 먼저 만들어 주세요." : "참여 중인 작품이 없습니다."}
+        </p>
+      )}
+
+      {/* 제목 */}
+      <div className="card !p-0 overflow-hidden">
+        <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
+      </div>
+
+      {/* 종류·날짜 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+          <span className="text-[15px] font-medium text-slate-700">종류</span>
+          <Select
+            wrapperClassName="w-32"
+            className="!border-0 !bg-surface !py-1.5 !text-[15px] !ring-0"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as ArchiveKind)}
+          >
             <option value="rehearsal">연습</option>
             <option value="performance">공연</option>
             <option value="etc">기타</option>
           </Select>
         </div>
-        <div>
-          <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <div className="sm:col-span-2">
-          <div className="space-y-2">
-            {clips.map((c, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  className="input w-28 shrink-0"
-                  value={c.label}
-                  onChange={(e) => updateClip(i, "label", e.target.value)}
-                  placeholder="라벨"
-                />
-                <input
-                  className="input flex-1"
-                  value={c.url}
-                  onChange={(e) => updateClip(i, "url", e.target.value)}
-                  placeholder="https://youtu.be/..."
-                />
-                {clips.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeClip(i)}
-                    aria-label="링크 삭제"
-                    className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 transition hover:bg-slate-50 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          <button type="button" onClick={addClip} className="mt-2 text-sm font-medium text-accent hover:underline">
-            + 링크 추가
-          </button>
-        </div>
-        <div className="sm:col-span-2">
-          <textarea className="input min-h-[72px]" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="설명·메모" />
-        </div>
-        <div className="sm:col-span-2">
-          <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그" />
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">날짜</span>
+          <input type="date" className="field-chip" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </div>
+
+      {/* 링크 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        {clips.map((c, i) => (
+          <div key={i} className="flex items-center gap-1 pr-2">
+            <input
+              className="field w-24 shrink-0 !px-4"
+              value={c.label}
+              onChange={(e) => updateClip(i, "label", e.target.value)}
+              placeholder="라벨"
+            />
+            <input
+              className="field min-w-0 flex-1 !px-0"
+              value={c.url}
+              onChange={(e) => updateClip(i, "url", e.target.value)}
+              placeholder="https://youtu.be/..."
+            />
+            {clips.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeClip(i)}
+                aria-label="링크 삭제"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-slate-50 hover:text-red-500"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={addClip} className="w-full px-4 py-3 text-left text-sm font-medium text-slate-500 transition hover:bg-slate-50">
+          + 링크 추가
+        </button>
+      </div>
+
+      {/* 설명·태그 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <textarea
+          className="field min-h-[80px] resize-none"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="설명·메모"
+        />
+        <input className="field" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그" />
+      </div>
+
       <div className="flex gap-2">
-        <button onClick={onCancel} className="btn-ghost">취소</button>
         <button onClick={save} disabled={busy} className="btn-accent flex-1">
           {busy ? "저장 중…" : edit ? "수정 저장" : "자료 등록"}
         </button>
+        <button onClick={onCancel} className="btn-ghost">취소</button>
       </div>
     </div>
   );

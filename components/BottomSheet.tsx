@@ -93,8 +93,8 @@ export default function BottomSheet({
         </div>
 
         {title && (
-          <div className="shrink-0 border-b border-slate-100 bg-white px-4 pb-3 pt-1.5">
-            <p className="font-bold text-slate-900">{title}</p>
+          <div className="shrink-0 bg-white px-4 pb-3 pt-1.5">
+            <p className="text-center font-bold text-slate-900">{title}</p>
           </div>
         )}
 
