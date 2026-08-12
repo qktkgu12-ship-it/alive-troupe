@@ -121,6 +121,18 @@ function TeamBadge({ team, className = "" }: { team?: string; className?: string
   );
 }
 
+// 일정방의 대상(팀 또는 개별 지정 인원) 배지
+function AudienceBadge({ coord, className = "" }: { coord: Coordination; className?: string }) {
+  if (coord.participantUids && coord.participantUids.length > 0) {
+    return (
+      <span className={`inline-flex shrink-0 items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent ${className}`}>
+        {coord.participantUids.length}명 개별 지정
+      </span>
+    );
+  }
+  return <TeamBadge team={coord.team} className={className} />;
+}
+
 function ScheduleInner() {
   const { user, profile, role } = useAuth();
   const { settings } = useTheme();
@@ -310,7 +322,12 @@ function CoordSection({
   const [createdId, setCreatedId] = useState<string | null>(null); // 만든 직후 확인 시트
 
   const denomOf = useCallback(
-    (c: Coordination) => (c.team ? memberStat.byTeam[c.team] ?? 0 : memberStat.total),
+    (c: Coordination) =>
+      c.participantUids && c.participantUids.length > 0
+        ? c.participantUids.length
+        : c.team
+          ? memberStat.byTeam[c.team] ?? 0
+          : memberStat.total,
     [memberStat]
   );
 
@@ -344,6 +361,7 @@ function CoordSection({
   async function createCoord(fields: {
     title: string;
     team: string;
+    participantUids?: string[];
     candidateDates: string[];
     deadline?: number;
   }) {
@@ -352,6 +370,9 @@ function CoordSection({
     await setDoc(doc(db, "coordinations", id), {
       title: fields.title,
       team: fields.team,
+      ...(fields.participantUids && fields.participantUids.length > 0
+        ? { participantUids: fields.participantUids }
+        : {}),
       candidateDates: fields.candidateDates,
       ...(fields.deadline ? { deadline: fields.deadline } : {}),
       createdBy: uid,
@@ -407,19 +428,19 @@ function CoordSection({
 
   return (
     <div className="space-y-4">
-      {/* 안내 + 만들기 */}
-      <div className="space-y-3">
-        <p className="text-[15px] leading-relaxed text-slate-500">
-          단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
-        </p>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-4 text-[15px] font-bold text-accent-fg shadow-[0_10px_24px_-10px_rgb(var(--accent))] transition hover:brightness-110 active:scale-[0.99]"
-        >
-          <PlusIcon className="h-5 w-5" />
-          일정방 만들기
-        </button>
-      </div>
+      {/* 안내 */}
+      <p className="text-[15px] leading-relaxed text-slate-500">
+        단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
+      </p>
+
+      {/* 만들기 — 스크롤해도 화면에 고정 */}
+      <button
+        onClick={() => setShowCreate(true)}
+        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-4 text-[15px] font-bold text-accent-fg shadow-[0_10px_24px_-10px_rgb(var(--accent))] transition hover:brightness-110 active:scale-[0.99]"
+      >
+        <PlusIcon className="h-5 w-5" />
+        일정방 만들기
+      </button>
 
       {/* 방 목록 */}
       {loading ? (
@@ -449,7 +470,7 @@ function CoordSection({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="font-bold text-slate-900">{c.title}</p>
-                      <TeamBadge team={c.team} />
+                      <AudienceBadge coord={c} />
                     </div>
                     <p className="mt-0.5 text-xs text-slate-400">{c.createdByName}</p>
                   </div>
@@ -508,7 +529,7 @@ function CoordSection({
 
       {/* 일정방 만들기 */}
       <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)}>
-        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} onCancel={() => setShowCreate(false)} />
+        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} />
       </BottomSheet>
 
       {/* 만든 직후 확인 시트 */}
@@ -552,20 +573,28 @@ function CoordSection({
   );
 }
 
-// ---------- 일정방 만들기 폼 (이름 · 대상 팀 · 날짜 후보) ----------
+// ---------- 일정방 만들기 폼 (이름 · 대상(팀/개별) · 날짜 후보) ----------
 function CoordCreateForm({
   teams,
   myTeam,
   onCreate,
-  onCancel,
 }: {
   teams: string[];
   myTeam: string;
-  onCreate: (fields: { title: string; team: string; candidateDates: string[]; deadline?: number }) => Promise<void>;
-  onCancel: () => void;
+  onCreate: (fields: {
+    title: string;
+    team: string;
+    participantUids?: string[];
+    candidateDates: string[];
+    deadline?: number;
+  }) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
+  const [audienceMode, setAudienceMode] = useState<"team" | "individual">("team");
   const [team, setTeam] = useState(myTeam);
+  const [members, setMembers] = useState<{ uid: string; name: string; avatar?: string; team?: string }[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [dates, setDates] = useState<string[]>([]);
   const [deadline, setDeadline] = useState("");
   const [busy, setBusy] = useState(false);
@@ -576,6 +605,25 @@ function CoordCreateForm({
   const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
   const todayStr = toDateStr(new Date());
 
+  // 개별 선택 모드로 처음 전환할 때만 단원 목록 불러오기
+  useEffect(() => {
+    if (audienceMode !== "individual" || members.length > 0) return;
+    setMembersLoading(true);
+    (async () => {
+      const snap = await getDocs(collection(db, "publicProfiles"));
+      setMembers(
+        snap.docs
+          .map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      );
+      setMembersLoading(false);
+    })();
+  }, [audienceMode, members.length]);
+
+  function toggleMember(uid: string) {
+    setSelectedUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
+  }
+
   function toggleDate(ds: string) {
     setDates((prev) => (prev.includes(ds) ? prev.filter((d) => d !== ds) : [...prev, ds].sort()));
   }
@@ -583,6 +631,10 @@ function CoordCreateForm({
   async function submit() {
     if (!title.trim()) {
       alert("일정 이름을 입력해 주세요.");
+      return;
+    }
+    if (audienceMode === "individual" && selectedUids.length === 0) {
+      alert("참여 인원을 한 명 이상 선택해 주세요.");
       return;
     }
     if (dates.length < 2) {
@@ -593,7 +645,8 @@ function CoordCreateForm({
     try {
       await onCreate({
         title: title.trim(),
-        team,
+        team: audienceMode === "team" ? team : "",
+        participantUids: audienceMode === "individual" ? selectedUids : undefined,
         candidateDates: dates,
         ...(deadline ? { deadline: new Date(deadline).getTime() } : {}),
       });
@@ -609,10 +662,29 @@ function CoordCreateForm({
         <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 이름" />
       </div>
 
-      {/* 참여 인원 (팀) */}
-      {teams.length > 0 && (
-        <div className="card !p-3">
-          <p className="mb-2 px-1 text-xs font-semibold text-slate-500">참여 인원</p>
+      {/* 참여 인원 (팀 / 개별) */}
+      <div className="card !p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="px-1 text-xs font-semibold text-slate-500">참여 인원</p>
+          <div className="flex gap-0.5 rounded-lg bg-surface p-0.5 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setAudienceMode("team")}
+              className={`rounded-md px-2.5 py-1 transition ${audienceMode === "team" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+            >
+              팀
+            </button>
+            <button
+              type="button"
+              onClick={() => setAudienceMode("individual")}
+              className={`rounded-md px-2.5 py-1 transition ${audienceMode === "individual" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+            >
+              개별
+            </button>
+          </div>
+        </div>
+
+        {audienceMode === "team" ? (
           <div className="flex flex-wrap gap-1.5">
             {([["", "전체 단원"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
               <button
@@ -627,8 +699,42 @@ function CoordCreateForm({
               </button>
             ))}
           </div>
-        </div>
-      )}
+        ) : membersLoading ? (
+          <p className="py-4 text-center text-xs text-slate-400">단원 목록을 불러오는 중…</p>
+        ) : (
+          <>
+            <div className="max-h-56 space-y-0.5 overflow-y-auto">
+              {members.map((m) => {
+                const on = selectedUids.includes(m.uid);
+                return (
+                  <button
+                    key={m.uid}
+                    type="button"
+                    onClick={() => toggleMember(m.uid)}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition ${
+                      on ? "bg-accent-soft" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{m.name}</span>
+                    {m.team && <TeamBadge team={m.team} />}
+                    <span
+                      className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold transition ${
+                        on ? "border-accent bg-accent text-accent-fg" : "border-slate-300 text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedUids.length > 0 && (
+              <p className="mt-1.5 px-1 text-xs font-semibold text-accent">{selectedUids.length}명 선택됨</p>
+            )}
+          </>
+        )}
+      </div>
 
       {/* 날짜 후보 */}
       <div className="card">
@@ -699,12 +805,9 @@ function CoordCreateForm({
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button onClick={submit} disabled={busy} className="btn-accent flex-1">
-          {busy ? "만드는 중…" : "일정방 만들기"}
-        </button>
-        <button onClick={onCancel} className="btn-ghost">취소</button>
-      </div>
+      <button onClick={submit} disabled={busy} className="btn-accent w-full">
+        {busy ? "만드는 중…" : "일정방 만들기"}
+      </button>
     </div>
   );
 }
@@ -940,7 +1043,7 @@ function CoordDetail({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-lg font-bold text-slate-900">{coord.title}</p>
-            <TeamBadge team={coord.team} />
+            <AudienceBadge coord={coord} />
           </div>
           <p className={`text-xs font-semibold ${done ? "text-emerald-600" : "text-accent"}`}>
             {done ? "확정됨" : closed ? "응답 마감" : "진행 중"}

@@ -90,7 +90,8 @@ export interface Coordination {
   id: string;
   title: string; // 일정 이름
   memo?: string; // 설명(선택)
-  team?: string; // 대상 팀 (빈값이면 전체) — 응답 진행률의 분모 기준
+  team?: string; // 대상 팀 (빈값이면 전체) — participantUids 없을 때 응답 진행률의 분모 기준
+  participantUids?: string[]; // 대상을 개별 지정한 경우(팀 대신) — 있으면 이 인원 수가 분모
   candidateDates?: string[]; // 후보 날짜(YYYY-MM-DD). 단원은 이 중에서만 고름
   deadline?: number; // 가능시간 제출 마감(ms)
   targetMonth?: string; // (구버전) 대상 기간(달) YYYY-MM
