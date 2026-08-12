@@ -17,7 +17,10 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
-import Select from "@/components/Select";
+import BottomSheet from "@/components/BottomSheet";
+import CoordForm from "@/components/forms/CoordForm";
+import EventForm from "@/components/forms/EventForm";
+import { useCreateSheet } from "@/lib/create-sheet-context";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
@@ -270,6 +273,13 @@ function ScheduleInner() {
     loadEvents();
   }, [loadEvents]);
 
+  // 헤더 '+' 바텀시트로 조율·일정을 만들면 목록 새로고침
+  const { createdAt } = useCreateSheet();
+  useEffect(() => {
+    if (createdAt?.kind === "coord") loadCoords();
+    if (createdAt?.kind === "event") loadEvents();
+  }, [createdAt, loadCoords, loadEvents]);
+
   // ----- 내 가능 일정 편집 -----
   // 탭: 미선택 → 선택+열기 / 선택&활성 → 해제 / 선택&비활성 → 열기(편집)
   function tapDate(ds: string) {
@@ -487,7 +497,9 @@ function ScheduleInner() {
             </button>
           </div>
 
-          {showCreate && <CoordForm teams={teams} onCreate={createCoord} onCancel={() => setShowCreate(false)} />}
+          <BottomSheet open={showCreate} title="일정 조율 만들기" onClose={() => setShowCreate(false)}>
+            <CoordForm bare teams={teams} onCreate={createCoord} onCancel={() => setShowCreate(false)} />
+          </BottomSheet>
 
           {coords.length === 0 ? (
             <div className="card">
@@ -813,33 +825,30 @@ function ScheduleInner() {
             </div>
           )}
 
-          {/* 확정 등록 모달 (관리자) : 확정 시 카드 완료 + 확정 정보 기록 */}
-          {confirmDraft && (
-            <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-900/50 p-4" onClick={() => setConfirmDraft(null)}>
-              <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-                <p className="mb-2 px-1 text-sm font-semibold text-white">확정 일정 등록</p>
-                <EventForm
-                  initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, title: openCoord?.title, team: openCoord?.team ?? "" }}
-                  onSaved={async (saved) => {
-                    if (openCoordId) {
-                      await updateDoc(doc(db, "coordinations", openCoordId), {
-                        status: "done",
-                        confirmedDate: saved.date,
-                        confirmedStart: saved.startTime || "",
-                        confirmedEnd: saved.endTime || "",
-                      }).catch(() => {});
-                    }
-                    const dt = saved.date;
-                    setConfirmDraft(null);
-                    await loadCoords();
-                    await loadEvents();
-                    setActiveDate(dt);
-                  }}
-                  onCancel={() => setConfirmDraft(null)}
-                />
-              </div>
-            </div>
-          )}
+          {/* 확정 등록 (관리자) : 확정 시 카드 완료 + 확정 정보 기록 */}
+          <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)}>
+            {confirmDraft && (
+              <EventForm
+                initial={{ date: confirmDraft.date, startTime: confirmDraft.start, endTime: confirmDraft.end, title: openCoord?.title, team: openCoord?.team ?? "" }}
+                onSaved={async (saved) => {
+                  if (openCoordId) {
+                    await updateDoc(doc(db, "coordinations", openCoordId), {
+                      status: "done",
+                      confirmedDate: saved.date,
+                      confirmedStart: saved.startTime || "",
+                      confirmedEnd: saved.endTime || "",
+                    }).catch(() => {});
+                  }
+                  const dt = saved.date;
+                  setConfirmDraft(null);
+                  await loadCoords();
+                  await loadEvents();
+                  setActiveDate(dt);
+                }}
+                onCancel={() => setConfirmDraft(null)}
+              />
+            )}
+          </BottomSheet>
         </div>
       )}
 
@@ -899,203 +908,6 @@ function CalendarGrid({ grid, renderCell }: { grid: (Date | null)[]; renderCell:
   );
 }
 
-// ---------- 조율 카드 만들기 폼 ----------
-function CoordForm({
-  teams,
-  onCreate,
-  onCancel,
-}: {
-  teams: string[];
-  onCreate: (fields: Omit<Coordination, "id" | "createdBy" | "createdByName" | "status" | "createdAt">) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [memo, setMemo] = useState("");
-  const [team, setTeam] = useState("");
-  const [month, setMonth] = useState(""); // YYYY-MM
-  const [deadline, setDeadline] = useState(""); // datetime-local
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    if (!title.trim()) {
-      alert("제목을 입력해 주세요.");
-      return;
-    }
-    setBusy(true);
-    try {
-      await onCreate({
-        title: title.trim(),
-        ...(memo.trim() ? { memo: memo.trim() } : {}),
-        ...(team ? { team } : {}),
-        ...(month ? { targetMonth: month } : {}),
-        ...(deadline ? { deadline: new Date(deadline).getTime() } : {}),
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card space-y-3">
-      <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="조율 제목 (예: 1월 워크샵 일정)" />
-      <textarea className="input min-h-[60px]" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="설명 (선택)" />
-      {teams.length > 0 && (
-        <div>
-          <label className="label">대상 팀</label>
-          <Select value={team} onChange={(e) => setTeam(e.target.value)}>
-            <option value="">전체</option>
-            {teams.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </Select>
-        </div>
-      )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">대상 달 (선택)</label>
-          <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
-        </div>
-        <div>
-          <label className="label">마감일 (선택)</label>
-          <input type="datetime-local" className="input" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <button onClick={onCancel} className="btn-ghost">취소</button>
-        <button onClick={submit} disabled={busy} className="btn-accent flex-1">{busy ? "만드는 중…" : "조율 만들기"}</button>
-      </div>
-    </div>
-  );
-}
-
-// ---------- 일정 등록 폼 (확정 탭 + 추천 확정 공용) ----------
-function EventForm({
-  initial,
-  onSaved,
-  onCancel,
-}: {
-  initial: { date: string; startTime: string; endTime: string; title?: string; team?: string };
-  onSaved: (saved: { date: string; startTime: string; endTime: string; title: string; team: string }) => void;
-  onCancel: () => void;
-}) {
-  const { settings } = useTheme();
-  const teams = settings.teams ?? [];
-  const [title, setTitle] = useState(initial.title ?? "");
-  const [date, setDate] = useState(initial.date);
-  const [startTime, setStartTime] = useState(initial.startTime);
-  const [endTime, setEndTime] = useState(initial.endTime);
-  const [location, setLocation] = useState("");
-  const [memo, setMemo] = useState("");
-  const [team, setTeam] = useState(initial.team ?? "");
-  const [more, setMore] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function save() {
-    if (!title.trim() || !date) {
-      alert("제목과 날짜는 필수예요.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const finalTeam = teams.includes(team) ? team : "";
-      await setDoc(doc(db, "events", crypto.randomUUID()), {
-        title: title.trim(),
-        date,
-        startTime,
-        endTime,
-        location: location.trim(),
-        memo: memo.trim(),
-        team: finalTeam,
-        createdAt: Date.now(),
-      });
-      onSaved({ date, startTime, endTime, title: title.trim(), team: finalTeam });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const chip = "rounded-lg bg-surface px-3 py-1.5 text-[15px] text-slate-800 outline-none focus:ring-2 focus:ring-accent/20";
-
-  return (
-    <div className="space-y-3">
-      {/* 대상 팀 (팀이 있을 때만) */}
-      {teams.length > 0 && (
-        <div className="card !p-3">
-          <p className="mb-2 px-1 text-xs font-semibold text-slate-500">대상</p>
-          <div className="flex flex-wrap gap-1.5">
-            {([["", "전체 공통"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
-              <button
-                key={val || "all"}
-                type="button"
-                onClick={() => setTeam(val)}
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                  team === val ? "border-accent bg-accent text-accent-fg" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 제목 + 장소 — 칸 안에 안내문 */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
-        <input
-          className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목"
-        />
-        <input
-          className="w-full bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="장소"
-        />
-      </div>
-
-      {/* 날짜·시간 (한 카드, 줄마다 구분선) */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">날짜</span>
-          <input type="date" className={chip} value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">시작</span>
-          <input type="time" className={chip} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-        </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">종료</span>
-          <input type="time" className={chip} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-        </div>
-      </div>
-
-      {/* 메모 (펼쳤을 때) */}
-      {more && (
-        <div className="card !p-0 overflow-hidden">
-          <textarea
-            className="w-full min-h-[80px] resize-none bg-transparent px-4 py-3.5 text-[15px] outline-none placeholder:text-slate-400"
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="메모·준비물"
-          />
-        </div>
-      )}
-
-      {!more && (
-        <button onClick={() => setMore(true)} className="text-sm font-medium text-slate-500 hover:text-slate-700">
-          + 메모 추가
-        </button>
-      )}
-
-      <div className="flex gap-2">
-        <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? "등록 중…" : "등록"}</button>
-        <button onClick={onCancel} className="btn-ghost">취소</button>
-      </div>
-    </div>
-  );
-}
 
 // ---------- 확정/지난 일정 (월 표시 + 일정 리스트) ----------
 function EventsSection({
@@ -1224,8 +1036,8 @@ function EventsSection({
           </div>
         )}
 
-        {canAdd && showForm && (
-          <div className="mb-3">
+        {canAdd && (
+          <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)}>
             <EventForm
               key={formDate}
               initial={{ date: formDate, startTime: "", endTime: "" }}
@@ -1235,7 +1047,7 @@ function EventsSection({
               }}
               onCancel={() => setShowForm(false)}
             />
-          </div>
+          </BottomSheet>
         )}
 
         {visibleEvents.length === 0 ? (

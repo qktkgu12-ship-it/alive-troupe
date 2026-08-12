@@ -8,6 +8,7 @@ import { useNotifications } from "@/lib/notifications-context";
 import { ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, NAV_ICON, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
+import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -28,19 +29,20 @@ function sectionOf(path: string): string | null {
   return null;
 }
 
-// '+' 등록 메뉴 — 누르면 각 페이지의 등록 화면이 바로 열림(?new=1)
+// '+' 등록 메뉴 — 게시판만 글쓰기 페이지로 이동하고, 나머지는 그 자리에서 바텀시트로 열림
 const CREATE_MENU: {
-  href: string;
+  sheet: CreateKind | null; // null = href로 이동
+  href?: string;
   label: string;
   desc: string;
   icon: React.FC<{ className?: string }>;
   admin: boolean;
 }[] = [
-  { href: "/board/write", label: "글쓰기", desc: "게시판에 새 글 올리기", icon: BoardIcon, admin: false },
-  { href: "/archive?new=1", label: "자료 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
-  { href: "/schedule?tab=coord&new=1", label: "일정 조율", desc: "가능 시간 모으는 조율 만들기", icon: CalendarIcon, admin: false },
-  { href: "/audio?new=1", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
-  { href: "/schedule?tab=events&new=1", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
+  { sheet: null, href: "/board/write", label: "글쓰기", desc: "게시판에 새 글 올리기", icon: BoardIcon, admin: false },
+  { sheet: "archive", label: "자료 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
+  { sheet: "coord", label: "일정 조율", desc: "가능 시간 모으는 조율 만들기", icon: CalendarIcon, admin: false },
+  { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
+  { sheet: "event", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
 ];
 
 const SEEN_KEY = "alive-nav-seen";
@@ -67,6 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
   const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
+  const { openCreate } = useCreateSheet();
 
   // 검색 모드로 들어가면 입력창에 포커스
   useEffect(() => {
@@ -257,20 +260,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-400">등록하기</p>
                         {createItems.map((c) => {
                           const Icon = c.icon;
-                          return (
-                            <Link
-                              key={c.href}
-                              href={c.href}
-                              onClick={() => setCreateOpen(false)}
-                              className="flex items-center gap-3 border-b border-slate-50 px-4 py-3 transition last:border-0 hover:bg-slate-50"
-                            >
+                          const inner = (
+                            <>
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
                                 <Icon className="h-5 w-5" />
                               </span>
-                              <span className="min-w-0">
+                              <span className="min-w-0 text-left">
                                 <span className="block text-sm font-semibold text-slate-800">{c.label}</span>
                                 <span className="block truncate text-xs text-slate-400">{c.desc}</span>
                               </span>
+                            </>
+                          );
+                          const cls =
+                            "flex w-full items-center gap-3 border-b border-slate-50 px-4 py-3 transition last:border-0 hover:bg-slate-50";
+                          // 게시판 글쓰기만 페이지 이동, 나머지는 그 자리에서 바텀시트
+                          return c.sheet ? (
+                            <button
+                              key={c.label}
+                              onClick={() => {
+                                setCreateOpen(false);
+                                openCreate(c.sheet!);
+                              }}
+                              className={cls}
+                            >
+                              {inner}
+                            </button>
+                          ) : (
+                            <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
+                              {inner}
                             </Link>
                           );
                         })}
