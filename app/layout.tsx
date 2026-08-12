@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
-import NotificationBell from "@/components/NotificationBell";
+import { CreateSheetProvider } from "@/lib/create-sheet-context";
 import { ProfileViewerProvider } from "@/components/ProfileViewer";
 
 export const metadata: Metadata = {
@@ -37,9 +37,9 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <ProfileViewerProvider>
+              {/* 알림 버튼은 AppShell 헤더 안에, 등록 바텀시트는 전역으로 */}
               <NotificationsProvider>
-                {children}
-                <NotificationBell />
+                <CreateSheetProvider>{children}</CreateSheetProvider>
               </NotificationsProvider>
             </ProfileViewerProvider>
           </ThemeProvider>

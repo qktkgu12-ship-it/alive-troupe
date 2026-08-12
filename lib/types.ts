@@ -84,14 +84,35 @@ export interface ScheduleEvent {
   createdAt: number;
 }
 
+// 일정방 (일정 잡기). 방마다 가능일정을 따로 모음
+// availability 문서: coordinations/{id}/availability/{uid}
+export interface Coordination {
+  id: string;
+  title: string; // 일정 이름
+  memo?: string; // 설명(선택)
+  team?: string; // 대상 팀 (빈값이면 전체) — participantUids 없을 때 응답 진행률의 분모 기준
+  participantUids?: string[]; // 대상을 개별 지정한 경우(팀 대신) — 있으면 이 인원 수가 분모
+  candidateDates?: string[]; // 후보 날짜(YYYY-MM-DD). 단원은 이 중에서만 고름
+  deadline?: number; // 가능시간 제출 마감(ms)
+  targetMonth?: string; // (구버전) 대상 기간(달) YYYY-MM
+  createdBy: string;
+  createdByName: string;
+  status: "open" | "done"; // 진행중 / 확정됨
+  confirmedDate?: string; // 확정된 날짜 YYYY-MM-DD (status==="done")
+  confirmedStart?: string; // 확정 시작 HH:mm
+  confirmedEnd?: string; // 확정 종료 HH:mm
+  confirmedAt?: number; // 확정 시각(ms) — '며칠 만에 성사' 표시용
+  createdAt: number;
+}
+
 // 개인 가능 일정 (단원이 본인 가능 날짜를 체크)
-// 문서 ID = `${uid}_${yearMonth}` 형태, 월 단위로 저장
+// (구) 전역 조율: 문서 ID = `${uid}_${yearMonth}`. (신) 카드별: coordinations/{cid}/availability/{uid}
 export interface Availability {
   uid: string;
   name: string;
   avatar?: string; // 제출 시점의 프로필 사진 (명단 표시용)
   team?: string; // 제출 시점의 소속 팀 (팀별 조율 집계용)
-  yearMonth: string; // YYYY-MM
+  yearMonth?: string; // YYYY-MM (구 전역 방식에서만 사용)
   dates: string[]; // 가능한 날짜 목록 (YYYY-MM-DD)
   // 날짜별 가능 시간 슬롯(30분 단위, "HH:mm"). 비어있거나 없으면 그 날은 '아무때나 가능'
   slots?: { [date: string]: string[] };

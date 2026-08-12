@@ -20,6 +20,9 @@ import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FolderIcon, MusicIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import Select from "@/components/Select";
+import BottomSheet from "@/components/BottomSheet";
+import AudioForm from "@/components/forms/AudioForm";
+import { useCreateSheet } from "@/lib/create-sheet-context";
 import type { AudioTrack, Production } from "@/lib/types";
 
 const DEFAULT_CATEGORIES = ["음원", "기타"];
@@ -63,6 +66,10 @@ function AudioInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [manageCats, setManageCats] = useState(false);
   const [newCat, setNewCat] = useState("");
+  // 헤더 '+' 등록 메뉴에서 들어오면(?new=1) 등록 폼을 바로 열기
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") setShowAdd(true);
+  }, []);
 
   const loadProductions = useCallback(async () => {
     const q = isAdmin
@@ -94,6 +101,12 @@ function AudioInner() {
     if (activeId) loadItems(activeId);
     else setItems([]);
   }, [activeId, loadItems]);
+
+  // 헤더 '+' 바텀시트로 자료를 등록하면 목록 새로고침
+  const { createdAt } = useCreateSheet();
+  useEffect(() => {
+    if (createdAt?.kind === "audio" && activeId) loadItems(activeId);
+  }, [createdAt, activeId, loadItems]);
 
   // 활성 종류가 목록에서 사라지면 전체로
   useEffect(() => {
@@ -199,18 +212,21 @@ function AudioInner() {
             )}
           </div>
 
-          {/* 자료 추가 (관리자만) */}
-          {isAdmin && showAdd && (
-            <AddForm
-              productionId={active.id}
-              categories={categories}
-              defaultCat={activeCat}
-              addedByName={profile?.name || profile?.displayName || ""}
-              onAdded={() => {
-                setShowAdd(false);
-                loadItems(active.id);
-              }}
-            />
+          {/* 자료 추가 (관리자만) — 바텀시트 */}
+          {isAdmin && (
+            <BottomSheet open={showAdd} title="자료실 등록" onClose={() => setShowAdd(false)}>
+              <AudioForm
+                productionId={active.id}
+                categories={categories}
+                defaultCat={activeCat || categories[0]}
+                addedByName={profile?.name || profile?.displayName || ""}
+                onAdded={() => {
+                  setShowAdd(false);
+                  loadItems(active.id);
+                }}
+                onCancel={() => setShowAdd(false)}
+              />
+            </BottomSheet>
           )}
 
           {/* 검색 (현재 작품 안 전체) */}
@@ -334,73 +350,6 @@ function AudioInner() {
   );
 }
 
-function AddForm({
-  productionId,
-  categories,
-  defaultCat,
-  addedByName,
-  onAdded,
-}: {
-  productionId: string;
-  categories: string[];
-  defaultCat: string;
-  addedByName: string;
-  onAdded: () => void;
-}) {
-  const [cat, setCat] = useState(defaultCat);
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [memo, setMemo] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setCat(defaultCat);
-  }, [defaultCat]);
-
-  async function add() {
-    if (!title.trim() || !url.trim()) {
-      alert("제목과 링크는 필수입니다.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const id = crypto.randomUUID();
-      await setDoc(doc(db, "audio", id), {
-        productionId,
-        category: cat,
-        title: title.trim(),
-        memo: memo.trim(),
-        url: url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`,
-        addedByName,
-        createdAt: Date.now(),
-      });
-      setTitle("");
-      setUrl("");
-      setMemo("");
-      onAdded();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
-        <Select value={cat} onChange={(e) => setCat(e.target.value)}>
-          {categories.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </Select>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
-      </div>
-      <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="구글 드라이브 등 공유 링크 (https://drive.google.com/...)" />
-      <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모 (선택)" />
-      <button onClick={add} disabled={busy} className="btn-accent w-full">
-        {busy ? "추가 중…" : "자료 추가"}
-      </button>
-    </div>
-  );
-}
 
 export default function AudioPage() {
   return (
