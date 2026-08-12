@@ -38,9 +38,9 @@ export const CalendarIcon = makeIcon(
 
 export const ArchiveIcon = makeIcon(
   <>
-    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
-    <circle cx="9" cy="10" r="1.6" />
-    <path d="m4.5 17 4-3.5 3 2.5 3-2.5 5 4.5" />
+    {/* 비디오 카메라 */}
+    <rect x="2" y="7" width="13" height="10" rx="2" />
+    <path d="m22 8-5 4 5 4V8Z" />
   </>
 );
 
@@ -95,8 +95,9 @@ export const PlusIcon = makeIcon(<path d="M12 5v14M5 12h14" />);
 
 export const LinkIcon = makeIcon(
   <>
-    <path d="M10 13.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5L11 7.5" />
-    <path d="M14 10.5a3.5 3.5 0 0 0-5 0L6.5 13a3.5 3.5 0 0 0 5 5L13 16.5" />
+    {/* 복사 아이콘 (겹친 두 사각형) */}
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </>
 );
 
