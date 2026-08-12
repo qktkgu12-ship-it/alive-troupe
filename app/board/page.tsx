@@ -159,7 +159,7 @@ function BoardInner() {
               key={t}
               onClick={() => setTab(t)}
               className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium transition ${
-                tab === t ? "bg-accent text-accent-fg" : "border border-slate-200 text-slate-500 hover:border-accent/50 hover:text-accent"
+                tab === t ? "bg-slate-800 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300"
               }`}
             >
               {t === "all" ? "전체" : t}
