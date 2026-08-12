@@ -40,7 +40,7 @@ const CREATE_MENU: {
 }[] = [
   { sheet: null, href: "/board/write", label: "글쓰기", desc: "게시판에 새 글 올리기", icon: BoardIcon, admin: false },
   { sheet: "archive", label: "자료 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
-  { sheet: "coord", label: "일정 조율", desc: "가능 시간 모으는 조율 만들기", icon: CalendarIcon, admin: false },
+  { sheet: null, href: "/schedule?tab=coord&new=1", label: "일정방 만들기", desc: "가능한 날짜를 모아 일정 잡기", icon: CalendarIcon, admin: false },
   { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
   { sheet: "event", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
 ];

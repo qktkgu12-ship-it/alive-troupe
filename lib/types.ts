@@ -84,21 +84,23 @@ export interface ScheduleEvent {
   createdAt: number;
 }
 
-// 일정 조율 카드 (조율할 주제 하나). 카드마다 가능일정을 따로 모음(Doodle식)
+// 일정방 (일정 잡기). 방마다 가능일정을 따로 모음
 // availability 문서: coordinations/{id}/availability/{uid}
 export interface Coordination {
   id: string;
-  title: string;
-  memo?: string; // 설명
-  team?: string; // 대상 팀 (빈값이면 전체)
+  title: string; // 일정 이름
+  memo?: string; // 설명(선택)
+  team?: string; // 대상 팀 (빈값이면 전체) — 응답 진행률의 분모 기준
+  candidateDates?: string[]; // 후보 날짜(YYYY-MM-DD). 단원은 이 중에서만 고름
   deadline?: number; // 가능시간 제출 마감(ms)
-  targetMonth?: string; // 대상 기간(달) YYYY-MM — 달력 기본 이동
+  targetMonth?: string; // (구버전) 대상 기간(달) YYYY-MM
   createdBy: string;
   createdByName: string;
-  status: "open" | "done"; // 진행중 / 완료(확정됨)
+  status: "open" | "done"; // 진행중 / 확정됨
   confirmedDate?: string; // 확정된 날짜 YYYY-MM-DD (status==="done")
   confirmedStart?: string; // 확정 시작 HH:mm
   confirmedEnd?: string; // 확정 종료 HH:mm
+  confirmedAt?: number; // 확정 시각(ms) — '며칠 만에 성사' 표시용
   createdAt: number;
 }
 

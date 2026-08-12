@@ -5,23 +5,22 @@
 // 게시판 글쓰기는 에디터가 커서 기존처럼 /board/write 페이지로 이동.
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { collection, doc, getDocs, orderBy, query, setDoc, where } from "firebase/firestore";
+import { collection, doc, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import BottomSheet from "@/components/BottomSheet";
 import ArchiveForm from "@/components/forms/ArchiveForm";
 import AudioForm from "@/components/forms/AudioForm";
-import CoordForm, { type CoordFields } from "@/components/forms/CoordForm";
 import EventForm from "@/components/forms/EventForm";
 import type { Production } from "@/lib/types";
 
-export type CreateKind = "archive" | "audio" | "coord" | "event";
+// 일정방 만들기는 일정 페이지('일정 잡기' 탭)에서 직접 처리
+export type CreateKind = "archive" | "audio" | "event";
 
 const SHEET_TITLE: Record<CreateKind, string> = {
   archive: "자료 등록",
   audio: "자료실 등록",
-  coord: "일정 조율 만들기",
   event: "확정 일정 등록",
 };
 
@@ -80,25 +79,10 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
   }
 
   const authorName = profile?.name || profile?.displayName || "";
-  const teams = settings.teams ?? [];
   const categories =
     settings.resourceCategories && settings.resourceCategories.length > 0
       ? settings.resourceCategories
       : DEFAULT_CATEGORIES;
-
-  // 조율 카드 만들기 (일정 페이지와 동일한 저장 로직)
-  async function createCoord(fields: CoordFields) {
-    if (!user) return;
-    const id = crypto.randomUUID();
-    await setDoc(doc(db, "coordinations", id), {
-      ...fields,
-      createdBy: user.uid,
-      createdByName: authorName,
-      status: "open",
-      createdAt: Date.now(),
-    });
-    done("coord");
-  }
 
   // 오늘 날짜(로컬)
   const today = (() => {
@@ -132,8 +116,6 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
             onCancel={closeCreate}
           />
         )}
-
-        {kind === "coord" && <CoordForm teams={teams} onCreate={createCoord} onCancel={closeCreate} />}
 
         {kind === "event" && (
           <EventForm

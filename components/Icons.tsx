@@ -132,6 +132,14 @@ export const SearchIcon = makeIcon(
   </>
 );
 
+export const ShareIcon = makeIcon(
+  <>
+    <path d="M12 15V4" />
+    <path d="m8 7.5 4-3.5 4 3.5" />
+    <path d="M5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V12" />
+  </>
+);
+
 export const BellIcon = makeIcon(
   <>
     <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
