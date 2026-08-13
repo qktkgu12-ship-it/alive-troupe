@@ -13,8 +13,8 @@ import type { Production, Role, UserProfile } from "@/lib/types";
 
 // 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라)
 const TEAM_PALETTE: { border: string; color: string }[] = [
-  { border: "rgb(20,184,166)", color: "rgb(13,148,136)" },
-  { border: "rgb(139,92,246)", color: "rgb(109,40,217)" },
+  { border: "rgb(94,234,212)", color: "rgb(15,118,110)" },   // pastel mint
+  { border: "rgb(196,181,253)", color: "rgb(109,40,217)" },  // pastel violet
 ];
 
 // 역할 드롭다운 색상 (관리자=강조색 / 정단원=초록 / 대기=주황)
