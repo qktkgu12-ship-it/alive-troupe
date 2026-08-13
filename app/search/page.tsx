@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Guard from "@/components/Guard";
+import Spinner from "@/components/Spinner";
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/lib/auth-context";
 import { searchAll, SEARCH_KIND_LABEL, SEARCH_KIND_ORDER, type SearchKind, type SearchResult } from "@/lib/search";
@@ -188,7 +189,7 @@ function ResultList({ items }: { items: SearchResult[] }) {
 export default function SearchPage() {
   return (
     <Guard>
-      <Suspense fallback={<div className="card text-center text-sm text-slate-400">불러오는 중…</div>}>
+      <Suspense fallback={<div className="card flex justify-center py-6"><Spinner /></div>}>
         <SearchInner />
       </Suspense>
     </Guard>

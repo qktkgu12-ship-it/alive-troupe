@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
+import Spinner from "@/components/Spinner";
 import Avatar from "@/components/Avatar";
 import { ChevronDownIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import type { Production, Role, UserProfile } from "@/lib/types";
@@ -191,7 +192,7 @@ function AdminInner() {
           승인하면 ‘정단원’이 되어 모든 기능을 이용할 수 있습니다.
         </p>
         {loading ? (
-          <p className="py-6 text-center text-slate-400">불러오는 중…</p>
+          <div className="flex justify-center py-6"><Spinner /></div>
         ) : pending.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">대기 중인 신청이 없습니다.</p>
         ) : (
@@ -505,7 +506,7 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
       </div>
 
       {loading ? (
-        <p className="py-4 text-center text-sm text-slate-400">불러오는 중…</p>
+        <div className="flex justify-center py-4"><Spinner /></div>
       ) : productions.length === 0 ? (
         <p className="py-4 text-center text-sm text-slate-400">아직 작품이 없습니다.</p>
       ) : (

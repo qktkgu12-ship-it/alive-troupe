@@ -7,6 +7,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query,
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
+import Spinner from "@/components/Spinner";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
 import PostContent from "@/components/PostContent";
@@ -250,7 +251,7 @@ function PostDetailInner() {
     router.replace("/board");
   }
 
-  if (loading) return <p className="py-12 text-center text-slate-400">불러오는 중…</p>;
+  if (loading) return <div className="flex justify-center py-12"><Spinner className="h-8 w-8" /></div>;
   if (!post)
     return (
       <div className="card text-center">

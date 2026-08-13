@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import Spinner from "@/components/Spinner";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { type AppNotification, type NotifType } from "@/lib/notifications";
@@ -153,7 +154,7 @@ export default function NotificationBell() {
 
               <div className="flex-1 overflow-y-auto">
                 {loading && visibleItems.length === 0 ? (
-                  <p className="py-16 text-center text-sm text-slate-400">불러오는 중…</p>
+                  <div className="flex justify-center py-16"><Spinner /></div>
                 ) : visibleItems.length === 0 ? (
                   <p className="py-16 text-center text-sm text-slate-400">새로운 알림이 없어요.</p>
                 ) : (
