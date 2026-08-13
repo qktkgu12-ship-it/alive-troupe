@@ -74,11 +74,8 @@ export default function NotificationBell() {
 
   function persistReads(next: Record<string, number>) {
     setReads(next); // 낙관적 갱신
-    // 현재 목록에 있는 id만 남겨 저장 용량 가지치기
-    const ids = new Set(items.map((i) => i.id));
-    const valid: Record<string, number> = {};
-    for (const k in next) if (ids.has(k)) valid[k] = next[k];
-    if (user) updateDoc(doc(db, "users", user.uid), { notifReads: valid }).catch(() => {});
+    // 가지치기 없이 전체 저장 — ID 기준 필터 시 items가 비어있으면 reads가 날아가는 버그 방지
+    if (user) updateDoc(doc(db, "users", user.uid), { notifReads: next }).catch(() => {});
   }
 
   function markRead(id: string) {

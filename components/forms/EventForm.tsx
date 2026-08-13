@@ -3,18 +3,20 @@
 // 확정 일정 등록 폼 (일정 페이지 + 조율 확정 + 전역 바텀시트 공용)
 
 import { useState } from "react";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useTheme } from "@/lib/theme-context";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
 
 export default function EventForm({
+  eventId,
   initial,
   onSaved,
   onCancel,
 }: {
-  initial: { date: string; startTime: string; endTime: string; title?: string; team?: string };
+  eventId?: string; // 수정 모드: 기존 문서 ID
+  initial: { date: string; startTime: string; endTime: string; title?: string; team?: string; location?: string; memo?: string };
   onSaved: (saved: SavedEvent) => void;
   onCancel: () => void;
 }) {
@@ -24,8 +26,8 @@ export default function EventForm({
   const [date, setDate] = useState(initial.date);
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
-  const [location, setLocation] = useState("");
-  const [memo, setMemo] = useState("");
+  const [location, setLocation] = useState(initial.location ?? "");
+  const [memo, setMemo] = useState(initial.memo ?? "");
   const [team, setTeam] = useState(initial.team ?? "");
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,7 +40,7 @@ export default function EventForm({
     setBusy(true);
     try {
       const finalTeam = teams.includes(team) ? team : "";
-      await setDoc(doc(db, "events", crypto.randomUUID()), {
+      const data = {
         title: title.trim(),
         date,
         startTime,
@@ -46,8 +48,12 @@ export default function EventForm({
         location: location.trim(),
         memo: memo.trim(),
         team: finalTeam,
-        createdAt: Date.now(),
-      });
+      };
+      if (eventId) {
+        await updateDoc(doc(db, "events", eventId), data);
+      } else {
+        await setDoc(doc(db, "events", crypto.randomUUID()), { ...data, createdAt: Date.now() });
+      }
       onSaved({ date, startTime, endTime, title: title.trim(), team: finalTeam });
     } finally {
       setBusy(false);
@@ -130,7 +136,7 @@ export default function EventForm({
       )}
 
       <div className="flex gap-2">
-        <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? "등록 중…" : "등록"}</button>
+        <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? (eventId ? "수정 중…" : "등록 중…") : (eventId ? "수정" : "등록")}</button>
         <button onClick={onCancel} className="btn-ghost">취소</button>
       </div>
     </div>
