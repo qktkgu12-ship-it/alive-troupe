@@ -13,8 +13,8 @@ import type { PublicProfile } from "@/lib/types";
 
 // 팀 순서 기반 색상 (schedule 페이지와 동일한 팔레트)
 const TEAM_PALETTE: { border: string; color: string }[] = [
-  { border: "rgb(20,184,166)", color: "rgb(13,148,136)" },
-  { border: "rgb(139,92,246)", color: "rgb(109,40,217)" },
+  { border: "rgb(94,234,212)", color: "rgb(15,118,110)" },   // pastel mint
+  { border: "rgb(196,181,253)", color: "rgb(109,40,217)" },  // pastel violet
 ];
 
 type Member = PublicProfile & { uid: string };

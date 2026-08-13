@@ -96,26 +96,26 @@ function redBorderHeatStyle(count: number, denom: number, max: number) {
   };
 }
 
-// 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라, 이후=회색)
-const TEAM_PALETTE: { border: string; color: string }[] = [
-  { border: "rgb(20,184,166)", color: "rgb(13,148,136)" },   // teal/mint
-  { border: "rgb(139,92,246)", color: "rgb(109,40,217)" },   // violet/purple
+// 팀 순서 기반 색상 팔레트 (첫 번째 팀=파스텔민트, 두 번째 팀=파스텔보라, 이후=회색)
+// border/color: 칩 테두리·텍스트용 / bg: 달력 셀 배경 채우기용
+const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
+  { border: "rgb(94,234,212)", color: "rgb(15,118,110)", bg: "rgba(94,234,212,0.28)" },   // pastel mint
+  { border: "rgb(196,181,253)", color: "rgb(109,40,217)", bg: "rgba(196,181,253,0.35)" }, // pastel violet
 ];
 
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
   const idx = teams.indexOf(team);
   if (idx < 0) return null;
-  return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)" };
+  return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)", bg: "rgba(148,163,184,0.2)" };
 }
 
-// 팀별 이벤트 칩 색상 (인라인 스타일로 적용 — Tailwind purge 우회)
-// 흰 배경 + 지정색 테두리 스타일
+// 팀별 달력 칩 색상 (배경 채우기 — 전체 일정과 동일한 방식, 팀 파스텔 색으로)
 function teamChipStyle(team: string | undefined, teams: string[], passed = false): React.CSSProperties {
   if (passed || !team) return {};
   const c = getTeamColor(team, teams);
   if (!c) return {};
-  return { backgroundColor: "white", border: `1px solid ${c.border}`, color: c.color };
+  return { backgroundColor: c.bg, color: c.color };
 }
 
 // 슬롯 "HH:mm" → "오전/오후 H:mm" 표기
