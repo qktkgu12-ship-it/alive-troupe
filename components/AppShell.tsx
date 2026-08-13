@@ -256,9 +256,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <>
                       {/* 바깥 클릭 시 닫기 */}
                       <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-                      <div className="absolute right-0 top-full z-50 mt-2 w-[min(88vw,280px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(16,24,40,0.25)]">
-                        <p className="px-4 pb-1.5 pt-3 text-xs font-semibold text-slate-400">등록하기</p>
-                        {createItems.map((c) => {
+                      {/* 항상 화면 우상단 고정 (모바일 좌측 치우침 방지) */}
+                      <div className="fixed right-4 top-[60px] z-50 w-[min(88vw,280px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(16,24,40,0.25)]">
+                        {createItems.map((c, i) => {
                           const Icon = c.icon;
                           const inner = (
                             <>
@@ -269,8 +269,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               </span>
                             </>
                           );
-                          const cls =
-                            "flex w-full items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50";
+                          const cls = `flex w-full items-center gap-3 px-4 transition hover:bg-slate-50 ${
+                            i === 0 ? "pt-3 pb-2.5" : i === createItems.length - 1 ? "pt-2.5 pb-3" : "py-2.5"
+                          }`;
                           // 게시판 글쓰기만 페이지 이동, 나머지는 그 자리에서 바텀시트
                           return c.sheet ? (
                             <button
