@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import Spinner from "@/components/Spinner";
 
 export default function PendingPage() {
   const { user, profile, role, loading, signOut, refreshProfile } = useAuth();
@@ -49,8 +50,8 @@ export default function PendingPage() {
 
   if (loading || !user) {
     return (
-      <div className="grid min-h-screen place-items-center text-slate-400">
-        불러오는 중…
+      <div className="grid min-h-screen place-items-center">
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }

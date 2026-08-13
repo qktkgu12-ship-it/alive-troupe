@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Spinner from "@/components/Spinner";
 import {
   collection,
   deleteDoc,
@@ -552,7 +553,7 @@ function CoordSection({
 
       {/* 방 목록 */}
       {loading ? (
-        <div className="card text-center text-sm text-slate-400">불러오는 중…</div>
+        <div className="card flex justify-center py-6"><Spinner /></div>
       ) : coords.length === 0 ? (
         <div className="card">
           <EmptyState icon={CalendarIcon} title="아직 만든 일정방이 없어요." hint="위 버튼으로 첫 일정방을 만들어 보세요." />
@@ -808,7 +809,7 @@ function CoordCreateForm({
             ))}
           </div>
         ) : membersLoading ? (
-          <p className="py-4 text-center text-xs text-slate-400">단원 목록을 불러오는 중…</p>
+          <div className="flex justify-center py-4"><Spinner /></div>
         ) : (
           <>
             <div className="max-h-56 space-y-0.5 overflow-y-auto">

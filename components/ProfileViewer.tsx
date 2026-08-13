@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Avatar from "@/components/Avatar";
+import Spinner from "@/components/Spinner";
 import type { PublicProfile } from "@/lib/types";
 
 type Fallback = { name?: string; avatar?: string };
@@ -104,7 +105,7 @@ export function ProfileViewerProvider({ children }: { children: ReactNode }) {
             )}
 
             {loading ? (
-              <p className="mt-2 text-sm text-slate-400">불러오는 중…</p>
+              <div className="mt-4 flex justify-center"><Spinner /></div>
             ) : data?.bio ? (
               <p className="mt-3 whitespace-pre-wrap text-sm text-slate-600">{data.bio}</p>
             ) : (

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import AppShell from "./AppShell";
+import Spinner from "./Spinner";
 
 function FullScreen({ children }: { children: React.ReactNode }) {
   return (
@@ -40,7 +41,7 @@ export default function Guard({
   if (loading) {
     return (
       <FullScreen>
-        <div className="animate-pulse">불러오는 중…</div>
+        <Spinner className="h-8 w-8" />
       </FullScreen>
     );
   }

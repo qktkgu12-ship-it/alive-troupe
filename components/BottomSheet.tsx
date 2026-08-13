@@ -81,13 +81,13 @@ export default function BottomSheet({
         }}
         className="animate-sheet-up flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-canvas shadow-2xl sm:rounded-2xl"
       >
-        {/* 드래그 핸들 (아래로 끌어 닫기) */}
+        {/* 드래그 핸들 (아래로 끌어 닫기) — 터치 영역 넓게 */}
         <div
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
-          className="flex shrink-0 cursor-grab touch-none flex-col items-center bg-white pb-1 pt-2.5 active:cursor-grabbing"
+          className="flex w-full shrink-0 cursor-grab touch-none flex-col items-center bg-white py-3 active:cursor-grabbing"
         >
           <span className="h-1.5 w-10 rounded-full bg-slate-300" />
         </div>
