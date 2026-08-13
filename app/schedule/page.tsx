@@ -705,7 +705,12 @@ function CoordCreateForm({
   const [membersLoading, setMembersLoading] = useState(false);
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [dates, setDates] = useState<string[]>([]);
-  const [deadline, setDeadline] = useState("");
+  const [deadline, setDeadline] = useState(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
   const [busy, setBusy] = useState(false);
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
@@ -1516,6 +1521,10 @@ function EventsSection({
   openNew?: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
+  // 미니 달력용 그리드
+  const [ym_year, ym_month] = yearMonth.split("-").map(Number);
+  const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
+  const todayStr = toDateStr(new Date());
   const formDate = `${yearMonth}-01`;
   useEffect(() => {
     if (openNew && isAdmin) setShowForm(true);
@@ -1620,6 +1629,42 @@ function EventsSection({
           />
         </BottomSheet>
       )}
+
+      {/* 미니 달력 */}
+      <div className="mb-4 rounded-xl border border-slate-100 p-2">
+        <div className="mb-1 grid grid-cols-7 text-center">
+          {WEEKDAYS_KO.map((w, i) => (
+            <div key={w} className={`text-[10px] font-semibold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{w}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {miniGrid.map((d, i) => {
+            if (!d) return <div key={i} />;
+            const ds = toDateStr(d);
+            const isToday = ds === todayStr;
+            const hasEvent = visibleEvents.some((e) => e.date === ds);
+            const dow = d.getDay();
+            return (
+              <div key={i} className="flex flex-col items-center py-0.5">
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs transition ${
+                  isToday
+                    ? "bg-accent font-bold text-accent-fg"
+                    : dow === 0
+                    ? "text-red-400"
+                    : dow === 6
+                    ? "text-blue-400"
+                    : "text-slate-600"
+                }`}>
+                  {d.getDate()}
+                </div>
+                {hasEvent && (
+                  <div className={`mt-0.5 h-1 w-1 rounded-full ${isToday ? "bg-white/70" : "bg-accent"}`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {visibleEvents.length === 0 ? (
         <EmptyState
