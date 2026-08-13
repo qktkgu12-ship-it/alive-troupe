@@ -96,12 +96,26 @@ function redBorderHeatStyle(count: number, denom: number, max: number) {
   };
 }
 
+// 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라, 이후=회색)
+const TEAM_PALETTE: { border: string; color: string }[] = [
+  { border: "rgb(20,184,166)", color: "rgb(13,148,136)" },   // teal/mint
+  { border: "rgb(139,92,246)", color: "rgb(109,40,217)" },   // violet/purple
+];
+
+function getTeamColor(team: string | undefined, teams: string[]) {
+  if (!team) return null;
+  const idx = teams.indexOf(team);
+  if (idx < 0) return null;
+  return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)" };
+}
+
 // 팀별 이벤트 칩 색상 (인라인 스타일로 적용 — Tailwind purge 우회)
-function teamChipStyle(team?: string, passed = false): React.CSSProperties {
-  if (passed) return {};
-  if (team === "A팀") return { backgroundColor: "rgba(20,184,166,0.18)", color: "rgb(13,148,136)" };
-  if (team === "B팀") return { backgroundColor: "rgba(139,92,246,0.18)", color: "rgb(109,40,217)" };
-  return {};
+// 흰 배경 + 지정색 테두리 스타일
+function teamChipStyle(team: string | undefined, teams: string[], passed = false): React.CSSProperties {
+  if (passed || !team) return {};
+  const c = getTeamColor(team, teams);
+  if (!c) return {};
+  return { backgroundColor: "white", border: `1px solid ${c.border}`, color: c.color };
 }
 
 // 슬롯 "HH:mm" → "오전/오후 H:mm" 표기
@@ -133,9 +147,16 @@ async function shareLink(title: string, url: string) {
 
 // 팀 배지 (전체 공통이면 표시 안 함)
 function TeamBadge({ team, className = "" }: { team?: string; className?: string }) {
+  const { settings } = useTheme();
+  const teams = settings.teams ?? [];
   if (!team) return null;
+  const c = getTeamColor(team, teams);
+  const style: React.CSSProperties = c ? { borderColor: c.border, color: c.color } : {};
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent ${className}`}>
+    <span
+      style={style}
+      className={`inline-flex shrink-0 items-center rounded-full border bg-white px-2 py-0.5 text-[11px] font-semibold ${!c ? "border-slate-200 text-slate-500" : ""} ${className}`}
+    >
       {team}
     </span>
   );
@@ -1673,11 +1694,11 @@ function EventsSection({
                 <div className="space-y-px">
                   {dayEvents.slice(0, 3).map((e) => {
                     const passed = eventPassed(e);
-                    const hasTeamColor = !passed && (e.team === "A팀" || e.team === "B팀");
+                    const hasTeamColor = !passed && !!getTeamColor(e.team, teams);
                     return (
                       <div
                         key={e.id}
-                        style={teamChipStyle(e.team, passed)}
+                        style={teamChipStyle(e.team, teams, passed)}
                         className={`truncate rounded px-0.5 text-[9px] font-medium leading-[13px] ${
                           passed ? "bg-slate-100 text-slate-400" : hasTeamColor ? "" : "bg-accent-soft text-accent"
                         }`}
@@ -1721,7 +1742,7 @@ function EventsSection({
                     <p className="text-[10px] text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
                     <p
                       className="text-base font-extrabold"
-                      style={{ color: e.team === "A팀" ? "rgb(13,148,136)" : e.team === "B팀" ? "rgb(109,40,217)" : "rgb(var(--accent))" }}
+                      style={{ color: getTeamColor(e.team, teams)?.color ?? "rgb(var(--accent))" }}
                     >
                       {d.getDate()}
                     </p>

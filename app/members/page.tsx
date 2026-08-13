@@ -8,12 +8,21 @@ import { ProfileAvatar, useProfileViewer } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonList } from "@/components/Skeleton";
 import { MembersIcon } from "@/components/Icons";
+import { useTheme } from "@/lib/theme-context";
 import type { PublicProfile } from "@/lib/types";
+
+// 팀 순서 기반 색상 (schedule 페이지와 동일한 팔레트)
+const TEAM_PALETTE: { border: string; color: string }[] = [
+  { border: "rgb(20,184,166)", color: "rgb(13,148,136)" },
+  { border: "rgb(139,92,246)", color: "rgb(109,40,217)" },
+];
 
 type Member = PublicProfile & { uid: string };
 
 function MembersInner() {
   const { seed } = useProfileViewer();
+  const { settings } = useTheme();
+  const teams = settings.teams ?? [];
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -83,9 +92,18 @@ function MembersInner() {
                   {m.role === "admin" && (
                     <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">관리자</span>
                   )}
-                  {m.team && (
-                    <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{m.team}</span>
-                  )}
+                  {m.team && (() => {
+                    const idx = teams.indexOf(m.team!);
+                    const c = TEAM_PALETTE[idx] ?? null;
+                    return (
+                      <span
+                        style={c ? { borderColor: c.border, color: c.color } : {}}
+                        className={`shrink-0 rounded-full border bg-white px-1.5 py-0.5 text-[10px] font-semibold ${!c ? "border-slate-200 text-slate-500" : ""}`}
+                      >
+                        {m.team}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-400">
                   {m.bio || "소개글 없음"}

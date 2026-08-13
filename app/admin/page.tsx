@@ -11,6 +11,12 @@ import Avatar from "@/components/Avatar";
 import { ChevronDownIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import type { Production, Role, UserProfile } from "@/lib/types";
 
+// 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라)
+const TEAM_PALETTE: { border: string; color: string }[] = [
+  { border: "rgb(20,184,166)", color: "rgb(13,148,136)" },
+  { border: "rgb(139,92,246)", color: "rgb(109,40,217)" },
+];
+
 // 역할 드롭다운 색상 (관리자=강조색 / 정단원=초록 / 대기=주황)
 const ROLE_SELECT_CLASS: Record<Role, string> = {
   admin: "border-accent/20 bg-accent-soft text-accent",
@@ -241,20 +247,23 @@ function AdminInner() {
                     </p>
                     {u.bio && <p className="truncate text-xs text-slate-400">{u.bio}</p>}
                   </div>
-                  {teams.length > 0 && (
-                    <select
-                      value={u.team ?? ""}
-                      onChange={(e) => changeTeam(u.uid, e.target.value)}
-                      className={`shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold outline-none transition ${
-                        u.team ? "border-accent/20 bg-accent-soft text-accent" : "border-slate-200 bg-white text-slate-400"
-                      }`}
-                    >
-                      <option value="">팀 없음</option>
-                      {teams.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  )}
+                  {teams.length > 0 && (() => {
+                    const idx = u.team ? teams.indexOf(u.team) : -1;
+                    const c = idx >= 0 ? (TEAM_PALETTE[idx] ?? null) : null;
+                    return (
+                      <select
+                        value={u.team ?? ""}
+                        onChange={(e) => changeTeam(u.uid, e.target.value)}
+                        style={c ? { borderColor: c.border, color: c.color } : {}}
+                        className={`shrink-0 cursor-pointer rounded-full border bg-white px-3 py-1.5 text-xs font-semibold outline-none transition ${!c ? "border-slate-200 text-slate-400" : ""}`}
+                      >
+                        <option value="">팀 없음</option>
+                        {teams.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                   <select
                     value={u.role}
                     disabled={isMe}
@@ -355,12 +364,19 @@ function TeamManager() {
       </p>
       {teams.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
-          {teams.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent">
-              {t}
-              <button onClick={() => removeTeam(t)} disabled={busy} aria-label={`${t} 삭제`} className="text-accent/60 hover:text-accent">×</button>
-            </span>
-          ))}
+          {teams.map((t, i) => {
+            const c = TEAM_PALETTE[i] ?? null;
+            return (
+              <span
+                key={t}
+                style={c ? { borderColor: c.border, color: c.color } : {}}
+                className={`inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-semibold ${!c ? "border-slate-200 text-slate-500" : ""}`}
+              >
+                {t}
+                <button onClick={() => removeTeam(t)} disabled={busy} aria-label={`${t} 삭제`} className="opacity-50 hover:opacity-100">×</button>
+              </span>
+            );
+          })}
         </div>
       )}
       <div className="flex gap-2">
