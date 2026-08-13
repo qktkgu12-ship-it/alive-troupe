@@ -24,7 +24,7 @@ import { useCreateSheet } from "@/lib/create-sheet-context";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
-import { CalendarIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CalendarIcon, ClockIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, Coordination, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -734,11 +734,16 @@ function CoordCreateForm({
   const [membersLoading, setMembersLoading] = useState(false);
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [dates, setDates] = useState<string[]>([]);
-  const [deadline, setDeadline] = useState(() => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const [deadlineDate, setDeadlineDate] = useState(() => {
     const d = new Date();
-    d.setSeconds(0, 0);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    d.setMinutes(d.getMinutes() + 10, 0, 0);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
+  const [deadlineTime, setDeadlineTime] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 10, 0, 0);
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
   const [busy, setBusy] = useState(false);
   const [cursor, setCursor] = useState(() => {
@@ -791,7 +796,7 @@ function CoordCreateForm({
         team: audienceMode === "team" ? team : "",
         participantUids: audienceMode === "individual" ? selectedUids : undefined,
         candidateDates: dates,
-        ...(deadline ? { deadline: new Date(deadline).getTime() } : {}),
+        ...(deadlineDate && deadlineTime ? { deadline: new Date(`${deadlineDate}T${deadlineTime}`).getTime() } : {}),
       });
     } finally {
       setBusy(false);
@@ -940,11 +945,50 @@ function CoordCreateForm({
         )}
       </div>
 
-      {/* 마감일 (선택) */}
+      {/* 마감일 */}
       <div className="card !p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">응답 마감</span>
-          <input type="datetime-local" className="field-chip" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        <div className="px-4 py-3.5">
+          <p className="mb-2 text-xs font-semibold text-slate-500">응답 마감</p>
+          {(() => {
+            // 날짜 표시 포맷 (YYYY-MM-DD → "YYYY. M. D. (요일)")
+            const [y, m, d] = deadlineDate.split("-").map(Number);
+            const dt = new Date(y, m - 1, d);
+            const dateDisplay = `${y}. ${m}. ${d}. (${WEEKDAYS_KO[dt.getDay()]})`;
+            // 시간 표시 포맷 (HH:mm → "오전/오후 H:mm")
+            const [h, min] = deadlineTime.split(":").map(Number);
+            const isPM = h >= 12;
+            const hr = h === 12 ? 12 : h % 12 || 12;
+            const timeDisplay = `${isPM ? "오후" : "오전"} ${hr}:${pad(min)}`;
+            return (
+              <div className="flex items-center gap-2.5">
+                <ClockIcon className="h-5 w-5 shrink-0 text-slate-400" />
+                {/* 날짜 탭 — 시스템 날짜 피커 */}
+                <div className="relative cursor-pointer">
+                  <span className="text-[15px] font-medium text-slate-700 underline decoration-dotted underline-offset-2">
+                    {dateDisplay}
+                  </span>
+                  <input
+                    type="date"
+                    value={deadlineDate}
+                    onChange={(e) => setDeadlineDate(e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </div>
+                {/* 시간 탭 — 시스템 시간 피커 */}
+                <div className="relative cursor-pointer">
+                  <span className="text-[15px] font-semibold text-accent underline decoration-dotted underline-offset-2">
+                    {timeDisplay}
+                  </span>
+                  <input
+                    type="time"
+                    value={deadlineTime}
+                    onChange={(e) => setDeadlineTime(e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -1471,17 +1515,17 @@ function CoordDetail({
             ? "아무때나 가능"
             : `${fmtTime(activeSlots[0])} ~ ${fmtTime(slotEnd(activeSlots[activeSlots.length - 1]))}`;
         return (
-          <div className="sticky bottom-4 z-30 flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-[0_10px_24px_-10px_rgba(16,24,40,0.25)]">
-            <div className="min-w-0 flex-1 pr-3">
-              {timeLabel === "아무때나 가능" ? (
-                <p className="text-sm font-bold text-slate-400">⏰ 비워두면 아무때나 가능이에요</p>
-              ) : timeLabel ? (
-                <p className="text-sm font-bold text-slate-800">{timeLabel}</p>
-              ) : (
-                <p className="text-sm text-slate-600">내 가능 날짜 <b className="text-accent">{myDates.length}</b>일</p>
-              )}
-            </div>
-            <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent shrink-0 !px-4 !py-2 !text-sm">
+          <div className="sticky bottom-4 z-30 rounded-2xl bg-white px-4 pb-4 pt-3 shadow-[0_10px_24px_-10px_rgba(16,24,40,0.25)]">
+            <p className="mb-2.5 text-center text-sm text-slate-500">
+              {timeLabel === "아무때나 가능"
+                ? "⏰ 비워두면 아무때나 가능이에요"
+                : timeLabel
+                ? timeLabel
+                : myDates.length > 0
+                ? `내 가능 날짜 ${myDates.length}일 선택됨`
+                : "날짜를 선택해 주세요"}
+            </p>
+            <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent w-full !py-3 !text-base">
               {saving ? "저장 중…" : dirty ? "저장하기" : "저장됨 ✓"}
             </button>
           </div>
@@ -1550,6 +1594,7 @@ function EventsSection({
   openNew?: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   // 달력 그리드
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
@@ -1560,11 +1605,8 @@ function EventsSection({
     if (openNew && isAdmin) setShowForm(true);
   }, [openNew, isAdmin]);
 
-  // 팀 필터 (기본: 내 팀 = 공통 + 내 팀). 빈값이면 전체
-  const [evTeam, setEvTeam] = useState(myTeam);
-  useEffect(() => {
-    setEvTeam(myTeam);
-  }, [myTeam]);
+  // 팀 필터 (기본: 전체). 빈값이면 전체
+  const [evTeam, setEvTeam] = useState("");
   const visibleEvents = events.filter((e) => teams.length === 0 || !evTeam || !e.team || e.team === evTeam);
 
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
@@ -1658,6 +1700,21 @@ function EventsSection({
             }}
             onCancel={() => setShowForm(false)}
           />
+        </BottomSheet>
+      )}
+
+      {/* 수정 BottomSheet */}
+      {isAdmin && (
+        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)}>
+          {editEvent && (
+            <EventForm
+              key={editEvent.id}
+              eventId={editEvent.id}
+              initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo }}
+              onSaved={() => { setEditEvent(null); onChanged(); }}
+              onCancel={() => setEditEvent(null)}
+            />
+          )}
         </BottomSheet>
       )}
 
@@ -1771,9 +1828,14 @@ function EventsSection({
                     {!past && <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />}
                   </div>
                   {isAdmin && (
-                    <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-300 transition hover:text-red-500">
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
+                    <div className="mt-0.5 flex shrink-0 gap-0.5">
+                      <button onClick={() => setEditEvent(e)} aria-label="수정" className="grid h-7 w-7 place-items-center rounded-md text-slate-300 transition hover:text-accent">
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 place-items-center rounded-md text-slate-300 transition hover:text-red-500">
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               );
