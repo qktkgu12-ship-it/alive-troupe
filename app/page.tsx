@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import DateBadge from "@/components/DateBadge";
 import EventMeta from "@/components/EventMeta";
@@ -12,6 +13,18 @@ import { ProfileName } from "@/components/ProfileViewer";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
+
+// 팀 순서 기반 색상 팔레트 (schedule·members·admin 동일)
+const TEAM_PALETTE: { border: string; color: string }[] = [
+  { border: "rgb(94,234,212)", color: "rgb(15,118,110)" },
+  { border: "rgb(196,181,253)", color: "rgb(109,40,217)" },
+];
+function getTeamColor(team: string | undefined, teams: string[]) {
+  if (!team) return null;
+  const idx = teams.indexOf(team);
+  if (idx < 0) return null;
+  return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)" };
+}
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -48,6 +61,8 @@ const FEATURES = [
 
 function HomeInner() {
   const { profile, role } = useAuth();
+  const { settings } = useTheme();
+  const teams = settings.teams ?? [];
   const now = new Date();
   const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
@@ -79,8 +94,8 @@ function HomeInner() {
       .catch(() => setRecentPosts([]));
   }, []);
 
-  // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이면 전체
-  const myTeam = profile?.team ?? "";
+  // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이거나 관리자면 전체
+  const myTeam = role === "admin" ? "" : (profile?.team ?? "");
   const shownEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam).slice(0, 4);
 
   return (
@@ -124,7 +139,17 @@ function HomeInner() {
                     </p>
                     <div className="flex items-center gap-1.5">
                       <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
-                      {e.team && <span className="inline-flex shrink-0 items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">{e.team}</span>}
+                      {e.team && (() => {
+                        const c = getTeamColor(e.team, teams);
+                        return (
+                          <span
+                            style={c ? { borderColor: c.border, color: c.color } : {}}
+                            className={`inline-flex shrink-0 items-center rounded-full border bg-white px-2 py-0.5 text-[11px] font-semibold ${!c ? "border-slate-200 text-slate-500" : ""}`}
+                          >
+                            {e.team}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
                     {e.memo && (
@@ -146,10 +171,20 @@ function HomeInner() {
                       href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
                       className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-black/[0.03]"
                     >
-                      <span className="shrink-0 font-bold text-accent">{dt.getMonth() + 1}.{dt.getDate()}</span>
+                      <span className="shrink-0 font-bold text-slate-800">{dt.getMonth() + 1}.{dt.getDate()}</span>
                       <span className="shrink-0 text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
                       <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{e.title}</span>
-                      {e.team && <span className="shrink-0 font-semibold text-accent/70">{e.team}</span>}
+                      {e.team && (() => {
+                        const c = getTeamColor(e.team, teams);
+                        return (
+                          <span
+                            style={c ? { color: c.color } : {}}
+                            className={`shrink-0 text-xs font-semibold ${!c ? "text-slate-400" : ""}`}
+                          >
+                            {e.team}
+                          </span>
+                        );
+                      })()}
                       <span className="shrink-0 text-slate-400">{ddayLabel(e.date)}</span>
                     </Link>
                   );
