@@ -1681,10 +1681,22 @@ function EventsSection({
             return (
               <div
                 key={i}
-                onClick={() => dayEvents.length > 0 && setSelectedDate(isSelected ? null : ds)}
-                className={`min-h-[88px] cursor-default border-t border-slate-100 p-1 transition ${
+                onClick={() => {
+                  if (dayEvents.length === 0) return;
+                  const next = isSelected ? null : ds;
+                  setSelectedDate(next);
+                  if (next) {
+                    setTimeout(() => {
+                      const firstId = dayEvents[0]?.id;
+                      if (firstId) {
+                        document.getElementById(`ev-${firstId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }
+                    }, 60);
+                  }
+                }}
+                className={`relative min-h-[88px] cursor-default border-t border-slate-100 p-1 transition ${
                   dayEvents.length > 0 ? "cursor-pointer" : ""
-                } ${isSelected ? "bg-accent-soft/40" : ""}`}
+                } ${isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""}`}
               >
                 <div className={`mb-1 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
                   isToday ? "bg-accent text-accent-fg" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-slate-700"
