@@ -976,7 +976,7 @@ function CoordCreateForm({
                 </div>
                 {/* 시간 탭 — 시스템 시간 피커 */}
                 <div className="relative cursor-pointer">
-                  <span className="text-[15px] font-semibold text-accent underline decoration-dotted underline-offset-2">
+                  <span className="text-[15px] font-medium text-slate-700 underline decoration-dotted underline-offset-2">
                     {timeDisplay}
                   </span>
                   <input
@@ -1029,6 +1029,12 @@ function CoordDetail({
   const closed = !!coord.deadline && Date.now() > coord.deadline;
   const done = coord.status === "done";
   const locked = closed || done;
+  // 응답 가능 여부: 개별 지정이면 포함된 uid만, 팀 지정이면 해당 팀만, 전체면 누구나
+  const isParticipant = isAdmin || (
+    coord.participantUids && coord.participantUids.length > 0
+      ? coord.participantUids.includes(uid)
+      : !coord.team || !myTeam || coord.team === myTeam
+  );
 
   const [allAvail, setAllAvail] = useState<Availability[]>([]);
   const [myDates, setMyDates] = useState<string[]>([]);
@@ -1145,7 +1151,7 @@ function CoordDetail({
 
   // ----- 내 가능 날짜 편집 (후보 날짜 중에서만) -----
   function toggleMyDate(ds: string) {
-    if (locked || !candidates.includes(ds)) return;
+    if (locked || !isParticipant || !candidates.includes(ds)) return;
     setMyDates((prev) => (prev.includes(ds) ? prev.filter((d) => d !== ds) : [...prev, ds].sort()));
     setSlotsByDate((s) => {
       if (!myDates.includes(ds)) return s;
@@ -1158,7 +1164,7 @@ function CoordDetail({
 
   // 타임바 범위 선택: 첫 탭=앵커, 두 번째 탭=앵커~현재 사이 채우기/비우기
   function tapSlot(slot: string) {
-    if (!activeDate || locked) return;
+    if (!activeDate || locked || !isParticipant) return;
     if (rangeAnchor === null) {
       setRangeAnchor(slot);
     } else if (rangeAnchor === slot) {
@@ -1183,7 +1189,7 @@ function CoordDetail({
 
   // 해제: 현재 날짜 시간 슬롯 전부 초기화 (날짜 가능 표시는 유지 = 아무때나 가능)
   function clearSlots() {
-    if (!activeDate || locked) return;
+    if (!activeDate || locked || !isParticipant) return;
     setSlotsByDate((prev) => ({ ...prev, [activeDate]: [] }));
     setRangeAnchor(null);
     setDirty(true);
@@ -1365,7 +1371,7 @@ function CoordDetail({
               <div className="relative h-full w-full">
                 <button
                   onClick={() => {
-                    if (locked) { setActiveDate(active ? null : ds); return; }
+                    if (locked || !isParticipant) { setActiveDate(active ? null : ds); return; }
                     if (active) {
                       // 두 번째 탭: 패널 닫기 + 가능 해제
                       setActiveDate(null);
@@ -1405,6 +1411,8 @@ function CoordDetail({
         <p className="mt-3 text-xs text-slate-400">
           {locked
             ? "응답이 마감된 일정방이에요."
+            : !isParticipant
+            ? "이 일정방의 응답 대상이 아니에요."
             : "후보 날짜를 탭하면 가능으로 표시돼요. 테두리가 진빨간색일수록 가능 인원이 많아요."}
         </p>
       </div>
@@ -1427,7 +1435,7 @@ function CoordDetail({
               </span>
             </div>
 
-            {!locked && mine && (
+            {!locked && isParticipant && mine && (
               <div className="space-y-2 border-t border-slate-100 pt-3">
                 <div className="flex items-center justify-end gap-2">
                   {rangeAnchor && (
@@ -1506,7 +1514,7 @@ function CoordDetail({
       )}
 
       {/* 저장 바 — 스크롤해도 화면에 고정, 선택 시간 범위 표시 */}
-      {!locked && (() => {
+      {!locked && isParticipant && (() => {
         const activeMine = activeDate && myDates.includes(activeDate);
         const activeSlots = activeMine ? [...(slotsByDate[activeDate!] ?? [])].sort() : null;
         const timeLabel = activeSlots === null
