@@ -97,7 +97,7 @@ export const LinkIcon = makeIcon(
   <>
     {/* 복사 아이콘 — 뒤 사각형(획만), 앞 사각형(흰 배경으로 덮음) */}
     <rect x="2" y="2" width="13" height="13" rx="3.5" />
-    <rect x="9" y="9" width="13" height="13" rx="3.5" fill="white" />
+    <rect x="7" y="7" width="13" height="13" rx="3.5" fill="white" />
   </>
 );
 
