@@ -95,9 +95,9 @@ export const PlusIcon = makeIcon(<path d="M12 5v14M5 12h14" />);
 
 export const LinkIcon = makeIcon(
   <>
-    {/* 복사 아이콘 (같은 크기 두 사각형) */}
-    <rect x="3" y="3" width="12" height="12" rx="2" />
-    <rect x="9" y="9" width="12" height="12" rx="2" />
+    {/* 복사 아이콘 — 뒤 사각형(획만), 앞 사각형(흰 배경으로 덮음) */}
+    <rect x="2" y="2" width="13" height="13" rx="3.5" />
+    <rect x="9" y="9" width="13" height="13" rx="3.5" fill="white" />
   </>
 );
 
