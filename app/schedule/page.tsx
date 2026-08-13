@@ -96,6 +96,14 @@ function redBorderHeatStyle(count: number, denom: number, max: number) {
   };
 }
 
+// 팀별 이벤트 칩 색상 (인라인 스타일로 적용 — Tailwind purge 우회)
+function teamChipStyle(team?: string, passed = false): React.CSSProperties {
+  if (passed) return {};
+  if (team === "A팀") return { backgroundColor: "rgba(20,184,166,0.18)", color: "rgb(13,148,136)" };
+  if (team === "B팀") return { backgroundColor: "rgba(139,92,246,0.18)", color: "rgb(109,40,217)" };
+  return {};
+}
+
 // 슬롯 "HH:mm" → "오전/오후 H:mm" 표기
 function fmtTime(s: string) {
   const [h, m] = s.split(":").map(Number);
@@ -1663,16 +1671,21 @@ function EventsSection({
                   {d.getDate()}
                 </div>
                 <div className="space-y-px">
-                  {dayEvents.slice(0, 3).map((e) => (
-                    <div
-                      key={e.id}
-                      className={`truncate rounded px-0.5 text-[9px] font-medium leading-[13px] ${
-                        eventPassed(e) ? "bg-slate-100 text-slate-400" : "bg-accent-soft text-accent"
-                      }`}
-                    >
-                      {e.title}
-                    </div>
-                  ))}
+                  {dayEvents.slice(0, 3).map((e) => {
+                    const passed = eventPassed(e);
+                    const hasTeamColor = !passed && (e.team === "A팀" || e.team === "B팀");
+                    return (
+                      <div
+                        key={e.id}
+                        style={teamChipStyle(e.team, passed)}
+                        className={`truncate rounded px-0.5 text-[9px] font-medium leading-[13px] ${
+                          passed ? "bg-slate-100 text-slate-400" : hasTeamColor ? "" : "bg-accent-soft text-accent"
+                        }`}
+                      >
+                        {e.title}
+                      </div>
+                    );
+                  })}
                   {dayEvents.length > 3 && (
                     <div className="px-0.5 text-[9px] font-medium text-slate-400">+{dayEvents.length - 3}</div>
                   )}
@@ -1706,7 +1719,12 @@ function EventsSection({
                   {/* 날짜 배지 */}
                   <div className="w-7 shrink-0 text-center leading-none pt-0.5">
                     <p className="text-[10px] text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
-                    <p className="text-base font-extrabold text-accent">{d.getDate()}</p>
+                    <p
+                      className="text-base font-extrabold"
+                      style={{ color: e.team === "A팀" ? "rgb(13,148,136)" : e.team === "B팀" ? "rgb(109,40,217)" : "rgb(var(--accent))" }}
+                    >
+                      {d.getDate()}
+                    </p>
                   </div>
                   {/* 내용 */}
                   <div className="min-w-0 flex-1">
