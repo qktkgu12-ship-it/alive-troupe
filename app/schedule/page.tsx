@@ -1521,7 +1521,8 @@ function EventsSection({
   openNew?: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
-  // 미니 달력용 그리드
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // 달력 그리드
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
   const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
   const todayStr = toDateStr(new Date());
@@ -1636,21 +1637,28 @@ function EventsSection({
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/60">
           {WEEKDAYS_KO.map((w, i) => (
-            <div key={w} className={`py-2 text-center text-[10px] font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{w}</div>
+            <div key={w} className={`py-2 text-center text-[11px] font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{w}</div>
           ))}
         </div>
         {/* 날짜 셀 */}
         <div className="grid grid-cols-7">
           {miniGrid.map((d, i) => {
-            if (!d) return <div key={i} className="min-h-[70px] border-t border-slate-50" />;
+            if (!d) return <div key={i} className="min-h-[88px] border-t border-slate-100" />;
             const ds = toDateStr(d);
             const isToday = ds === todayStr;
+            const isSelected = ds === selectedDate;
             const dayEvents = visibleEvents.filter((e) => e.date === ds);
             const dow = d.getDay();
             return (
-              <div key={i} className={`min-h-[70px] border-t border-slate-100 p-0.5 ${i % 7 !== 0 ? "border-l border-slate-100" : ""}`}>
-                <div className={`mb-0.5 mx-auto flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-medium ${
-                  isToday ? "bg-accent font-bold text-accent-fg" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-slate-500"
+              <div
+                key={i}
+                onClick={() => dayEvents.length > 0 && setSelectedDate(isSelected ? null : ds)}
+                className={`min-h-[88px] cursor-default border-t border-slate-100 p-1 transition ${
+                  dayEvents.length > 0 ? "cursor-pointer" : ""
+                } ${isSelected ? "bg-accent-soft/40" : ""}`}
+              >
+                <div className={`mb-1 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
+                  isToday ? "bg-accent text-accent-fg" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-slate-700"
                 }`}>
                   {d.getDate()}
                 </div>
@@ -1692,7 +1700,7 @@ function EventsSection({
                   key={e.id}
                   id={`ev-${e.id}`}
                   className={`flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm transition ${
-                    highlightId === e.id ? "ring-2 ring-accent" : ""
+                    highlightId === e.id || date === selectedDate ? "ring-2 ring-accent" : ""
                   } ${past ? "opacity-50" : ""}`}
                 >
                   {/* 날짜 배지 */}
