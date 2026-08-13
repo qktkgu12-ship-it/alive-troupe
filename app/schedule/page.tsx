@@ -353,8 +353,8 @@ function TimeRangeBar({
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-4">
       <div className="w-max">
-        {/* 1시간 단위 레이블 */}
-        <div className="flex">
+        {/* 1시간 단위 레이블 — 틱 중앙 정렬 */}
+        <div className="relative flex h-5">
           {hours.map((h, i) => {
             const n = Number(h);
             const isPM = n >= 12;
@@ -362,16 +362,20 @@ function TimeRangeBar({
             const prevIsPM = i > 0 ? Number(hours[i - 1]) >= 12 : null;
             const label = prevIsPM === null || prevIsPM !== isPM ? `${isPM ? "오후" : "오전"} ${disp}시` : `${disp}시`;
             return (
-              <div key={h} className="w-[52px] shrink-0">
-                <span className="block whitespace-nowrap text-[10px] font-semibold text-slate-400">{label}</span>
+              <div key={h} className="relative w-[52px] shrink-0">
+                <span className={`absolute bottom-0 whitespace-nowrap text-[11px] font-semibold text-slate-500 ${
+                  i === 0 ? "left-0" : "left-0 -translate-x-1/2"
+                }`}>
+                  {label}
+                </span>
               </div>
             );
           })}
         </div>
 
-        {/* 막대 + 위아래 6px 돌출 틱마크 */}
-        <div className="relative pb-[6px] pt-[6px]">
-          {/* 1자 막대: 시간 경계 실선, 30분 경계 점선 */}
+        {/* 막대 + 상단 6px 돌출 틱마크 */}
+        <div className="relative pt-[6px]">
+          {/* 막대: 30분 경계 점선만, 시간 경계 실선은 틱으로만 표시 */}
           <div className="flex h-10 overflow-hidden rounded-lg border border-slate-200">
             {hours.map((h, i) => {
               const s0 = `${h}:00`;
@@ -381,7 +385,7 @@ function TimeRangeBar({
               const isAnchor0 = anchor === s0;
               const isAnchor1 = anchor === s1;
               return (
-                <div key={h} className={`flex h-full w-[52px] shrink-0${i > 0 ? " border-l-2 border-slate-300" : ""}`}>
+                <div key={h} className="flex h-full w-[52px] shrink-0">
                   {/* :00 슬롯 */}
                   <button
                     type="button"
@@ -409,14 +413,14 @@ function TimeRangeBar({
             })}
           </div>
 
-          {/* 시간 경계 틱마크 — 막대 위아래 6px 돌출 */}
-          <div className="pointer-events-none absolute inset-x-0 inset-y-0 flex">
+          {/* 시간 경계 틱마크 — 상단 6px 돌출, 하단은 막대 바닥에 맞춤 */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 flex">
             {hours.map((h, i) =>
               i === 0 ? (
                 <div key={h} className="w-[52px] shrink-0" />
               ) : (
                 <div key={h} className="relative w-[52px] shrink-0">
-                  <div className="absolute inset-y-0 left-0 w-[2px] rounded-full bg-slate-400" />
+                  <div className="absolute bottom-0 left-[-1px] top-0 w-[2px] rounded-t-full bg-slate-400" />
                 </div>
               )
             )}
@@ -674,7 +678,11 @@ function CoordSection({
       <BottomSheet open={!!createdCoord} onClose={() => setCreatedId(null)}>
         {createdCoord && (
           <div className="space-y-4 text-center">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-2xl text-emerald-600">✓</span>
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9">
+                <path d="M4 13l5 5L20 7" />
+              </svg>
+            </span>
             <div>
               <p className="text-xl font-bold text-slate-900">일정방을 만들었어요</p>
               <p className="mt-1 text-sm text-slate-500">단원들에게 링크를 공유해 가능한 날짜를 받아보세요.</p>
