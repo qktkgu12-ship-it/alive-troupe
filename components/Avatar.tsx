@@ -16,9 +16,9 @@ export default function Avatar({
     <div className={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef0f3] ${className}`}>
       <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
         {/* 머리 */}
-        <circle cx="50" cy="36" r="18" fill="#b8bec9" />
-        {/* 어깨 — 반원 */}
-        <path d="M5 100 A45 45 0 0 1 95 100 Z" fill="#b8bec9" />
+        <circle cx="50" cy="32" r="16" fill="#b8bec9" />
+        {/* 어깨 — 반원 (간격 확보) */}
+        <path d="M8 100 A42 42 0 0 1 92 100 Z" fill="#b8bec9" />
       </svg>
     </div>
   );

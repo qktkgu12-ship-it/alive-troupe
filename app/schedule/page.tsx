@@ -1580,9 +1580,10 @@ function EventsSection({
   }
 
   return (
-    <div className="card">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <div className="space-y-4">
+      {/* 헤더: 월 이동 + 추가 버튼 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
           <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
           <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
           <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
@@ -1599,9 +1600,9 @@ function EventsSection({
         )}
       </div>
 
-      {/* 팀 필터 (팀이 있을 때만) — 기본 내 팀, '전체'로 전환 가능 */}
+      {/* 팀 필터 */}
       {teams.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
             <button
               key={val || "all"}
@@ -1630,91 +1631,94 @@ function EventsSection({
         </BottomSheet>
       )}
 
-      {/* 미니 달력 */}
-      <div className="mb-4 rounded-xl border border-slate-100 p-2">
-        <div className="mb-1 grid grid-cols-7 text-center">
+      {/* 풀 캘린더 */}
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/60">
           {WEEKDAYS_KO.map((w, i) => (
-            <div key={w} className={`text-[10px] font-semibold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{w}</div>
+            <div key={w} className={`py-2 text-center text-[10px] font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{w}</div>
           ))}
         </div>
+        {/* 날짜 셀 */}
         <div className="grid grid-cols-7">
           {miniGrid.map((d, i) => {
-            if (!d) return <div key={i} />;
+            if (!d) return <div key={i} className="min-h-[70px] border-t border-slate-50" />;
             const ds = toDateStr(d);
             const isToday = ds === todayStr;
-            const hasEvent = visibleEvents.some((e) => e.date === ds);
+            const dayEvents = visibleEvents.filter((e) => e.date === ds);
             const dow = d.getDay();
             return (
-              <div key={i} className="flex flex-col items-center py-0.5">
-                <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs transition ${
-                  isToday
-                    ? "bg-accent font-bold text-accent-fg"
-                    : dow === 0
-                    ? "text-red-400"
-                    : dow === 6
-                    ? "text-blue-400"
-                    : "text-slate-600"
+              <div key={i} className={`min-h-[70px] border-t border-slate-100 p-0.5 ${i % 7 !== 0 ? "border-l border-slate-100" : ""}`}>
+                <div className={`mb-0.5 mx-auto flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-medium ${
+                  isToday ? "bg-accent font-bold text-accent-fg" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-slate-500"
                 }`}>
                   {d.getDate()}
                 </div>
-                {hasEvent && (
-                  <div className={`mt-0.5 h-1 w-1 rounded-full ${isToday ? "bg-white/70" : "bg-accent"}`} />
-                )}
+                <div className="space-y-px">
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <div
+                      key={e.id}
+                      className={`truncate rounded px-0.5 text-[9px] font-medium leading-[13px] ${
+                        eventPassed(e) ? "bg-slate-100 text-slate-400" : "bg-accent-soft text-accent"
+                      }`}
+                    >
+                      {e.title}
+                    </div>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <div className="px-0.5 text-[9px] font-medium text-slate-400">+{dayEvents.length - 3}</div>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
+      {/* 일정 리스트 (간소화) */}
       {visibleEvents.length === 0 ? (
         <EmptyState
           icon={CalendarIcon}
           title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."}
         />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-1.5">
           {groups.map(([date, evs]) => {
             const d = new Date(date + "T00:00:00");
-            return (
-              <div key={date} className="flex gap-3">
-                {/* 날짜 (왼쪽, 하루 1번) */}
-                <div className="w-9 shrink-0 pt-1.5 text-center leading-none">
-                  <p className="text-[11px] font-medium text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
-                  <p className="mt-1 text-2xl font-extrabold text-accent">{d.getDate()}</p>
+            return evs.map((e) => {
+              const past = eventPassed(e);
+              return (
+                <div
+                  key={e.id}
+                  id={`ev-${e.id}`}
+                  className={`flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm transition ${
+                    highlightId === e.id ? "ring-2 ring-accent" : ""
+                  } ${past ? "opacity-50" : ""}`}
+                >
+                  {/* 날짜 배지 */}
+                  <div className="w-7 shrink-0 text-center leading-none pt-0.5">
+                    <p className="text-[10px] text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
+                    <p className="text-base font-extrabold text-accent">{d.getDate()}</p>
+                  </div>
+                  {/* 내용 */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <p className="truncate text-sm font-semibold text-slate-900">{e.title}</p>
+                      <TeamBadge team={e.team} />
+                      {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
+                    </div>
+                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="text-xs text-slate-400" />
+                    {e.memo && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{e.memo}</p>}
+                    {!past && <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />}
+                  </div>
+                  {isAdmin && (
+                    <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-300 transition hover:text-red-500">
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
-                {/* 그 날 일정 카드들 */}
-                <div className="min-w-0 flex-1 space-y-2">
-                  {evs.map((e) => {
-                    const past = eventPassed(e);
-                    return (
-                      <div
-                        key={e.id}
-                        id={`ev-${e.id}`}
-                        className={`rounded-xl bg-white p-3 shadow-[0_1px_3px_rgba(16,24,40,0.05),0_6px_16px_-8px_rgba(16,24,40,0.12)] transition ${
-                          highlightId === e.id ? "ring-2 ring-accent" : ""
-                        } ${past ? "opacity-55" : ""}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                            <p className="min-w-0 truncate font-semibold">{e.title}</p>
-                            <TeamBadge team={e.team} />
-                            {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
-                          </div>
-                          {isAdmin && (
-                            <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:text-red-500">
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                        <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-0.5 text-sm text-slate-500" />
-                        {e.memo && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>}
-                        {!past && <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
+              );
+            });
           })}
         </div>
       )}
