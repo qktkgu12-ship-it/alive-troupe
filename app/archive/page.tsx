@@ -59,27 +59,77 @@ function CopyBtn({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent
 }
 
 
-// 영상 칩들 (라벨이 비면 '영상 N') — ▶ 재생 아이콘으로 '눌러서 보기' 표시
+// 영상 칩들 (재생 전용 — 복사는 카드 하단 MultiCopyBtn 에서)
 function ClipChips({ clips }: { clips: ArchiveClip[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {clips.map((c, i) => (
-        <div key={i} className="inline-flex items-center gap-0.5">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openLink(c.url);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
-          >
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-              <path d="M3 2l7 4-7 4z" />
-            </svg>
-            {c.label || `영상 ${i + 1}`}
-          </button>
-          <CopyBtn url={c.url} />
-        </div>
+        <button
+          key={i}
+          onClick={(e) => {
+            e.stopPropagation();
+            openLink(c.url);
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
+        >
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+            <path d="M3 2l7 4-7 4z" />
+          </svg>
+          {c.label || `영상 ${i + 1}`}
+        </button>
       ))}
+    </div>
+  );
+}
+
+// 다중 링크 복사 버튼 — 탭하면 클립 목록 팝업, 선택 시 해당 URL 복사
+function MultiCopyBtn({ clips }: { clips: ArchiveClip[] }) {
+  const [open, setOpen] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function copy(url: string, idx: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedIdx(idx);
+      setTimeout(() => { setCopiedIdx(null); setOpen(false); }, 1500);
+    });
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        aria-label="링크 복사"
+        className={`grid h-8 w-8 place-items-center rounded-lg transition ${open ? "bg-slate-100 text-slate-700" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}
+      >
+        <LinkIcon className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute bottom-full right-0 z-20 mb-1 min-w-[140px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          {clips.map((c, i) => (
+            <button
+              key={i}
+              onClick={(e) => copy(c.url, i, e)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              {copiedIdx === i
+                ? <CheckIcon className="h-3.5 w-3.5 shrink-0 text-green-500" />
+                : <LinkIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+              <span className="truncate">{c.label || `영상 ${i + 1}`}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -336,7 +386,7 @@ function ArchiveInner() {
                   </span>
                 )}
                 <div className="flex shrink-0 items-center gap-1">
-                  {!multi && clips[0] && <CopyBtn url={clips[0].url} />}
+                  {multi ? <MultiCopyBtn clips={clips} /> : clips[0] ? <CopyBtn url={clips[0].url} /> : null}
                   {canDelete(it) && (
                     <>
                       <button
@@ -416,7 +466,7 @@ function ArchiveInner() {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                {!multi && clips[0] && <CopyBtn url={clips[0].url} />}
+                {multi ? <MultiCopyBtn clips={clips} /> : clips[0] ? <CopyBtn url={clips[0].url} /> : null}
                 {canDelete(it) && (
                   <>
                     <button
