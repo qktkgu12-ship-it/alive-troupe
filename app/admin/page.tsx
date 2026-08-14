@@ -254,8 +254,8 @@ function AdminInner() {
                       <select
                         value={u.team ?? ""}
                         onChange={(e) => changeTeam(u.uid, e.target.value)}
-                        style={c ? { borderColor: c.border, color: c.color } : {}}
-                        className={`shrink-0 cursor-pointer rounded-full border bg-white px-3 py-1.5 text-xs font-semibold outline-none transition ${!c ? "border-slate-200 text-slate-400" : ""}`}
+                        style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                        className={`shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold outline-none transition ${!c ? "bg-slate-100 text-slate-400" : ""}`}
                       >
                         <option value="">팀 없음</option>
                         {teams.map((t) => (

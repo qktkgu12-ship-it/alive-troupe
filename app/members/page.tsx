@@ -97,8 +97,8 @@ function MembersInner() {
                     const c = TEAM_PALETTE[idx] ?? null;
                     return (
                       <span
-                        style={c ? { borderColor: c.border, color: c.color } : {}}
-                        className={`shrink-0 rounded-full border bg-white px-1.5 py-0.5 text-[10px] font-semibold ${!c ? "border-slate-200 text-slate-500" : ""}`}
+                        style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${!c ? "bg-slate-100 text-slate-500" : ""}`}
                       >
                         {m.team}
                       </span>
