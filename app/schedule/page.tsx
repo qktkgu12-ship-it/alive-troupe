@@ -621,7 +621,7 @@ function CoordSection({
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                     done ? "bg-emerald-50 text-emerald-700" : "bg-yellow-50 text-yellow-600"
                   }`}>
-                    {done ? "✓ 확정" : "🟡 진행 중"}
+                    {done ? "✓ 확정" : <><span className="mr-1 inline-block h-2 w-2 rounded-full bg-yellow-400" />진행 중</>}
                   </span>
                 </div>
 
@@ -652,14 +652,14 @@ function CoordSection({
 
                 {/* 액션 */}
                 <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); shareLink(c.title, linkOf(c.id)); }}
-                    className="flex items-center gap-1.5 text-xs font-medium text-slate-400 transition hover:text-slate-600"
-                  >
-                    <ShareIcon className="h-3.5 w-3.5" />
-                    {done ? "확정 링크 공유" : "링크 공유"}
-                  </button>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); shareLink(c.title, linkOf(c.id)); }}
+                      className="flex items-center gap-1.5 text-xs font-medium text-slate-400 transition hover:text-slate-600"
+                    >
+                      <ShareIcon className="h-3.5 w-3.5" />
+                      {done ? "확정 링크 공유" : "링크 공유"}
+                    </button>
                     {(isAdmin || c.createdBy === uid) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); removeCoord(c); }}
@@ -669,7 +669,9 @@ function CoordSection({
                         <TrashIcon className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    <span className="pl-1 text-sm text-slate-300">›</span>
+                  </div>
+                  <div className="grid h-8 w-8 place-items-center rounded-full text-slate-400">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                   </div>
                 </div>
               </div>
@@ -1289,7 +1291,7 @@ function CoordDetail({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span className={`text-xs font-semibold ${done ? "text-emerald-600" : closed ? "text-slate-400" : "text-yellow-500"}`}>
-            {done ? "✓ 확정됨" : closed ? "응답 마감" : "🟡 진행 중"}
+            {done ? "✓ 확정됨" : closed ? "응답 마감" : <><span className="mr-1 inline-block h-2 w-2 rounded-full bg-yellow-400" />진행 중</>}
           </span>
           <AudienceBadge coord={coord} />
         </div>
