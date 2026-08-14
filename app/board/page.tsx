@@ -304,7 +304,7 @@ function BoardInner() {
             }}
             placeholder="검색할 단어 입력"
           />
-          <button onClick={runSearch} className="btn-accent shrink-0">
+          <button onClick={runSearch} className="shrink-0 rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#243258]">
             검색
           </button>
         </div>

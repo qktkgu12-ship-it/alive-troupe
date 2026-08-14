@@ -287,7 +287,7 @@ function PostDetailInner() {
             </label>
           )}
           <div className="flex gap-2">
-            <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? "저장 중…" : "저장"}</button>
+            <button onClick={save} disabled={busy} className="flex-1 rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">{busy ? "저장 중…" : "저장"}</button>
             <button onClick={() => setEditing(false)} className="btn-ghost">취소</button>
           </div>
         </div>
@@ -482,7 +482,7 @@ function PostDetailInner() {
                               }
                             }}
                           />
-                          <button onClick={() => submitReply(c.id)} disabled={commentBusy || !replyText.trim()} className="btn-accent">
+                          <button onClick={() => submitReply(c.id)} disabled={commentBusy || !replyText.trim()} className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">
                             등록
                           </button>
                         </div>
@@ -511,7 +511,7 @@ function PostDetailInner() {
                 }
               }}
             />
-            <button onClick={addComment} disabled={commentBusy || !commentText.trim()} className="btn-accent">
+            <button onClick={addComment} disabled={commentBusy || !commentText.trim()} className="rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">
               등록
             </button>
           </div>
