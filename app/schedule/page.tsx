@@ -118,13 +118,12 @@ function teamChipStyle(team: string | undefined, teams: string[], passed = false
   return { backgroundColor: c.bg, color: c.color };
 }
 
-// 슬롯 "HH:mm" → "오전/오후 H:mm" 표기
+// 슬롯 "HH:mm" → "H:mm" 표기 (오전/오후 생략)
 function fmtTime(s: string) {
   const [h, m] = s.split(":").map(Number);
   if (h >= 24) return "24:00";
-  const isPM = h >= 12;
   const disp = h === 12 ? 12 : h % 12;
-  return `${isPM ? "오후" : "오전"} ${disp}:${String(m).padStart(2, "0")}`;
+  return `${disp}:${String(m).padStart(2, "0")}`;
 }
 
 // 휴대폰 공유창 (미지원 브라우저는 링크 복사로 대체)
@@ -357,10 +356,8 @@ function TimeRangeBar({
         <div className="relative flex h-5">
           {hours.map((h, i) => {
             const n = Number(h);
-            const isPM = n >= 12;
             const disp = n === 12 ? 12 : n % 12;
-            const prevIsPM = i > 0 ? Number(hours[i - 1]) >= 12 : null;
-            const label = prevIsPM === null || prevIsPM !== isPM ? `${isPM ? "오후" : "오전"} ${disp}시` : `${disp}시`;
+            const label = n === 12 ? "정오" : `${disp}시`;
             return (
               <div key={h} className="relative w-[52px] shrink-0">
                 <span className={`absolute bottom-0 whitespace-nowrap text-[11px] font-semibold text-slate-500 ${
@@ -371,6 +368,12 @@ function TimeRangeBar({
               </div>
             );
           })}
+          {/* 자정 라벨 — 타임바 맨 끝 */}
+          <div className="relative w-0 shrink-0">
+            <span className="absolute bottom-0 left-0 -translate-x-full whitespace-nowrap text-[11px] font-semibold text-slate-500">
+              자정
+            </span>
+          </div>
         </div>
 
         {/* 막대 + 상단 6px 돌출 틱마크 */}
@@ -548,26 +551,20 @@ function CoordSection({
     if (room) setOpenId(room);
   }, []);
 
-  if (openCoord) {
-    return (
-      <CoordDetail
-        coord={openCoord}
-        isAdmin={isAdmin}
-        uid={uid}
-        myName={myName}
-        myAvatar={myAvatar}
-        myTeam={myTeam}
-        denom={denomOf(openCoord)}
-        onBack={() => {
-          setOpenId(null);
-          loadCoords();
-        }}
-        onChanged={loadCoords}
-        onConfirmed={onConfirmed}
-        onRemove={() => removeCoord(openCoord)}
-      />
-    );
-  }
+  // CoordDetail 저장 ref (BottomSheet ✓ 버튼에 연결)
+  const coordDetailSaveRef = useRef<(() => void) | null>(null);
+
+  // ✓ 버튼 표시 여부: 참여 대상이고 잠기지 않은 경우만
+  const isParticipantOfOpen = openCoord ? (
+    isAdmin || (
+      openCoord.participantUids && openCoord.participantUids.length > 0
+        ? openCoord.participantUids.includes(uid)
+        : !openCoord.team || !myTeam || openCoord.team === myTeam
+    )
+  ) : false;
+  const lockedOpen = openCoord
+    ? (!!openCoord.deadline && Date.now() > openCoord.deadline) || openCoord.status === "done"
+    : false;
 
   return (
     <div className="space-y-4">
@@ -673,6 +670,31 @@ function CoordSection({
       {/* 일정방 만들기 */}
       <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)} onConfirm={() => coordCreateRef.current?.()}>
         <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} submitRef={coordCreateRef} />
+      </BottomSheet>
+
+      {/* 일정방 상세 — 바텀시트 */}
+      <BottomSheet
+        open={!!openCoord}
+        title={openCoord?.title ?? ""}
+        onClose={() => { setOpenId(null); loadCoords(); }}
+        onConfirm={isParticipantOfOpen && !lockedOpen ? () => coordDetailSaveRef.current?.() : undefined}
+      >
+        {openCoord && (
+          <CoordDetail
+            coord={openCoord}
+            isAdmin={isAdmin}
+            uid={uid}
+            myName={myName}
+            myAvatar={myAvatar}
+            myTeam={myTeam}
+            denom={denomOf(openCoord)}
+            onClose={() => { setOpenId(null); loadCoords(); }}
+            onChanged={loadCoords}
+            onConfirmed={onConfirmed}
+            onRemove={() => removeCoord(openCoord)}
+            saveRef={coordDetailSaveRef}
+          />
+        )}
       </BottomSheet>
 
       {/* 만든 직후 확인 시트 */}
@@ -1019,10 +1041,11 @@ function CoordDetail({
   myAvatar,
   myTeam,
   denom,
-  onBack,
+  onClose,
   onChanged,
   onConfirmed,
   onRemove,
+  saveRef,
 }: {
   coord: Coordination;
   isAdmin: boolean;
@@ -1031,10 +1054,11 @@ function CoordDetail({
   myAvatar: string;
   myTeam: string;
   denom: number;
-  onBack: () => void;
+  onClose: () => void;
   onChanged: () => void;
   onConfirmed: () => void;
   onRemove: () => void;
+  saveRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const candidates = useMemo(() => [...(coord.candidateDates ?? [])].sort(), [coord.candidateDates]);
   const closed = !!coord.deadline && Date.now() > coord.deadline;
@@ -1174,23 +1198,22 @@ function CoordDetail({
     setDirty(true);
   }
 
-  // 타임바 범위 선택: 첫 탭=앵커, 두 번째 탭=앵커~현재 사이 채우기/비우기
+  // 타임바 범위 선택: 1탭=시작, 2탭=끝(채우기+리셋), 3탭=전체초기화+새시작, 4탭=끝(채우기+리셋) …
   function tapSlot(slot: string) {
     if (!activeDate || locked || !isParticipant) return;
     if (rangeAnchor === null) {
+      // 홀수 탭: 슬롯 전체 초기화 후 시작점 설정
+      setSlotsByDate((prev) => ({ ...prev, [activeDate]: [] }));
       setRangeAnchor(slot);
-    } else if (rangeAnchor === slot) {
-      setRangeAnchor(null); // 같은 칸 두 번 탭 → 앵커 해제
     } else {
+      // 짝수 탭: 앵커~현재 사이 채우고 앵커 초기화
       const iA = TIME_SLOTS.indexOf(rangeAnchor);
       const iB = TIME_SLOTS.indexOf(slot);
       const [lo, hi] = iA <= iB ? [iA, iB] : [iB, iA];
       const range = TIME_SLOTS.slice(lo, hi + 1);
       setSlotsByDate((prev) => {
         const cur = new Set(prev[activeDate] ?? []);
-        const allOn = range.every((s) => cur.has(s));
-        if (allOn) range.forEach((s) => cur.delete(s)); // 전부 켜져 있으면 → 끄기
-        else range.forEach((s) => cur.add(s)); // 아니면 → 켜기
+        range.forEach((s) => cur.add(s));
         return { ...prev, [activeDate]: [...cur].sort() };
       });
       if (!myDates.includes(activeDate)) setMyDates((prev) => [...prev, activeDate].sort());
@@ -1237,6 +1260,9 @@ function CoordDetail({
   const pct = denom > 0 ? Math.min(100, Math.round((submitters / denom) * 100)) : submitters > 0 ? 100 : 0;
   const remain = denom > 0 ? Math.max(0, denom - submitters) : 0;
 
+  // 바텀시트 ✓ 버튼에 saveMine 연결
+  if (saveRef) saveRef.current = () => { void saveMine(); };
+
   // 확정까지 걸린 시간
   const elapsed = (() => {
     if (!coord.confirmedAt) return "";
@@ -1248,32 +1274,28 @@ function CoordDetail({
 
   return (
     <div className="space-y-4">
-      {/* 상단 바 */}
-      <div className="flex items-center gap-2">
-        <button onClick={onBack} aria-label="뒤로" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100">
-          <span className="text-2xl leading-none">‹</span>
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-lg font-bold text-slate-900">{coord.title}</p>
-            <AudienceBadge coord={coord} />
-          </div>
-          <p className={`text-xs font-semibold ${done ? "text-emerald-600" : "text-accent"}`}>
-            {done ? "확정됨" : closed ? "응답 마감" : "진행 중"}
-          </p>
+      {/* 상태 + 공유·삭제 액션 */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs font-semibold ${done ? "text-emerald-600" : closed ? "text-slate-400" : "text-accent"}`}>
+            {done ? "✓ 확정됨" : closed ? "응답 마감" : "● 진행 중"}
+          </span>
+          <AudienceBadge coord={coord} />
         </div>
-        <button
-          onClick={() => shareLink(coord.title, link)}
-          aria-label="링크 공유"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
-        >
-          <ShareIcon className="h-4 w-4" />
-        </button>
-        {(isAdmin || coord.createdBy === uid) && (
-          <button onClick={onRemove} aria-label="삭제" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500">
-            <TrashIcon className="h-4 w-4" />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => shareLink(coord.title, link)}
+            aria-label="링크 공유"
+            className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
+          >
+            <ShareIcon className="h-4 w-4" />
           </button>
-        )}
+          {(isAdmin || coord.createdBy === uid) && (
+            <button onClick={onRemove} aria-label="삭제" className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500">
+              <TrashIcon className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 확정 완료 카드 */}
@@ -1526,33 +1548,6 @@ function CoordDetail({
           {done ? "확정된 일정이라 가능 날짜를 수정할 수 없어요." : "응답이 마감돼 가능 날짜를 수정할 수 없어요."}
         </p>
       )}
-
-      {/* 저장 바 — 스크롤해도 화면에 고정, 선택 시간 범위 표시 */}
-      {!locked && isParticipant && (() => {
-        const activeMine = activeDate && myDates.includes(activeDate);
-        const activeSlots = activeMine ? [...(slotsByDate[activeDate!] ?? [])].sort() : null;
-        const timeLabel = activeSlots === null
-          ? null
-          : activeSlots.length === 0
-            ? "아무때나 가능"
-            : `${fmtTime(activeSlots[0])} ~ ${fmtTime(slotEnd(activeSlots[activeSlots.length - 1]))}`;
-        return (
-          <div className="sticky bottom-4 z-30 rounded-2xl bg-white px-4 pb-4 pt-3 shadow-[0_10px_24px_-10px_rgba(16,24,40,0.25)]">
-            <p className="mb-2.5 text-center text-sm text-slate-500">
-              {timeLabel === "아무때나 가능"
-                ? "⏰ 비워두면 아무때나 가능이에요"
-                : timeLabel
-                ? timeLabel
-                : myDates.length > 0
-                ? `내 가능 날짜 ${myDates.length}일 선택됨`
-                : "날짜를 선택해 주세요"}
-            </p>
-            <button onClick={saveMine} disabled={!dirty || saving} className="btn-accent w-full !py-3 !text-base">
-              {saving ? "저장 중…" : dirty ? "저장하기" : "저장됨 ✓"}
-            </button>
-          </div>
-        );
-      })()}
 
       {/* 확정 등록 (관리자) */}
       <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)} onConfirm={() => confirmDraftRef.current?.()}>
