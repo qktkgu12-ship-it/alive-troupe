@@ -1573,9 +1573,6 @@ function CoordDetail({
               setActiveDate(saved.date);
               onChanged();
               onConfirmed();
-              setTimeout(() => {
-                coordSectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }, 100);
             }}
             onCancel={() => setConfirmDraft(null)}
           />

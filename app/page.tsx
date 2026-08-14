@@ -15,9 +15,9 @@ import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
 import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
 
 // 팀 순서 기반 색상 팔레트 (schedule·members·admin 동일)
-const TEAM_PALETTE: { border: string; color: string }[] = [
-  { border: "rgb(94,234,212)", color: "rgb(15,118,110)" },
-  { border: "rgb(196,181,253)", color: "rgb(109,40,217)" },
+const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
+  { border: "rgb(94,234,212)", color: "rgb(15,118,110)", bg: "rgba(94,234,212,0.28)" },
+  { border: "rgb(196,181,253)", color: "rgb(109,40,217)", bg: "rgba(196,181,253,0.35)" },
 ];
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
