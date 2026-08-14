@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
 import {
   collection,
@@ -462,6 +462,7 @@ function CoordSection({
   const [openId, setOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null); // 만든 직후 확인 시트
+  const coordCreateRef = useRef<(() => void) | null>(null);
 
   const denomOf = useCallback(
     (c: Coordination) =>
@@ -670,8 +671,8 @@ function CoordSection({
       )}
 
       {/* 일정방 만들기 */}
-      <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)}>
-        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} />
+      <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)} onConfirm={() => coordCreateRef.current?.()}>
+        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} submitRef={coordCreateRef} />
       </BottomSheet>
 
       {/* 만든 직후 확인 시트 */}
@@ -724,6 +725,7 @@ function CoordCreateForm({
   teams,
   myTeam,
   onCreate,
+  submitRef,
 }: {
   teams: string[];
   myTeam: string;
@@ -734,6 +736,7 @@ function CoordCreateForm({
     candidateDates: string[];
     deadline?: number;
   }) => Promise<void>;
+  submitRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const [title, setTitle] = useState("");
   const [audienceMode, setAudienceMode] = useState<"team" | "individual">("team");
@@ -759,6 +762,9 @@ function CoordCreateForm({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
+
+  // 헤더 ✓ 버튼 등록
+  if (submitRef) submitRef.current = () => { void submit(); };
   const todayStr = toDateStr(new Date());
 
   // 개별 선택 모드로 처음 전환할 때만 단원 목록 불러오기
@@ -1000,9 +1006,6 @@ function CoordCreateForm({
         </div>
       </div>
 
-      <button onClick={submit} disabled={busy} className="btn-accent w-full">
-        {busy ? "만드는 중…" : "일정방 만들기"}
-      </button>
     </div>
   );
 }
@@ -1052,6 +1055,7 @@ function CoordDetail({
   const [saving, setSaving] = useState(false);
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null); // 타임바 범위 선택 첫 탭
+  const confirmDraftRef = useRef<(() => void) | null>(null);
 
   // 후보 날짜가 있는 달로 달력 시작
   const [cursor, setCursor] = useState(() => {
@@ -1551,7 +1555,7 @@ function CoordDetail({
       })()}
 
       {/* 확정 등록 (관리자) */}
-      <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)}>
+      <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)} onConfirm={() => confirmDraftRef.current?.()}>
         {confirmDraft && (
           <EventForm
             initial={{
@@ -1561,6 +1565,7 @@ function CoordDetail({
               title: coord.title,
               team: coord.team ?? "",
             }}
+            submitRef={confirmDraftRef}
             onSaved={async (saved) => {
               await updateDoc(doc(db, "coordinations", coord.id), {
                 status: "done",
@@ -1614,6 +1619,8 @@ function EventsSection({
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const newEventRef = useRef<(() => void) | null>(null);
+  const editEventRef = useRef<(() => void) | null>(null);
   // 달력 그리드
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
   const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
@@ -1708,22 +1715,20 @@ function EventsSection({
       )}
 
       {isAdmin && (
-        <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)}>
+        <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)} onConfirm={() => newEventRef.current?.()}>
           <EventForm
             key={formDate}
             initial={{ date: formDate, startTime: "", endTime: "" }}
-            onSaved={() => {
-              setShowForm(false);
-              onChanged();
-            }}
+            onSaved={() => { setShowForm(false); onChanged(); }}
             onCancel={() => setShowForm(false)}
+            submitRef={newEventRef}
           />
         </BottomSheet>
       )}
 
       {/* 수정 BottomSheet */}
       {isAdmin && (
-        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)}>
+        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)} onConfirm={() => editEventRef.current?.()}>
           {editEvent && (
             <EventForm
               key={editEvent.id}
@@ -1731,6 +1736,7 @@ function EventsSection({
               initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo }}
               onSaved={() => { setEditEvent(null); onChanged(); }}
               onCancel={() => setEditEvent(null)}
+              submitRef={editEventRef}
             />
           )}
         </BottomSheet>

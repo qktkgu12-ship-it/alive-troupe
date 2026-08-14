@@ -4,7 +4,7 @@
 // 어느 페이지에 있든(홈 포함) 페이지 이동 없이 그 자리에서 등록 시트가 올라옴.
 // 게시판 글쓰기는 에디터가 커서 기존처럼 /board/write 페이지로 이동.
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { collection, doc, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -49,6 +49,7 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
   const [kind, setKind] = useState<CreateKind | null>(null);
   const [productions, setProductions] = useState<Production[]>([]);
   const [createdAt, setCreatedAt] = useState<{ kind: CreateKind; at: number } | null>(null);
+  const globalSubmitRef = useRef<(() => void) | null>(null);
 
   const openCreate = useCallback((k: CreateKind) => setKind(k), []);
   const closeCreate = useCallback(() => setKind(null), []);
@@ -95,7 +96,7 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
     <CreateSheetContext.Provider value={{ openCreate, closeCreate, createdAt }}>
       {children}
 
-      <BottomSheet open={!!kind} title={kind ? SHEET_TITLE[kind] : undefined} onClose={closeCreate}>
+      <BottomSheet open={!!kind} title={kind ? SHEET_TITLE[kind] : undefined} onClose={closeCreate} onConfirm={() => globalSubmitRef.current?.()}>
         {kind === "archive" && user && (
           <ArchiveForm
             productions={productions}
@@ -103,6 +104,7 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
             author={{ uid: user.uid, name: authorName }}
             onSaved={() => done("archive")}
             onCancel={closeCreate}
+            submitRef={globalSubmitRef}
           />
         )}
 
@@ -114,6 +116,7 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
             addedByName={authorName}
             onAdded={() => done("audio")}
             onCancel={closeCreate}
+            submitRef={globalSubmitRef}
           />
         )}
 
@@ -122,6 +125,7 @@ export function CreateSheetProvider({ children }: { children: React.ReactNode })
             initial={{ date: today, startTime: "", endTime: "" }}
             onSaved={() => done("event")}
             onCancel={closeCreate}
+            submitRef={globalSubmitRef}
           />
         )}
       </BottomSheet>

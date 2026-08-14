@@ -17,14 +17,16 @@ export default function AudioForm({
   addedByName,
   onAdded,
   onCancel,
+  submitRef,
 }: {
-  productionId?: string; // 고정 작품 (페이지에서 사용). 없으면 선택 UI 표시
-  productions?: Production[]; // 작품 선택 목록 (바텀시트에서 사용)
+  productionId?: string;
+  productions?: Production[];
   categories: string[];
   defaultCat: string;
   addedByName: string;
   onAdded: () => void;
   onCancel?: () => void;
+  submitRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const fixed = !!productionId;
   const [pid, setPid] = useState(productionId ?? productions?.[0]?.id ?? "");
@@ -33,6 +35,9 @@ export default function AudioForm({
   const [url, setUrl] = useState("");
   const [memo, setMemo] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // 헤더 ✓ 버튼 등록
+  if (submitRef) submitRef.current = () => { void add(); };
 
   useEffect(() => {
     setCat(defaultCat);
@@ -121,12 +126,6 @@ export default function AudioForm({
         <input className="field" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="메모 (선택)" />
       </div>
 
-      <div className="flex gap-2">
-        <button onClick={add} disabled={busy} className="btn-accent flex-1">
-          {busy ? "추가 중…" : "자료 추가"}
-        </button>
-        {onCancel && <button onClick={onCancel} className="btn-ghost">취소</button>}
-      </div>
     </div>
   );
 }

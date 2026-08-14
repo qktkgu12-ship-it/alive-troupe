@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -100,6 +100,7 @@ function ArchiveInner() {
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ArchiveItem | null>(null);
+  const archiveFormRef = useRef<(() => void) | null>(null);
   // 헤더 '+' 등록 메뉴에서 들어오면(?new=1) 등록 폼을 바로 열기
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
@@ -241,26 +242,18 @@ function ArchiveInner() {
       <BottomSheet
         open={showForm || !!editItem}
         title={editItem ? "자료 수정" : "자료 등록"}
-        onClose={() => {
-          setShowForm(false);
-          setEditItem(null);
-        }}
+        onClose={() => { setShowForm(false); setEditItem(null); }}
+        onConfirm={() => archiveFormRef.current?.()}
       >
         <ArchiveForm
           key={editItem?.id ?? "new"}
           edit={editItem ?? undefined}
           productions={productions}
           isAdmin={isAdmin}
-          onSaved={() => {
-            setShowForm(false);
-            setEditItem(null);
-            load();
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditItem(null);
-          }}
+          onSaved={() => { setShowForm(false); setEditItem(null); load(); }}
+          onCancel={() => { setShowForm(false); setEditItem(null); }}
           author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "" }}
+          submitRef={archiveFormRef}
         />
       </BottomSheet>
 

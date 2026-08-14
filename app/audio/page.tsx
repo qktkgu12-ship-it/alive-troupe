@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -88,6 +88,7 @@ function AudioInner() {
   const sortOrder = "newest";
   const [showAdd, setShowAdd] = useState(false);
   const [manageCats, setManageCats] = useState(false);
+  const audioFormRef = useRef<(() => void) | null>(null);
   const [newCat, setNewCat] = useState("");
   // 헤더 '+' 등록 메뉴에서 들어오면(?new=1) 등록 폼을 바로 열기
   useEffect(() => {
@@ -237,17 +238,15 @@ function AudioInner() {
 
           {/* 자료 추가 (관리자만) — 바텀시트 */}
           {isAdmin && (
-            <BottomSheet open={showAdd} title="자료실 등록" onClose={() => setShowAdd(false)}>
+            <BottomSheet open={showAdd} title="자료실 등록" onClose={() => setShowAdd(false)} onConfirm={() => audioFormRef.current?.()}>
               <AudioForm
                 productionId={active.id}
                 categories={categories}
                 defaultCat={activeCat || categories[0]}
                 addedByName={profile?.name || profile?.displayName || ""}
-                onAdded={() => {
-                  setShowAdd(false);
-                  loadItems(active.id);
-                }}
+                onAdded={() => { setShowAdd(false); loadItems(active.id); }}
                 onCancel={() => setShowAdd(false)}
+                submitRef={audioFormRef}
               />
             </BottomSheet>
           )}
