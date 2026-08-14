@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
 import {
   collection,
@@ -462,6 +462,7 @@ function CoordSection({
   const [openId, setOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null); // 만든 직후 확인 시트
+  const coordCreateRef = useRef<(() => void) | null>(null);
 
   const denomOf = useCallback(
     (c: Coordination) =>
@@ -670,8 +671,8 @@ function CoordSection({
       )}
 
       {/* 일정방 만들기 */}
-      <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)}>
-        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} />
+      <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)} onConfirm={() => coordCreateRef.current?.()}>
+        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} submitRef={coordCreateRef} />
       </BottomSheet>
 
       {/* 만든 직후 확인 시트 */}
@@ -724,6 +725,7 @@ function CoordCreateForm({
   teams,
   myTeam,
   onCreate,
+  submitRef,
 }: {
   teams: string[];
   myTeam: string;
@@ -734,6 +736,7 @@ function CoordCreateForm({
     candidateDates: string[];
     deadline?: number;
   }) => Promise<void>;
+  submitRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const [title, setTitle] = useState("");
   const [audienceMode, setAudienceMode] = useState<"team" | "individual">("team");
@@ -759,6 +762,9 @@ function CoordCreateForm({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
+
+  // 헤더 ✓ 버튼 등록
+  if (submitRef) submitRef.current = () => { void submit(); };
   const todayStr = toDateStr(new Date());
 
   // 개별 선택 모드로 처음 전환할 때만 단원 목록 불러오기
@@ -1000,9 +1006,6 @@ function CoordCreateForm({
         </div>
       </div>
 
-      <button onClick={submit} disabled={busy} className="btn-accent w-full">
-        {busy ? "만드는 중…" : "일정방 만들기"}
-      </button>
     </div>
   );
 }
@@ -1052,6 +1055,7 @@ function CoordDetail({
   const [saving, setSaving] = useState(false);
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null); // 타임바 범위 선택 첫 탭
+  const confirmDraftRef = useRef<(() => void) | null>(null);
 
   // 후보 날짜가 있는 달로 달력 시작
   const [cursor, setCursor] = useState(() => {
@@ -1258,6 +1262,13 @@ function CoordDetail({
             {done ? "확정됨" : closed ? "응답 마감" : "진행 중"}
           </p>
         </div>
+        <button
+          onClick={() => shareLink(coord.title, link)}
+          aria-label="링크 공유"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
+        >
+          <ShareIcon className="h-4 w-4" />
+        </button>
         {(isAdmin || coord.createdBy === uid) && (
           <button onClick={onRemove} aria-label="삭제" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
@@ -1331,11 +1342,6 @@ function CoordDetail({
             )}
           </div>
 
-          {/* 초대 링크 공유 */}
-          <button onClick={() => shareLink(coord.title, link)} className="btn-accent w-full !py-3.5">
-            <ShareIcon className="h-4 w-4" />
-            초대 링크 공유
-          </button>
         </>
       )}
 
@@ -1423,78 +1429,78 @@ function CoordDetail({
             ? "이 일정방의 응답 대상이 아니에요."
             : "후보 날짜를 탭하면 가능으로 표시돼요. 테두리가 진빨간색일수록 가능 인원이 많아요."}
         </p>
+
+        {/* 선택한 날짜 — 달력 카드 하단에 인라인으로 표시 */}
+        {activeDate && (() => {
+          const cnt = dateCount[activeDate] ?? 0;
+          const best = bestRangeForDate(activeDate);
+          const mine = myDates.includes(activeDate);
+          return (
+            <div className="mt-3 space-y-3 border-t border-slate-200 pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-400">선택한 날짜</p>
+                  <p className="font-bold text-slate-900">{fullDateLabel(activeDate)}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                  {cnt}
+                  {denom > 0 ? `/${denom}` : ""}명 가능
+                </span>
+              </div>
+
+              {!locked && isParticipant && mine && (
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-end gap-2">
+                    {rangeAnchor && (
+                      <span className="text-[11px] font-semibold text-accent">시작점 선택됨 · 끝 시간 탭하세요</span>
+                    )}
+                    <button
+                      onClick={clearSlots}
+                      className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
+                    >
+                      해제
+                    </button>
+                  </div>
+                  <TimeRangeBar
+                    mySlots={slotsByDate[activeDate] ?? []}
+                    othersBySlot={othersBySlot}
+                    denom={denom}
+                    maxDateCount={maxDateCount}
+                    anchor={rangeAnchor}
+                    onTap={tapSlot}
+                    locked={locked}
+                  />
+                </div>
+              )}
+
+              {best && (
+                <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+                  가장 겹치는 시간 <b className="text-slate-800">{best.start}~{best.end}</b> · {best.count}명
+                </p>
+              )}
+
+              {membersForActive.length > 0 ? (
+                <div className={best ? "" : "border-t border-slate-100 pt-3"}>
+                  <p className="mb-2 text-xs font-semibold text-slate-500">가능한 단원 {membersForActive.length}명</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                    {membersForActive.map((m) => (
+                      <div key={m.uid} className="flex items-center gap-2">
+                        <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                        <span className="text-sm text-slate-700">{m.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                !mine && <p className="text-sm text-slate-400">이 날 가능한 단원이 아직 없어요.</p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* 선택한 날짜 — 현황 보기 + 내 가능 시간 등록을 한 곳에서 */}
-      {activeDate && (() => {
-        const cnt = dateCount[activeDate] ?? 0;
-        const best = bestRangeForDate(activeDate);
-        const mine = myDates.includes(activeDate);
-        return (
-          <div className="card space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-400">선택한 날짜</p>
-                <p className="font-bold text-slate-900">{fullDateLabel(activeDate)}</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                {cnt}
-                {denom > 0 ? `/${denom}` : ""}명 가능
-              </span>
-            </div>
-
-            {!locked && isParticipant && mine && (
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <div className="flex items-center justify-end gap-2">
-                  {rangeAnchor && (
-                    <span className="text-[11px] font-semibold text-accent">시작점 선택됨 · 끝 시간 탭하세요</span>
-                  )}
-                  <button
-                    onClick={clearSlots}
-                    className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
-                  >
-                    해제
-                  </button>
-                </div>
-                <TimeRangeBar
-                  mySlots={slotsByDate[activeDate] ?? []}
-                  othersBySlot={othersBySlot}
-                  denom={denom}
-                  maxDateCount={maxDateCount}
-                  anchor={rangeAnchor}
-                  onTap={tapSlot}
-                  locked={locked}
-                />
-              </div>
-            )}
-
-            {best && (
-              <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
-                가장 겹치는 시간 <b className="text-slate-800">{best.start}~{best.end}</b> · {best.count}명
-              </p>
-            )}
-
-            {membersForActive.length > 0 ? (
-              <div className={best ? "" : "border-t border-slate-100 pt-3"}>
-                <p className="mb-2 text-xs font-semibold text-slate-500">가능한 단원 {membersForActive.length}명</p>
-                <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                  {membersForActive.map((m) => (
-                    <div key={m.uid} className="flex items-center gap-2">
-                      <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
-                      <span className="text-sm text-slate-700">{m.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              !mine && <p className="text-sm text-slate-400">이 날 가능한 단원이 아직 없어요.</p>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* 일정 확정 (관리자) */}
-      {isAdmin && !done && (
+      {/* 일정 확정 (방 만든 사람만) */}
+      {(isAdmin || coord.createdBy === uid) && !done && (
         <div className="card space-y-2">
           <p className="font-bold text-slate-900">일정 확정</p>
           <p className="text-sm text-slate-400">
@@ -1549,7 +1555,7 @@ function CoordDetail({
       })()}
 
       {/* 확정 등록 (관리자) */}
-      <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)}>
+      <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)} onConfirm={() => confirmDraftRef.current?.()}>
         {confirmDraft && (
           <EventForm
             initial={{
@@ -1559,6 +1565,7 @@ function CoordDetail({
               title: coord.title,
               team: coord.team ?? "",
             }}
+            submitRef={confirmDraftRef}
             onSaved={async (saved) => {
               await updateDoc(doc(db, "coordinations", coord.id), {
                 status: "done",
@@ -1612,6 +1619,8 @@ function EventsSection({
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const newEventRef = useRef<(() => void) | null>(null);
+  const editEventRef = useRef<(() => void) | null>(null);
   // 달력 그리드
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
   const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
@@ -1706,22 +1715,20 @@ function EventsSection({
       )}
 
       {isAdmin && (
-        <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)}>
+        <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)} onConfirm={() => newEventRef.current?.()}>
           <EventForm
             key={formDate}
             initial={{ date: formDate, startTime: "", endTime: "" }}
-            onSaved={() => {
-              setShowForm(false);
-              onChanged();
-            }}
+            onSaved={() => { setShowForm(false); onChanged(); }}
             onCancel={() => setShowForm(false)}
+            submitRef={newEventRef}
           />
         </BottomSheet>
       )}
 
       {/* 수정 BottomSheet */}
       {isAdmin && (
-        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)}>
+        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)} onConfirm={() => editEventRef.current?.()}>
           {editEvent && (
             <EventForm
               key={editEvent.id}
@@ -1729,6 +1736,7 @@ function EventsSection({
               initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo }}
               onSaved={() => { setEditEvent(null); onChanged(); }}
               onCancel={() => setEditEvent(null)}
+              submitRef={editEventRef}
             />
           )}
         </BottomSheet>

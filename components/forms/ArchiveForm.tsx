@@ -30,6 +30,7 @@ export default function ArchiveForm({
   onCancel,
   author,
   edit,
+  submitRef,
 }: {
   productions: Production[];
   isAdmin: boolean;
@@ -37,6 +38,7 @@ export default function ArchiveForm({
   onCancel: () => void;
   author: { uid: string; name: string };
   edit?: ArchiveItem;
+  submitRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const { settings } = useTheme();
   // 새 자료: 현재 진행 작품을 기본 선택(접근 가능한 작품일 때만), 날짜는 오늘
@@ -53,6 +55,9 @@ export default function ArchiveForm({
   const [description, setDescription] = useState(edit?.description ?? "");
   const [tags, setTags] = useState((edit?.tags ?? []).join(" "));
   const [busy, setBusy] = useState(false);
+
+  // 헤더 ✓ 버튼 등록
+  if (submitRef) submitRef.current = () => { void save(); };
 
   function updateClip(i: number, field: keyof ArchiveClip, val: string) {
     setClips((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: val } : c)));
@@ -135,8 +140,8 @@ export default function ArchiveForm({
         <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
       </div>
 
-      {/* 종류·날짜 */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+      {/* 종류 */}
+      <div className="card !p-0 overflow-hidden">
         <div className="flex items-center justify-between gap-2 px-4 py-2.5">
           <span className="text-[15px] font-medium text-slate-700">종류</span>
           <Select
@@ -149,10 +154,6 @@ export default function ArchiveForm({
             <option value="performance">공연</option>
             <option value="etc">기타</option>
           </Select>
-        </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">날짜</span>
-          <input type="date" className="field-chip" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </div>
 
@@ -200,12 +201,6 @@ export default function ArchiveForm({
         <input className="field" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그" />
       </div>
 
-      <div className="flex gap-2">
-        <button onClick={save} disabled={busy} className="btn-accent flex-1">
-          {busy ? "저장 중…" : edit ? "수정 저장" : "자료 등록"}
-        </button>
-        <button onClick={onCancel} className="btn-ghost">취소</button>
-      </div>
     </div>
   );
 }

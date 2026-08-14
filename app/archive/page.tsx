@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -84,8 +84,8 @@ function ClipChips({ clips }: { clips: ArchiveClip[] }) {
 }
 
 const KIND_STYLE: Record<ArchiveKind, string> = {
-  performance: "bg-rose-100 text-rose-600",
-  rehearsal: "bg-sky-100 text-sky-600",
+  performance: "bg-slate-100 text-slate-600",
+  rehearsal: "bg-slate-100 text-slate-600",
   etc: "bg-slate-100 text-slate-600",
 };
 
@@ -100,6 +100,7 @@ function ArchiveInner() {
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ArchiveItem | null>(null);
+  const archiveFormRef = useRef<(() => void) | null>(null);
   // 헤더 '+' 등록 메뉴에서 들어오면(?new=1) 등록 폼을 바로 열기
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
@@ -241,26 +242,18 @@ function ArchiveInner() {
       <BottomSheet
         open={showForm || !!editItem}
         title={editItem ? "자료 수정" : "자료 등록"}
-        onClose={() => {
-          setShowForm(false);
-          setEditItem(null);
-        }}
+        onClose={() => { setShowForm(false); setEditItem(null); }}
+        onConfirm={() => archiveFormRef.current?.()}
       >
         <ArchiveForm
           key={editItem?.id ?? "new"}
           edit={editItem ?? undefined}
           productions={productions}
           isAdmin={isAdmin}
-          onSaved={() => {
-            setShowForm(false);
-            setEditItem(null);
-            load();
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditItem(null);
-          }}
+          onSaved={() => { setShowForm(false); setEditItem(null); load(); }}
+          onCancel={() => { setShowForm(false); setEditItem(null); }}
           author={{ uid: user?.uid ?? "", name: profile?.name || profile?.displayName || "" }}
+          submitRef={archiveFormRef}
         />
       </BottomSheet>
 
@@ -324,7 +317,6 @@ function ArchiveInner() {
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
                   {ARCHIVE_KIND_LABEL[it.kind]}
                 </span>
-                <span className={`chip ${!it.productionId ? "bg-amber-100 text-amber-700" : ""}`}>{prodLabel(it)}</span>
                 <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                   <CalendarIcon className="h-3.5 w-3.5" />
                   {it.date}
@@ -361,7 +353,9 @@ function ArchiveInner() {
                     ))}
                   </select>
                 ) : (
-                  <span className="text-xs text-slate-400">{it.createdByName}</span>
+                  <span className="text-xs text-slate-400">
+                    {[it.createdByName, prodLabel(it)].filter(Boolean).join(" · ")}
+                  </span>
                 )}
                 <div className="flex shrink-0 items-center gap-1">
                   {!multi && clips[0] && <CopyBtn url={clips[0].url} />}
@@ -420,16 +414,17 @@ function ArchiveInner() {
               onKeyDown={(e) => {
                 if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url);
               }}
-              className={`card flex items-center gap-3 !p-3 transition ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
+              className={`card !p-3 transition ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
             >
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[it.kind]}`}>
-                {ARCHIVE_KIND_LABEL[it.kind]}
-              </span>
+              <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{it.title}</p>
-                <p className="truncate text-xs text-slate-400">
-                  {[prodLabel(it), it.date, it.createdByName].filter(Boolean).join(" · ")}
-                </p>
+                <p className="truncate font-medium text-slate-900">{it.title}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                  <span className="chip !bg-slate-100 !px-1.5 !py-0">{ARCHIVE_KIND_LABEL[it.kind]}</span>
+                  <span className="text-slate-500">{it.createdByName}</span>
+                  {prodLabel(it) && <><span>·</span><span>{prodLabel(it)}</span></>}
+                  {it.date && <><span>·</span><span>{it.date}</span></>}
+                </div>
                 {multi && (
                   <div className="mt-1.5">
                     <ClipChips clips={clips} />
@@ -464,6 +459,7 @@ function ArchiveInner() {
                     </button>
                   </>
                 )}
+              </div>
               </div>
             </div>
             );

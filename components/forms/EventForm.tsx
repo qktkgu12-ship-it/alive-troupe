@@ -14,11 +14,13 @@ export default function EventForm({
   initial,
   onSaved,
   onCancel,
+  submitRef,
 }: {
   eventId?: string; // 수정 모드: 기존 문서 ID
   initial: { date: string; startTime: string; endTime: string; title?: string; team?: string; location?: string; memo?: string };
   onSaved: (saved: SavedEvent) => void;
   onCancel: () => void;
+  submitRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const { settings } = useTheme();
   const teams = settings.teams ?? [];
@@ -31,6 +33,9 @@ export default function EventForm({
   const [team, setTeam] = useState(initial.team ?? "");
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // 헤더 ✓ 버튼이 이 함수를 호출하도록 등록
+  if (submitRef) submitRef.current = () => { void save(); };
 
   async function save() {
     if (!title.trim() || !date) {
@@ -135,10 +140,6 @@ export default function EventForm({
         </button>
       )}
 
-      <div className="flex gap-2">
-        <button onClick={save} disabled={busy} className="btn-accent flex-1">{busy ? (eventId ? "수정 중…" : "등록 중…") : (eventId ? "수정" : "등록")}</button>
-        <button onClick={onCancel} className="btn-ghost">취소</button>
-      </div>
     </div>
   );
 }
