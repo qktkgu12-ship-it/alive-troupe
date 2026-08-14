@@ -577,7 +577,7 @@ function CoordSection({
       {/* 만들기 — 스크롤해도 화면에 고정 */}
       <button
         onClick={() => setShowCreate(true)}
-        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-4 text-[15px] font-bold text-accent-fg shadow-[0_10px_24px_-10px_rgb(var(--accent))] transition hover:brightness-110 active:scale-[0.99]"
+        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-4 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(26,39,68,0.5)] transition hover:bg-[#243258] active:scale-[0.99]"
       >
         <PlusIcon className="h-5 w-5" />
         일정방 만들기
@@ -619,9 +619,9 @@ function CoordSection({
                     </div>
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                    done ? "bg-emerald-50 text-emerald-700" : "bg-accent-soft text-accent"
+                    done ? "bg-emerald-50 text-emerald-700" : "bg-yellow-50 text-yellow-600"
                   }`}>
-                    {done ? "✓ 확정" : "진행 중"}
+                    {done ? "✓ 확정" : "🟡 진행 중"}
                   </span>
                 </div>
 
@@ -1288,8 +1288,8 @@ function CoordDetail({
       {/* 상태 + 공유·삭제 액션 */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <span className={`text-xs font-semibold ${done ? "text-emerald-600" : closed ? "text-slate-400" : "text-accent"}`}>
-            {done ? "✓ 확정됨" : closed ? "응답 마감" : "● 진행 중"}
+          <span className={`text-xs font-semibold ${done ? "text-emerald-600" : closed ? "text-slate-400" : "text-yellow-500"}`}>
+            {done ? "✓ 확정됨" : closed ? "응답 마감" : "🟡 진행 중"}
           </span>
           <AudienceBadge coord={coord} />
         </div>
@@ -1545,7 +1545,7 @@ function CoordDetail({
               setConfirmDraft({ date: activeDate, start: best?.start ?? "", end: best?.end ?? "" });
             }}
             disabled={!activeDate}
-            className="btn-accent w-full"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1a2744] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-40"
           >
             <CalendarIcon className="h-4 w-4" />
             이 날짜로 확정하기
