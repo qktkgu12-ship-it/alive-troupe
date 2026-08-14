@@ -271,7 +271,6 @@ function AudioInner() {
                     className={`rounded-full px-3 py-1 text-sm font-medium transition ${activeCat === val && !searching ? "bg-slate-800 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300"}`}
                   >
                     {label}
-                    {cnt > 0 && <span className="ml-1 text-xs opacity-70">{cnt}</span>}
                   </button>
                 );
               })}

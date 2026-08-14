@@ -58,6 +58,29 @@ function CopyBtn({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent
   );
 }
 
+// 태그 토글 — 평소엔 개수 칩만, 탭하면 인라인으로 펼쳐짐
+function TagsToggle({ tags, onClick }: { tags: string[]; onClick?: (e: React.MouseEvent) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!tags || tags.length === 0) return null;
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onClick?.(e); setOpen((v) => !v); }}
+        className={`chip transition ${open ? "!bg-slate-200 text-slate-700" : "hover:!bg-slate-200"}`}
+      >
+        # {tags.length}
+      </button>
+      {open && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {tags.map((t) => (
+            <span key={t} className="chip">#{t}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // 영상 칩들 (라벨이 비면 '영상 N') — ▶ 재생 아이콘으로 '눌러서 보기' 표시
 function ClipChips({ clips }: { clips: ArchiveClip[] }) {
   return (
@@ -328,10 +351,8 @@ function ArchiveInner() {
               <h3 className="font-semibold">{it.title}</h3>
               {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
               {(it.tags ?? []).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {it.tags.map((t) => (
-                    <span key={t} className="chip">#{t}</span>
-                  ))}
+                <div className="mt-2">
+                  <TagsToggle tags={it.tags} />
                 </div>
               )}
               {multi && (
@@ -422,8 +443,15 @@ function ArchiveInner() {
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
                   <span className="chip !bg-slate-100 !px-1.5 !py-0">{ARCHIVE_KIND_LABEL[it.kind]}</span>
                   <span className="text-slate-500">{it.createdByName}</span>
-                  {prodLabel(it) && <><span>·</span><span>{prodLabel(it)}</span></>}
-                  {it.date && <><span>·</span><span>{it.date}</span></>}
+                  {(prodLabel(it) || it.date) && (
+                    <span className="inline-flex shrink-0 items-center gap-1">
+                      <span>·</span>
+                      {prodLabel(it) && <span>{prodLabel(it)}</span>}
+                      {prodLabel(it) && it.date && <span>·</span>}
+                      {it.date && <span>{it.date}</span>}
+                    </span>
+                  )}
+                  {(it.tags ?? []).length > 0 && <TagsToggle tags={it.tags} />}
                 </div>
                 {multi && (
                   <div className="mt-1.5">
