@@ -602,65 +602,75 @@ function CoordSection({
                 role="button"
                 tabIndex={0}
                 onClick={() => setOpenId(c.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") setOpenId(c.id);
-                }}
+                onKeyDown={(e) => { if (e.key === "Enter") setOpenId(c.id); }}
                 className="card cursor-pointer transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)]"
               >
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="font-bold text-slate-900">{c.title}</p>
+                {/* 제목 + 상태 */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-slate-900">{c.title}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <AudienceBadge coord={c} />
+                      {(c.candidateDates ?? []).length > 0 && (
+                        <span className="text-[11px] text-slate-400">후보 {(c.candidateDates ?? []).length}일</span>
+                      )}
+                      <span className="text-[11px] text-slate-300">·</span>
+                      <span className="text-[11px] text-slate-400">{c.createdByName}</span>
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-400">{c.createdByName}</p>
                   </div>
-                  <span
-                    className={`shrink-0 text-[11px] font-bold ${
-                      done ? "text-emerald-600" : "text-accent"
-                    }`}
-                  >
-                    {done ? "✓ 확정됨" : "● 진행 중"}
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    done ? "bg-emerald-50 text-emerald-700" : "bg-accent-soft text-accent"
+                  }`}>
+                    {done ? "✓ 확정" : "진행 중"}
                   </span>
                 </div>
 
-                <p className="mt-2 text-sm text-slate-500">
+                {/* 확정 or 진행 현황 */}
+                <div className="mt-3">
                   {done && c.confirmedDate ? (
-                    <>확정 · <b className="text-slate-700">{fullDateLabel(c.confirmedDate)}</b></>
+                    <p className="text-sm font-semibold text-slate-700">📅 {fullDateLabel(c.confirmedDate)}</p>
                   ) : (
-                    <>응답 <b className="text-accent">{n}</b>{denom > 0 ? `/${denom}` : ""}명</>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500">
+                          응답 <b className="text-accent">{n}</b>{denom > 0 ? `/${denom}` : ""}명
+                        </span>
+                        {denom > 0 && (
+                          <span className="font-semibold text-slate-400">
+                            {Math.min(100, Math.round((n / denom) * 100))}%
+                          </span>
+                        )}
+                      </div>
+                      {denom > 0 && (
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
+                          <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(100, Math.round((n / denom) * 100))}%` }} />
+                        </div>
+                      )}
+                    </div>
                   )}
-                </p>
-                {!done && denom > 0 && (
-                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface">
-                    <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(100, Math.round((n / denom) * 100))}%` }} />
-                  </div>
-                )}
+                </div>
 
-                <div className="mt-3 flex items-center gap-1.5">
+                {/* 액션 */}
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      shareLink(c.title, linkOf(c.id));
-                    }}
-                    aria-label={done ? "확정 링크 공유" : "링크 공유"}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    onClick={(e) => { e.stopPropagation(); shareLink(c.title, linkOf(c.id)); }}
+                    className="flex items-center gap-1.5 text-xs font-medium text-slate-400 transition hover:text-slate-600"
                   >
-                    <ShareIcon className="h-4 w-4" />
+                    <ShareIcon className="h-3.5 w-3.5" />
+                    {done ? "확정 링크 공유" : "링크 공유"}
                   </button>
-                  {(isAdmin || c.createdBy === uid) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeCoord(c);
-                      }}
-                      aria-label="삭제"
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-red-50 hover:text-red-500"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                  <span className="ml-auto text-slate-300">›</span>
+                  <div className="flex items-center gap-1">
+                    {(isAdmin || c.createdBy === uid) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeCoord(c); }}
+                        aria-label="삭제"
+                        className="grid h-7 w-7 place-items-center rounded-lg text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <span className="pl-1 text-sm text-slate-300">›</span>
+                  </div>
                 </div>
               </div>
             );

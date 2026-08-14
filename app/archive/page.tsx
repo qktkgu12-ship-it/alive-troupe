@@ -134,36 +134,21 @@ function ArchiveInner() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // 접근 가능한 작품 (관리자 전체 / 정단원은 참여 작품만)
-      const pq = isAdmin
-        ? query(collection(db, "productions"), orderBy("order", "asc"))
-        : query(collection(db, "productions"), where("participants", "array-contains", user?.uid ?? "__none__"));
-      const psnap = await getDocs(pq);
+      // 전체 작품 목록 (전 단원 동일하게 접근)
+      const psnap = await getDocs(query(collection(db, "productions"), orderBy("order", "asc")));
       const prods = psnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) }));
       setProductions(prods);
 
-      // 아카이빙 자료
-      let list: ArchiveItem[] = [];
-      if (isAdmin) {
-        const snap = await getDocs(query(collection(db, "archives"), orderBy("date", "desc")));
-        list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) }));
-      } else {
-        const ids = prods.map((p) => p.id);
-        if (ids.length > 0) {
-          for (const part of chunk(ids, 30)) {
-            const snap = await getDocs(query(collection(db, "archives"), where("productionId", "in", part)));
-            list.push(...snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) })));
-          }
-          list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-        }
-      }
+      // 아카이빙 자료 (전체)
+      const snap = await getDocs(query(collection(db, "archives"), orderBy("date", "desc")));
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) }));
       setItems(list);
     } catch (e) {
       console.error("아카이브 불러오기 오류:", e);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, user?.uid]);
+  }, [user?.uid]);
 
   useEffect(() => {
     load();

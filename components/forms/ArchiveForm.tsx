@@ -80,10 +80,6 @@ export default function ArchiveForm({
       alert("제목과 링크(최소 1개)는 필수입니다.");
       return;
     }
-    if (!isAdmin && !productionId) {
-      alert("작품을 선택해 주세요.");
-      return;
-    }
     setBusy(true);
     try {
       const fields = {
