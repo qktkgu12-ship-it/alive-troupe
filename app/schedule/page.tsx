@@ -1849,12 +1849,7 @@ function EventsSection({
                   {/* 날짜 배지 */}
                   <div className="w-7 shrink-0 text-center leading-none pt-0.5">
                     <p className="text-[10px] text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
-                    <p
-                      className="text-base font-extrabold"
-                      style={{ color: getTeamColor(e.team, teams)?.color ?? "rgb(var(--accent))" }}
-                    >
-                      {d.getDate()}
-                    </p>
+                    <p className="text-base font-extrabold text-slate-800">{d.getDate()}</p>
                   </div>
                   {/* 내용 */}
                   <div className="min-w-0 flex-1">
