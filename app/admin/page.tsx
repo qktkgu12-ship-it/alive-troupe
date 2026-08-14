@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { arrayRemove, collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { arrayRemove, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
@@ -268,11 +268,10 @@ function AdminInner() {
                     value={u.role}
                     disabled={isMe}
                     onChange={(e) => changeRole(u.uid, e.target.value as Role)}
-                    className={`shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold outline-none transition disabled:cursor-default disabled:opacity-70 ${ROLE_SELECT_CLASS[u.role]}`}
+                    className={`shrink-0 cursor-pointer rounded-full border px-2 py-0.5 text-[11px] font-semibold outline-none transition disabled:cursor-default disabled:opacity-70 ${ROLE_SELECT_CLASS[u.role]}`}
                   >
                     <option value="member">정단원</option>
                     <option value="admin">관리자</option>
-                    <option value="guest">준단원·게스트(대기)</option>
                   </select>
                   {!isMe ? (
                     <button
@@ -369,8 +368,8 @@ function TeamManager() {
             return (
               <span
                 key={t}
-                style={c ? { borderColor: c.border, color: c.color } : {}}
-                className={`inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-semibold ${!c ? "border-slate-200 text-slate-500" : ""}`}
+                style={c ? { borderColor: c.border, color: c.color, backgroundColor: c.bg } : {}}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold ${!c ? "border-slate-200 bg-white text-slate-500" : ""}`}
               >
                 {t}
                 <button onClick={() => removeTeam(t)} disabled={busy} aria-label={`${t} 삭제`} className="opacity-50 hover:opacity-100">×</button>
@@ -403,13 +402,17 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
   const [eGisu, setEGisu] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // 참여명단 모달
+  // 참여명단 바텀시트
   const [partProd, setPartProd] = useState<Production | null>(null);
+  const [partOpen, setPartOpen] = useState(false);       // 슬라이드업 애니메이션 트리거
+  const [freshMembers, setFreshMembers] = useState<UserProfile[]>([]); // 최신 단원 목록
   const [mParts, setMParts] = useState<Set<string>>(new Set());
+  const [mPartsLoading, setMPartsLoading] = useState(false);
   const [mBusy, setMBusy] = useState(false);
 
   // 현재 진행 작품 (자료등록 기본값)
   const { settings, saveSettings } = useTheme();
+  const teams = settings.teams ?? [];
   const currentId = settings.currentProductionId || "";
   function setCurrent(pid: string) {
     saveSettings({ currentProductionId: currentId === pid ? "" : pid });
@@ -462,13 +465,31 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
     }
   }
 
-  // ----- 참여명단 모달 -----
-  function openParts(p: Production) {
+  // ----- 참여명단 바텀시트 -----
+  async function openParts(p: Production) {
     setPartProd(p);
-    setMParts(new Set(p.participants || []));
+    setMPartsLoading(true);
+    // 마운트 후 슬라이드업 트리거
+    requestAnimationFrame(() => requestAnimationFrame(() => setPartOpen(true)));
+    try {
+      // 최신 단원 목록 (탈퇴·신규 반영)
+      const usnap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "asc")));
+      const fm = usnap.docs
+        .map((d) => d.data() as UserProfile)
+        .filter((u) => u.role !== "guest");
+      setFreshMembers(fm);
+      // 최신 참여명단
+      const psnap = await getDoc(doc(db, "productions", p.id));
+      const parts = (psnap.data()?.participants as string[]) ?? [];
+      const validUids = new Set(fm.map((m) => m.uid));
+      setMParts(new Set(parts.filter((uid) => validUids.has(uid))));
+    } finally {
+      setMPartsLoading(false);
+    }
   }
   function closeParts() {
-    setPartProd(null);
+    setPartOpen(false);
+    setTimeout(() => { setPartProd(null); setFreshMembers([]); }, 250);
   }
   function toggleM(uid: string) {
     setMParts((prev) => {
@@ -478,9 +499,9 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
       return n;
     });
   }
-  const allSelected = members.length > 0 && members.every((m) => mParts.has(m.uid));
+  const allSelected = freshMembers.length > 0 && freshMembers.every((m) => mParts.has(m.uid));
   function toggleAll() {
-    setMParts(allSelected ? new Set() : new Set(members.map((m) => m.uid)));
+    setMParts(allSelected ? new Set() : new Set(freshMembers.map((m) => m.uid)));
   }
   async function saveParts() {
     if (!partProd) return;
@@ -587,16 +608,17 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
         </div>
       )}
 
-      {/* 참여명단 모달 */}
+      {/* 참여명단 바텀시트 (슬라이드업 애니메이션) */}
       {partProd && (
         <div
           onClick={closeParts}
-          className="fixed inset-0 z-[60] grid place-items-end bg-slate-900/40 backdrop-blur-sm sm:place-items-center sm:p-4"
+          className={`fixed inset-0 z-[60] grid place-items-end bg-slate-900/40 backdrop-blur-sm transition-opacity duration-200 sm:place-items-center sm:p-4 ${partOpen ? "opacity-100" : "opacity-0"}`}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:rounded-2xl"
+            className={`flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl border border-slate-200 bg-white shadow-2xl transition-transform duration-200 sm:rounded-2xl ${partOpen ? "translate-y-0" : "translate-y-full sm:translate-y-0"}`}
           >
+            {/* 헤더 */}
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4">
               <div className="min-w-0">
                 <p className="truncate font-bold text-slate-900">{partProd.name} 참여명단</p>
@@ -604,39 +626,49 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
               </div>
               <button
                 onClick={toggleAll}
-                disabled={members.length === 0}
+                disabled={freshMembers.length === 0 || mPartsLoading}
                 className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
               >
                 {allSelected ? "전체 해제" : "전체 선택"}
               </button>
             </div>
 
+            {/* 단원 목록 */}
             <div className="flex-1 overflow-y-auto p-2">
-              {members.length === 0 ? (
+              {mPartsLoading ? (
+                <div className="flex justify-center py-10"><Spinner /></div>
+              ) : freshMembers.length === 0 ? (
                 <p className="py-10 text-center text-sm text-slate-400">승인된 단원이 없습니다.</p>
               ) : (
-                members.map((m) => {
+                freshMembers.map((m) => {
                   const checked = mParts.has(m.uid);
+                  const tidx = m.team ? teams.indexOf(m.team) : -1;
+                  const tc = tidx >= 0 ? (TEAM_PALETTE[tidx] ?? null) : null;
                   return (
                     <button
                       key={m.uid}
                       onClick={() => toggleM(m.uid)}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50"
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition ${checked ? "bg-accent-soft" : "hover:bg-slate-50"}`}
                     >
+                      <Avatar src={m.avatar} name={m.name || m.displayName} className="h-7 w-7 text-xs" />
+                      <span className="min-w-0 flex-1 text-sm">
+                        <span className="font-medium text-slate-800">{m.name || m.displayName}</span>
+                        {m.bio && <span className="ml-1.5 text-xs text-slate-400">{m.bio}</span>}
+                      </span>
+                      {m.team && tc && (
+                        <span
+                          style={{ color: tc.color, backgroundColor: tc.bg }}
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        >
+                          {m.team}
+                        </span>
+                      )}
                       <span
-                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition ${
-                          checked ? "border-accent bg-accent text-accent-fg" : "border-slate-300"
+                        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold transition ${
+                          checked ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-transparent"
                         }`}
                       >
-                        {checked && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m5 12 5 5 9-10" />
-                          </svg>
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm">
-                        <span className="font-medium text-slate-800">{m.name || m.displayName}</span>
-                        {m.group && <span className="ml-1.5 text-xs text-slate-400">{m.group}</span>}
+                        ✓
                       </span>
                     </button>
                   );
@@ -644,9 +676,10 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
               )}
             </div>
 
+            {/* 하단 버튼 */}
             <div className="flex gap-2 border-t border-slate-100 p-4">
               <button onClick={closeParts} className="btn-ghost flex-1">닫기</button>
-              <button onClick={saveParts} disabled={mBusy} className="btn-accent flex-1">
+              <button onClick={saveParts} disabled={mBusy || mPartsLoading} className="btn-accent flex-1">
                 {mBusy ? "저장 중…" : "저장"}
               </button>
             </div>
