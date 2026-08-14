@@ -1802,7 +1802,7 @@ function EventsSection({
                   {d.getDate()}
                 </div>
                 {/* 이벤트 칩 */}
-                <div className="space-y-[3px]">
+                <div className="space-y-px">
                   {dayEvents.slice(0, 4).map((e) => {
                     const passed = eventPassed(e);
                     const tc = !passed ? getTeamColor(e.team, teams) : null;
@@ -1810,11 +1810,11 @@ function EventsSection({
                       <div
                         key={e.id}
                         style={tc
-                          ? { borderLeftColor: tc.border, color: tc.color, backgroundColor: tc.bg }
+                          ? { borderLeftColor: tc.border, ...teamChipStyle(e.team, teams, passed) }
                           : passed ? {} : undefined}
-                        className={`truncate rounded-sm border-l-2 py-px pl-1 pr-0.5 text-[10px] font-semibold leading-[15px] ${
+                        className={`truncate rounded border-l-2 px-0.5 text-[9px] font-medium leading-[13px] ${
                           passed
-                            ? "border-l-slate-200 bg-slate-50 text-slate-400"
+                            ? "border-l-slate-200 bg-slate-100 text-slate-400"
                             : tc
                               ? ""
                               : "border-l-[rgb(var(--accent))] bg-accent-soft text-accent"
@@ -1825,7 +1825,7 @@ function EventsSection({
                     );
                   })}
                   {dayEvents.length > 4 && (
-                    <div className="pl-1 text-[10px] font-medium text-slate-400">+{dayEvents.length - 4}</div>
+                    <div className="px-0.5 text-[9px] font-medium text-slate-400">+{dayEvents.length - 4}</div>
                   )}
                 </div>
               </div>
