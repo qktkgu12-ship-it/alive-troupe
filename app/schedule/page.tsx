@@ -876,7 +876,7 @@ function CoordCreateForm({
                 type="button"
                 onClick={() => setTeam(val)}
                 className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                  team === val ? "border-accent bg-accent text-accent-fg" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  team === val ? "border-slate-800 bg-slate-800 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {label}
@@ -904,7 +904,7 @@ function CoordCreateForm({
                     {m.team && <TeamBadge team={m.team} />}
                     <span
                       className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold transition ${
-                        on ? "border-accent bg-accent text-accent-fg" : "border-slate-300 text-transparent"
+                        on ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-transparent"
                       }`}
                     >
                       ✓
@@ -1444,13 +1444,11 @@ function CoordDetail({
             );
           }}
         />
-        <p className="mt-3 text-xs text-slate-400">
-          {locked
-            ? "응답이 마감된 일정방이에요."
-            : !isParticipant
-            ? "이 일정방의 응답 대상이 아니에요."
-            : "비워두면 모두가능으로 표시돼요."}
-        </p>
+        {(locked || !isParticipant) && (
+          <p className="mt-3 text-xs text-slate-400">
+            {locked ? "응답이 마감된 일정방이에요." : "이 일정방의 응답 대상이 아니에요."}
+          </p>
+        )}
 
         {/* 선택한 날짜 — 달력 카드 하단에 인라인으로 표시 */}
         {activeDate && (() => {
@@ -1492,6 +1490,7 @@ function CoordDetail({
                     onTap={tapSlot}
                     locked={locked}
                   />
+                  <p className="mt-2 text-[11px] text-slate-400">⏰ 비워두면 모두가능으로 표시돼요.</p>
                 </div>
               )}
 

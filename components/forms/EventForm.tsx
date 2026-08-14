@@ -80,7 +80,7 @@ export default function EventForm({
                 type="button"
                 onClick={() => setTeam(val)}
                 className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                  team === val ? "border-accent bg-accent text-accent-fg" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  team === val ? "border-slate-800 bg-slate-800 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {label}
