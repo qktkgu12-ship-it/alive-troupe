@@ -53,7 +53,6 @@ export default function ArchiveForm({
   const [date, setDate] = useState(edit ? edit.date : todayStr());
   const [clips, setClips] = useState<ArchiveClip[]>(edit ? itemClips(edit) : [{ label: "", url: "" }]);
   const [description, setDescription] = useState(edit?.description ?? "");
-  const [tags, setTags] = useState((edit?.tags ?? []).join(" "));
   const [busy, setBusy] = useState(false);
 
   // 헤더 ✓ 버튼 등록
@@ -95,7 +94,7 @@ export default function ArchiveForm({
         url: cleaned[0].url, // 대표 링크(구버전 호환)
         clips: cleaned,
         description,
-        tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
+        tags: [],
       };
       if (edit) {
         // 수정: 작성자·작성일은 유지
@@ -190,15 +189,14 @@ export default function ArchiveForm({
         </button>
       </div>
 
-      {/* 설명·태그 */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+      {/* 설명 */}
+      <div className="card !p-0 overflow-hidden">
         <textarea
           className="field min-h-[80px] resize-none"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="설명·메모"
         />
-        <input className="field" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그" />
       </div>
 
     </div>

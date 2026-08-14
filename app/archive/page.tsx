@@ -58,28 +58,6 @@ function CopyBtn({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent
   );
 }
 
-// 태그 토글 — 평소엔 # N 텍스트만, 탭하면 light blue 태그 펼쳐짐
-function TagsToggle({ tags }: { tags: string[] }) {
-  const [open, setOpen] = useState(false);
-  if (!tags || tags.length === 0) return null;
-  return (
-    <div onClick={(e) => e.stopPropagation()}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="text-xs font-medium text-sky-400 transition hover:text-sky-500"
-      >
-        # {tags.length}
-      </button>
-      {open && (
-        <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1">
-          {tags.map((t) => (
-            <span key={t} className="text-xs font-medium text-sky-400">#{t}</span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // 영상 칩들 (라벨이 비면 '영상 N') — ▶ 재생 아이콘으로 '눌러서 보기' 표시
 function ClipChips({ clips }: { clips: ArchiveClip[] }) {
@@ -206,8 +184,7 @@ function ArchiveInner() {
       return (
         it.title.toLowerCase().includes(s) ||
         it.description.toLowerCase().includes(s) ||
-        prodName.toLowerCase().includes(s) ||
-        (it.tags ?? []).some((t) => t.toLowerCase().includes(s))
+        prodName.toLowerCase().includes(s)
       );
     });
   }, [items, search, kindFilter, prodMap]);
@@ -350,11 +327,6 @@ function ArchiveInner() {
               </div>
               <h3 className="font-semibold">{it.title}</h3>
               {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
-              {(it.tags ?? []).length > 0 && (
-                <div className="mt-2">
-                  <TagsToggle tags={it.tags} />
-                </div>
-              )}
               {multi && (
                 <div className="mt-3">
                   <ClipChips clips={clips} />
@@ -451,7 +423,6 @@ function ArchiveInner() {
                       {it.date && <span>{it.date}</span>}
                     </span>
                   )}
-                  {(it.tags ?? []).length > 0 && <TagsToggle tags={it.tags} />}
                 </div>
                 {multi && (
                   <div className="mt-1.5">
