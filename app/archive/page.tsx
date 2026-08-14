@@ -58,7 +58,7 @@ function CopyBtn({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent
   );
 }
 
-// 태그 토글 — 평소엔 개수 칩만, 탭하면 파란 텍스트 태그 펼쳐짐
+// 태그 토글 — 평소엔 # N 텍스트만, 탭하면 light blue 태그 펼쳐짐
 function TagsToggle({ tags }: { tags: string[] }) {
   const [open, setOpen] = useState(false);
   if (!tags || tags.length === 0) return null;
@@ -66,14 +66,14 @@ function TagsToggle({ tags }: { tags: string[] }) {
     <div onClick={(e) => e.stopPropagation()}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className={`chip transition ${open ? "!bg-slate-200 text-slate-700" : "hover:!bg-slate-200"}`}
+        className="text-xs font-medium text-sky-400 transition hover:text-sky-500"
       >
         # {tags.length}
       </button>
       {open && (
         <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1">
           {tags.map((t) => (
-            <span key={t} className="text-xs font-medium text-accent">#{t}</span>
+            <span key={t} className="text-xs font-medium text-sky-400">#{t}</span>
           ))}
         </div>
       )}
