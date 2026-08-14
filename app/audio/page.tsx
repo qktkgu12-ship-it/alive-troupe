@@ -195,7 +195,6 @@ function AudioInner() {
       {isAdmin && (
         <p className="text-xs leading-relaxed text-slate-400">
           💡 자료는 구글 드라이브 등에 올린 뒤 <b className="font-semibold text-slate-500">공유 링크</b>를 등록하는 방식입니다.
-          파일·폴더는 <b className="font-semibold text-slate-500">‘링크가 있는 모든 사용자 — 뷰어’</b>로 공유해 두세요. (음원 한 넘버에 MR·가이드를 한 폴더로 올리면 편해요)
         </p>
       )}
 
@@ -344,7 +343,7 @@ function AudioInner() {
                       )}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
-                      {(searching || !activeCat) && (
+                      {(searching || activeCat !== "") && (
                         <span className="chip !bg-slate-100 !px-1.5 !py-0">{itemCategory(t)}</span>
                       )}
                       {itemMemo(t) && <span className="text-slate-500">{itemMemo(t)}</span>}
