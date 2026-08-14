@@ -466,6 +466,7 @@ function CoordSection({
   const [showCreate, setShowCreate] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null); // 만든 직후 확인 시트
   const coordCreateRef = useRef<(() => void) | null>(null);
+  const coordSectionTopRef = useRef<HTMLDivElement>(null);
 
   const denomOf = useCallback(
     (c: Coordination) =>
@@ -567,7 +568,7 @@ function CoordSection({
     : false;
 
   return (
-    <div className="space-y-4">
+    <div ref={coordSectionTopRef} className="space-y-4">
       {/* 안내 */}
       <p className="text-[15px] leading-relaxed text-slate-500">
         단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
@@ -615,8 +616,8 @@ function CoordSection({
                     <p className="mt-0.5 text-xs text-slate-400">{c.createdByName}</p>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                      done ? "bg-emerald-50 text-emerald-700" : "bg-accent-soft text-accent"
+                    className={`shrink-0 text-[11px] font-bold ${
+                      done ? "text-emerald-600" : "text-accent"
                     }`}
                   >
                     {done ? "✓ 확정됨" : "● 진행 중"}
@@ -642,10 +643,10 @@ function CoordSection({
                       e.stopPropagation();
                       shareLink(c.title, linkOf(c.id));
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
+                    aria-label={done ? "확정 링크 공유" : "링크 공유"}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                   >
-                    <ShareIcon className="h-3.5 w-3.5" />
-                    {done ? "확정 링크 공유" : "링크 공유"}
+                    <ShareIcon className="h-4 w-4" />
                   </button>
                   {(isAdmin || c.createdBy === uid) && (
                     <button
@@ -700,8 +701,8 @@ function CoordSection({
       {/* 만든 직후 확인 시트 */}
       <BottomSheet open={!!createdCoord} onClose={() => setCreatedId(null)}>
         {createdCoord && (
-          <div className="space-y-4 text-center">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500">
+          <div className="space-y-3 text-center">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500">
               <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9">
                 <path d="M4 13l5 5L20 7" />
               </svg>
@@ -1572,6 +1573,9 @@ function CoordDetail({
               setActiveDate(saved.date);
               onChanged();
               onConfirmed();
+              setTimeout(() => {
+                coordSectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 100);
             }}
             onCancel={() => setConfirmDraft(null)}
           />
