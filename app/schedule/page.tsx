@@ -908,9 +908,7 @@ function CoordCreateForm({
                     key={m.uid}
                     type="button"
                     onClick={() => toggleMember(m.uid)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition ${
-                      on ? "bg-accent-soft" : "hover:bg-slate-50"
-                    }`}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-slate-50"
                   >
                     <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{m.name}</span>
