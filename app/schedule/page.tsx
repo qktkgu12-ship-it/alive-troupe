@@ -150,11 +150,11 @@ function TeamBadge({ team, className = "" }: { team?: string; className?: string
   const teams = settings.teams ?? [];
   if (!team) return null;
   const c = getTeamColor(team, teams);
-  const style: React.CSSProperties = c ? { borderColor: c.border, color: c.color } : {};
+  const style: React.CSSProperties = c ? { borderColor: c.border, color: c.color, backgroundColor: c.bg } : {};
   return (
     <span
       style={style}
-      className={`inline-flex shrink-0 items-center rounded-full border bg-white px-2 py-0.5 text-[11px] font-semibold ${!c ? "border-slate-200 text-slate-500" : ""} ${className}`}
+      className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${!c ? "border-slate-200 bg-white text-slate-500" : ""} ${className}`}
     >
       {team}
     </span>
