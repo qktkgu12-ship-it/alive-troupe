@@ -1702,9 +1702,11 @@ function EventsSection({
                 ? "border-accent bg-accent-soft text-accent"
                 : "border-slate-200 text-slate-500 hover:bg-slate-50";
             } else if (teamC) {
-              chipStyle = isActive
-                ? { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color }
-                : { borderColor: teamC.border, color: teamC.color, backgroundColor: "transparent" };
+              if (isActive) {
+                chipStyle = { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color };
+              } else {
+                chipClass += "border-slate-200 text-slate-500 hover:bg-slate-50";
+              }
             } else {
               chipClass += isActive
                 ? "border-accent bg-accent-soft text-accent"
