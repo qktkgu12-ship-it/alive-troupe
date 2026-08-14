@@ -317,8 +317,8 @@ function CalendarGrid({ grid, renderCell }: { grid: (Date | null)[]; renderCell:
   return (
     <div>
       <div className="mb-1 grid grid-cols-7 text-center text-xs font-semibold text-slate-400">
-        {WEEKDAYS_KO.map((w, i) => (
-          <div key={w} className={i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : ""}>{w}</div>
+        {WEEKDAYS_KO.map((w) => (
+          <div key={w}>{w}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -1691,17 +1691,36 @@ function EventsSection({
       {/* 팀 필터 */}
       {teams.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
-            <button
-              key={val || "all"}
-              onClick={() => setEvTeam(val)}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                evTeam === val ? "border-accent bg-accent-soft text-accent" : "border-slate-200 text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
+            const isAll = val === "";
+            const teamC = !isAll ? getTeamColor(val, teams) : null;
+            const isActive = evTeam === val;
+            let chipStyle: React.CSSProperties = {};
+            let chipClass = "rounded-full border px-2.5 py-1 text-xs font-medium transition ";
+            if (isAll) {
+              chipClass += isActive
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-slate-200 text-slate-500 hover:bg-slate-50";
+            } else if (teamC) {
+              chipStyle = isActive
+                ? { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color }
+                : { borderColor: teamC.border, color: teamC.color, backgroundColor: "transparent" };
+            } else {
+              chipClass += isActive
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-slate-200 text-slate-500 hover:bg-slate-50";
+            }
+            return (
+              <button
+                key={val || "all"}
+                onClick={() => setEvTeam(val)}
+                style={chipStyle}
+                className={chipClass}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -1738,8 +1757,8 @@ function EventsSection({
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/60">
-          {WEEKDAYS_KO.map((w, i) => (
-            <div key={w} className={`py-2 text-center text-[11px] font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-slate-400"}`}>{w}</div>
+          {WEEKDAYS_KO.map((w) => (
+            <div key={w} className="py-2 text-center text-[11px] font-bold text-slate-400">{w}</div>
           ))}
         </div>
         {/* 날짜 셀 */}
@@ -1772,7 +1791,7 @@ function EventsSection({
                 } ${isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""}`}
               >
                 <div className={`mb-1 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
-                  isToday ? "bg-accent text-accent-fg" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-slate-700"
+                  isToday ? "bg-accent text-accent-fg" : "text-slate-700"
                 }`}>
                   {d.getDate()}
                 </div>
@@ -1818,10 +1837,15 @@ function EventsSection({
                 <div
                   key={e.id}
                   id={`ev-${e.id}`}
-                  className={`flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm transition ${
+                  className={`relative flex items-start gap-3 overflow-hidden rounded-xl bg-white px-3 py-2.5 pl-4 shadow-sm transition ${
                     highlightId === e.id || date === selectedDate ? "ring-2 ring-accent" : ""
                   } ${past ? "opacity-50" : ""}`}
                 >
+                  {/* 왼쪽 팀 컬러 바 */}
+                  <div
+                    className="absolute bottom-0 left-0 top-0 w-[3px]"
+                    style={{ backgroundColor: getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))" }}
+                  />
                   {/* 날짜 배지 */}
                   <div className="w-7 shrink-0 text-center leading-none pt-0.5">
                     <p className="text-[10px] text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
