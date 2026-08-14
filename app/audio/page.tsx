@@ -12,7 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { safeExternalUrl } from "@/lib/utils";
+import { relativeTime, safeExternalUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
@@ -339,15 +339,21 @@ function AudioInner() {
                   className="card flex cursor-pointer items-center gap-3 !p-3 transition hover:ring-1 hover:ring-accent/30"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <p className="flex items-center gap-1.5 font-medium text-slate-900">
                       <span className="truncate">{itemTitle(t)}</span>
                       {isRecent(t) && (
                         <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
                       )}
                     </p>
-                    <p className="truncate text-xs text-slate-400">
-                      {[(searching || !activeCat) ? itemCategory(t) : "", itemMemo(t), t.addedByName].filter(Boolean).join(" · ")}
-                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                      {(searching || !activeCat) && (
+                        <span className="chip !bg-slate-100 !px-1.5 !py-0">{itemCategory(t)}</span>
+                      )}
+                      {itemMemo(t) && <span className="text-slate-500">{itemMemo(t)}</span>}
+                      {itemMemo(t) && <span>·</span>}
+                      <span className="text-slate-500">{t.addedByName}</span>
+                      {t.createdAt && <><span>·</span><span>{relativeTime(t.createdAt)}</span></>}
+                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <CopyBtn url={t.url} />

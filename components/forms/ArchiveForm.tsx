@@ -135,8 +135,8 @@ export default function ArchiveForm({
         <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
       </div>
 
-      {/* 종류·날짜 */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+      {/* 종류 */}
+      <div className="card !p-0 overflow-hidden">
         <div className="flex items-center justify-between gap-2 px-4 py-2.5">
           <span className="text-[15px] font-medium text-slate-700">종류</span>
           <Select
@@ -149,10 +149,6 @@ export default function ArchiveForm({
             <option value="performance">공연</option>
             <option value="etc">기타</option>
           </Select>
-        </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">날짜</span>
-          <input type="date" className="field-chip" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </div>
 

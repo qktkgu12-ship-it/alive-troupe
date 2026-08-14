@@ -1258,6 +1258,13 @@ function CoordDetail({
             {done ? "확정됨" : closed ? "응답 마감" : "진행 중"}
           </p>
         </div>
+        <button
+          onClick={() => shareLink(coord.title, link)}
+          aria-label="링크 공유"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
+        >
+          <ShareIcon className="h-4 w-4" />
+        </button>
         {(isAdmin || coord.createdBy === uid) && (
           <button onClick={onRemove} aria-label="삭제" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500">
             <TrashIcon className="h-4 w-4" />
@@ -1331,11 +1338,6 @@ function CoordDetail({
             )}
           </div>
 
-          {/* 초대 링크 공유 */}
-          <button onClick={() => shareLink(coord.title, link)} className="btn-accent w-full !py-3.5">
-            <ShareIcon className="h-4 w-4" />
-            초대 링크 공유
-          </button>
         </>
       )}
 
@@ -1423,78 +1425,78 @@ function CoordDetail({
             ? "이 일정방의 응답 대상이 아니에요."
             : "후보 날짜를 탭하면 가능으로 표시돼요. 테두리가 진빨간색일수록 가능 인원이 많아요."}
         </p>
+
+        {/* 선택한 날짜 — 달력 카드 하단에 인라인으로 표시 */}
+        {activeDate && (() => {
+          const cnt = dateCount[activeDate] ?? 0;
+          const best = bestRangeForDate(activeDate);
+          const mine = myDates.includes(activeDate);
+          return (
+            <div className="mt-3 space-y-3 border-t border-slate-200 pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-400">선택한 날짜</p>
+                  <p className="font-bold text-slate-900">{fullDateLabel(activeDate)}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                  {cnt}
+                  {denom > 0 ? `/${denom}` : ""}명 가능
+                </span>
+              </div>
+
+              {!locked && isParticipant && mine && (
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-end gap-2">
+                    {rangeAnchor && (
+                      <span className="text-[11px] font-semibold text-accent">시작점 선택됨 · 끝 시간 탭하세요</span>
+                    )}
+                    <button
+                      onClick={clearSlots}
+                      className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
+                    >
+                      해제
+                    </button>
+                  </div>
+                  <TimeRangeBar
+                    mySlots={slotsByDate[activeDate] ?? []}
+                    othersBySlot={othersBySlot}
+                    denom={denom}
+                    maxDateCount={maxDateCount}
+                    anchor={rangeAnchor}
+                    onTap={tapSlot}
+                    locked={locked}
+                  />
+                </div>
+              )}
+
+              {best && (
+                <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+                  가장 겹치는 시간 <b className="text-slate-800">{best.start}~{best.end}</b> · {best.count}명
+                </p>
+              )}
+
+              {membersForActive.length > 0 ? (
+                <div className={best ? "" : "border-t border-slate-100 pt-3"}>
+                  <p className="mb-2 text-xs font-semibold text-slate-500">가능한 단원 {membersForActive.length}명</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                    {membersForActive.map((m) => (
+                      <div key={m.uid} className="flex items-center gap-2">
+                        <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                        <span className="text-sm text-slate-700">{m.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                !mine && <p className="text-sm text-slate-400">이 날 가능한 단원이 아직 없어요.</p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* 선택한 날짜 — 현황 보기 + 내 가능 시간 등록을 한 곳에서 */}
-      {activeDate && (() => {
-        const cnt = dateCount[activeDate] ?? 0;
-        const best = bestRangeForDate(activeDate);
-        const mine = myDates.includes(activeDate);
-        return (
-          <div className="card space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-400">선택한 날짜</p>
-                <p className="font-bold text-slate-900">{fullDateLabel(activeDate)}</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                {cnt}
-                {denom > 0 ? `/${denom}` : ""}명 가능
-              </span>
-            </div>
-
-            {!locked && isParticipant && mine && (
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <div className="flex items-center justify-end gap-2">
-                  {rangeAnchor && (
-                    <span className="text-[11px] font-semibold text-accent">시작점 선택됨 · 끝 시간 탭하세요</span>
-                  )}
-                  <button
-                    onClick={clearSlots}
-                    className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
-                  >
-                    해제
-                  </button>
-                </div>
-                <TimeRangeBar
-                  mySlots={slotsByDate[activeDate] ?? []}
-                  othersBySlot={othersBySlot}
-                  denom={denom}
-                  maxDateCount={maxDateCount}
-                  anchor={rangeAnchor}
-                  onTap={tapSlot}
-                  locked={locked}
-                />
-              </div>
-            )}
-
-            {best && (
-              <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
-                가장 겹치는 시간 <b className="text-slate-800">{best.start}~{best.end}</b> · {best.count}명
-              </p>
-            )}
-
-            {membersForActive.length > 0 ? (
-              <div className={best ? "" : "border-t border-slate-100 pt-3"}>
-                <p className="mb-2 text-xs font-semibold text-slate-500">가능한 단원 {membersForActive.length}명</p>
-                <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                  {membersForActive.map((m) => (
-                    <div key={m.uid} className="flex items-center gap-2">
-                      <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
-                      <span className="text-sm text-slate-700">{m.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              !mine && <p className="text-sm text-slate-400">이 날 가능한 단원이 아직 없어요.</p>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* 일정 확정 (관리자) */}
-      {isAdmin && !done && (
+      {/* 일정 확정 (방 만든 사람만) */}
+      {(isAdmin || coord.createdBy === uid) && !done && (
         <div className="card space-y-2">
           <p className="font-bold text-slate-900">일정 확정</p>
           <p className="text-sm text-slate-400">
