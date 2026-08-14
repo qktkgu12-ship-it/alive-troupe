@@ -343,9 +343,7 @@ function AudioInner() {
                       )}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
-                      {(searching || activeCat !== "") && (
-                        <span className="chip !bg-slate-100 !px-1.5 !py-0">{itemCategory(t)}</span>
-                      )}
+                      <span className="chip !bg-slate-100 !px-1.5 !py-0">{itemCategory(t)}</span>
                       {itemMemo(t) && <span className="text-slate-500">{itemMemo(t)}</span>}
                       {itemMemo(t) && <span>·</span>}
                       <span className="text-slate-500">{t.addedByName}</span>
