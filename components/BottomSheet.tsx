@@ -104,7 +104,7 @@ export default function BottomSheet({
             <button
               onClick={onConfirm}
               aria-label="완료"
-              className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 active:scale-95"
+              className="grid h-11 w-11 place-items-center rounded-full bg-accent text-accent-fg shadow-sm transition hover:brightness-110 active:scale-95"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
                 <path d="M4 13l5 5L20 7" />
