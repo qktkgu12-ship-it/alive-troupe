@@ -883,7 +883,7 @@ function CoordCreateForm({
 
         {audienceMode === "team" ? (
           <div className="flex flex-wrap gap-1.5">
-            {([["", "전체 단원"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
+            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
               <button
                 key={val || "all"}
                 type="button"
@@ -1252,15 +1252,19 @@ function CoordDetail({
         const arr = slotsByDate[d];
         if (arr && arr.length > 0) cleanedSlots[d] = arr;
       }
-      await setDoc(doc(db, "coordinations", coord.id, "availability", uid), {
-        uid,
-        name: myName,
-        avatar: myAvatar,
-        team: myTeam,
-        dates: myDates,
-        slots: cleanedSlots,
-        updatedAt: Date.now(),
-      });
+      if (myDates.length === 0) {
+        await deleteDoc(doc(db, "coordinations", coord.id, "availability", uid));
+      } else {
+        await setDoc(doc(db, "coordinations", coord.id, "availability", uid), {
+          uid,
+          name: myName,
+          avatar: myAvatar,
+          team: myTeam,
+          dates: myDates,
+          slots: cleanedSlots,
+          updatedAt: Date.now(),
+        });
+      }
       setDirty(false);
       await loadAll();
       onChanged();

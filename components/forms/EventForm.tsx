@@ -74,7 +74,7 @@ export default function EventForm({
         <div className="card !p-3">
           <p className="mb-2 px-1 text-xs font-semibold text-slate-500">대상</p>
           <div className="flex flex-wrap gap-1.5">
-            {([["", "전체 공통"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
+            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => (
               <button
                 key={val || "all"}
                 type="button"
