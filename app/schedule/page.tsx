@@ -1763,69 +1763,69 @@ function EventsSection({
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/60">
           {WEEKDAYS_KO.map((w) => (
-            <div key={w} className="py-2 text-center text-[11px] font-bold text-slate-400">{w}</div>
+            <div key={w} className="py-2.5 text-center text-[12px] font-bold text-slate-400">{w}</div>
           ))}
         </div>
         {/* 날짜 셀 */}
         <div className="grid grid-cols-7">
           {miniGrid.map((d, i) => {
-            if (!d) return <div key={i} className="min-h-[88px] border-t border-slate-100" />;
+            if (!d) return <div key={i} className="min-h-[120px] border-t border-slate-100" />;
             const ds = toDateStr(d);
             const isToday = ds === todayStr;
             const isSelected = ds === selectedDate;
             const dayEvents = visibleEvents.filter((e) => e.date === ds);
-            const dow = d.getDay();
             return (
               <div
                 key={i}
                 onClick={() => {
                   if (isSelected) {
-                    // 두 번째 탭: 관리자면 확정일정 등록 바텀시트
-                    if (isAdmin) {
-                      setFormDate(ds);
-                      setShowForm(true);
-                    }
+                    if (isAdmin) { setFormDate(ds); setShowForm(true); }
                     setSelectedDate(null);
                   } else {
-                    // 첫 번째 탭: 테두리 표시 + 이벤트 있으면 스크롤
                     setSelectedDate(ds);
                     if (dayEvents.length > 0) {
                       setTimeout(() => {
                         const firstId = dayEvents[0]?.id;
-                        if (firstId) {
-                          document.getElementById(`ev-${firstId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }
+                        if (firstId) document.getElementById(`ev-${firstId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }, 60);
                     }
                   }
                 }}
-                className={`relative min-h-[88px] cursor-pointer border-t border-slate-100 p-1 transition ${
+                className={`relative min-h-[120px] cursor-pointer border-t border-slate-100 p-1.5 transition ${
                   isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""
                 }`}
               >
-                <div className={`mb-1 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
+                {/* 날짜 숫자 */}
+                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-bold ${
                   isToday ? "bg-accent text-accent-fg" : "text-slate-700"
                 }`}>
                   {d.getDate()}
                 </div>
-                <div className="space-y-px">
-                  {dayEvents.slice(0, 3).map((e) => {
+                {/* 이벤트 칩 */}
+                <div className="space-y-[3px]">
+                  {dayEvents.slice(0, 4).map((e) => {
                     const passed = eventPassed(e);
-                    const hasTeamColor = !passed && !!getTeamColor(e.team, teams);
+                    const tc = !passed ? getTeamColor(e.team, teams) : null;
                     return (
                       <div
                         key={e.id}
-                        style={teamChipStyle(e.team, teams, passed)}
-                        className={`truncate rounded px-0.5 text-[9px] font-medium leading-[13px] ${
-                          passed ? "bg-slate-100 text-slate-400" : hasTeamColor ? "" : "bg-accent-soft text-accent"
+                        style={tc
+                          ? { borderLeftColor: tc.border, color: tc.color, backgroundColor: tc.bg }
+                          : passed ? {} : undefined}
+                        className={`truncate rounded-sm border-l-2 py-px pl-1 pr-0.5 text-[10px] font-semibold leading-[15px] ${
+                          passed
+                            ? "border-l-slate-200 bg-slate-50 text-slate-400"
+                            : tc
+                              ? ""
+                              : "border-l-[rgb(var(--accent))] bg-accent-soft text-accent"
                         }`}
                       >
                         {e.title}
                       </div>
                     );
                   })}
-                  {dayEvents.length > 3 && (
-                    <div className="px-0.5 text-[9px] font-medium text-slate-400">+{dayEvents.length - 3}</div>
+                  {dayEvents.length > 4 && (
+                    <div className="pl-1 text-[10px] font-medium text-slate-400">+{dayEvents.length - 4}</div>
                   )}
                 </div>
               </div>
