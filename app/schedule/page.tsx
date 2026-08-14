@@ -802,17 +802,31 @@ function CoordCreateForm({
   if (submitRef) submitRef.current = () => { void submit(); };
   const todayStr = toDateStr(new Date());
 
+  const { settings } = useTheme();
+  const currentProductionId = settings.currentProductionId ?? "";
+
   // 개별 선택 모드로 처음 전환할 때만 단원 목록 불러오기
+  // → 현재 진행 작품의 참여명단에 있는 인원만 표시
   useEffect(() => {
     if (audienceMode !== "individual" || members.length > 0) return;
     setMembersLoading(true);
     (async () => {
+      // 공개 프로필 전체
       const snap = await getDocs(collection(db, "publicProfiles"));
-      setMembers(
-        snap.docs
-          .map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }))
-          .sort((a, b) => a.name.localeCompare(b.name, "ko"))
-      );
+      const all = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }));
+
+      // 현재 진행 작품의 participants 로 필터
+      let filtered = all;
+      if (currentProductionId) {
+        const psnap = await getDoc(doc(db, "productions", currentProductionId));
+        const parts = (psnap.data()?.participants as string[] | undefined) ?? [];
+        if (parts.length > 0) {
+          const partsSet = new Set(parts);
+          filtered = all.filter((m) => partsSet.has(m.uid));
+        }
+      }
+
+      setMembers(filtered.sort((a, b) => a.name.localeCompare(b.name, "ko")));
       setMembersLoading(false);
     })();
   }, [audienceMode, members.length]);
