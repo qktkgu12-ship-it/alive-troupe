@@ -203,10 +203,10 @@ function HomeInner() {
             <Link
               key={href}
               href={href}
-              className="group flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-10px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(16,24,40,0.18)]"
+              className="group flex aspect-square flex-col justify-between rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-10px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(16,24,40,0.18)]"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-accent transition group-hover:bg-accent group-hover:text-accent-fg">
-                <Icon className="h-5 w-5" />
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-accent text-white transition group-hover:brightness-110">
+                <Icon className="h-6 w-6" />
               </span>
               <div>
                 <p className="text-sm font-semibold text-slate-900">{title}</p>

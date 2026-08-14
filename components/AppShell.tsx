@@ -8,6 +8,7 @@ import { useNotifications } from "@/lib/notifications-context";
 import { ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, NAV_ICON, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
+import BottomSheet from "@/components/BottomSheet";
 import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
 
 const NAV = [
@@ -39,10 +40,10 @@ const CREATE_MENU: {
   admin: boolean;
 }[] = [
   { sheet: null, href: "/board/write", label: "글쓰기", desc: "게시판에 새 글 올리기", icon: BoardIcon, admin: false },
-  { sheet: "archive", label: "자료 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
   { sheet: null, href: "/schedule?tab=coord&new=1", label: "일정방 만들기", desc: "가능한 날짜를 모아 일정 잡기", icon: CalendarIcon, admin: false },
-  { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
   { sheet: "event", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
+  { sheet: "archive", label: "영상 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
+  { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
 ];
 
 const SEEN_KEY = "alive-nav-seen";
@@ -240,60 +241,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
 
                 {/* + 등록 메뉴 */}
-                <div className="relative">
-                  <button
-                    onClick={() => setCreateOpen((v) => !v)}
-                    aria-label="등록"
-                    aria-expanded={createOpen}
-                    className={`grid h-10 w-10 place-items-center rounded-full transition ${
-                      createOpen ? "bg-slate-100 text-accent" : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <PlusIcon className={`h-[22px] w-[22px] transition-transform ${createOpen ? "rotate-45" : ""}`} />
-                  </button>
-
-                  {createOpen && (
-                    <>
-                      {/* 바깥 클릭 시 닫기 */}
-                      <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} />
-                      {/* 항상 화면 우상단 고정 (모바일 좌측 치우침 방지) */}
-                      <div className="fixed right-4 top-[60px] z-50 w-[min(88vw,280px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_-12px_rgba(16,24,40,0.25)]">
-                        {createItems.map((c, i) => {
-                          const Icon = c.icon;
-                          const inner = (
-                            <>
-                              <Icon className="h-5 w-5 shrink-0 text-accent" />
-                              <span className="min-w-0 text-left">
-                                <span className="block text-sm font-semibold text-slate-800">{c.label}</span>
-                                <span className="block truncate text-xs text-slate-400">{c.desc}</span>
-                              </span>
-                            </>
-                          );
-                          const cls = `flex w-full items-center gap-3 px-4 transition hover:bg-slate-50 ${
-                            i === 0 ? "pt-3 pb-2.5" : i === createItems.length - 1 ? "pt-2.5 pb-3" : "py-2.5"
-                          }`;
-                          // 게시판 글쓰기만 페이지 이동, 나머지는 그 자리에서 바텀시트
-                          return c.sheet ? (
-                            <button
-                              key={c.label}
-                              onClick={() => {
-                                setCreateOpen(false);
-                                openCreate(c.sheet!);
-                              }}
-                              className={cls}
-                            >
-                              {inner}
-                            </button>
-                          ) : (
-                            <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
-                              {inner}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <button
+                  onClick={() => setCreateOpen(true)}
+                  aria-label="등록"
+                  aria-expanded={createOpen}
+                  className="grid h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100"
+                >
+                  <PlusIcon className="h-[22px] w-[22px]" />
+                </button>
 
                 {/* 알림 (오른쪽 슬라이드 패널) */}
                 <NotificationBell />
@@ -315,6 +270,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </header>
+
+      {/* 등록 바텀시트 — 헤더 바깥에 배치해야 PC 중앙 모달이 정상 동작 */}
+      <BottomSheet
+        open={createOpen}
+        title="등록"
+        onClose={() => setCreateOpen(false)}
+      >
+        <div className="divide-y divide-slate-100">
+          {createItems.map((c) => {
+            const Icon = c.icon;
+            const inner = (
+              <>
+                <Icon className="h-6 w-6 shrink-0 text-accent" />
+                <span className="min-w-0 text-left">
+                  <span className="block text-[15px] font-semibold text-slate-800">{c.label}</span>
+                  <span className="block truncate text-sm text-slate-400">{c.desc}</span>
+                </span>
+              </>
+            );
+            const cls = "flex w-full items-center gap-4 py-4 transition hover:bg-slate-50 active:bg-slate-100 rounded-xl px-1";
+            return c.sheet ? (
+              <button
+                key={c.label}
+                onClick={() => { setCreateOpen(false); openCreate(c.sheet!); }}
+                className={cls}
+              >
+                {inner}
+              </button>
+            ) : (
+              <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
+                {inner}
+              </Link>
+            );
+          })}
+        </div>
+      </BottomSheet>
 
       {/* 모바일 사이드바 오버레이 */}
       <div
