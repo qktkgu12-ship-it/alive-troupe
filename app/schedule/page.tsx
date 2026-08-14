@@ -570,8 +570,8 @@ function CoordSection({
   return (
     <div ref={coordSectionTopRef} className="space-y-4">
       {/* 안내 */}
-      <p className="text-[15px] leading-relaxed text-slate-500">
-        단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
+      <p className="text-xs leading-relaxed text-slate-400">
+        💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
       </p>
 
       {/* 만들기 — 스크롤해도 화면에 고정 */}
