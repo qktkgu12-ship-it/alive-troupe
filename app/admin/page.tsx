@@ -9,6 +9,7 @@ import Guard from "@/components/Guard";
 import Spinner from "@/components/Spinner";
 import Avatar from "@/components/Avatar";
 import { ChevronDownIcon, PencilIcon, TrashIcon } from "@/components/Icons";
+import BottomSheet from "@/components/BottomSheet";
 import type { Production, Role, UserProfile } from "@/lib/types";
 
 // 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라)
@@ -404,7 +405,6 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
 
   // 참여명단 바텀시트
   const [partProd, setPartProd] = useState<Production | null>(null);
-  const [partOpen, setPartOpen] = useState(false);       // 슬라이드업 애니메이션 트리거
   const [freshMembers, setFreshMembers] = useState<UserProfile[]>([]); // 최신 단원 목록
   const [mParts, setMParts] = useState<Set<string>>(new Set());
   const [mPartsLoading, setMPartsLoading] = useState(false);
@@ -469,8 +469,6 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
   async function openParts(p: Production) {
     setPartProd(p);
     setMPartsLoading(true);
-    // 마운트 후 슬라이드업 트리거
-    requestAnimationFrame(() => requestAnimationFrame(() => setPartOpen(true)));
     try {
       // 최신 단원 목록 (탈퇴·신규 반영)
       const usnap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "asc")));
@@ -488,8 +486,8 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
     }
   }
   function closeParts() {
-    setPartOpen(false);
-    setTimeout(() => { setPartProd(null); setFreshMembers([]); }, 250);
+    setPartProd(null);
+    setFreshMembers([]);
   }
   function toggleM(uid: string) {
     setMParts((prev) => {
@@ -508,7 +506,6 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
     setMBusy(true);
     try {
       await setDoc(doc(db, "productions", partProd.id), { participants: [...mParts] }, { merge: true });
-      closeParts();
       load();
     } finally {
       setMBusy(false);
@@ -608,84 +605,68 @@ function ProductionManager({ members }: { members: UserProfile[] }) {
         </div>
       )}
 
-      {/* 참여명단 바텀시트 (슬라이드업 애니메이션) */}
-      {partProd && (
-        <div
-          onClick={closeParts}
-          className={`fixed inset-0 z-[60] grid place-items-end bg-slate-900/40 backdrop-blur-sm transition-opacity duration-200 sm:place-items-center sm:p-4 ${partOpen ? "opacity-100" : "opacity-0"}`}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl border border-slate-200 bg-white shadow-2xl transition-transform duration-200 sm:rounded-2xl ${partOpen ? "translate-y-0" : "translate-y-full sm:translate-y-0"}`}
+      {/* 참여명단 바텀시트 */}
+      <BottomSheet
+        open={!!partProd}
+        title={partProd ? `${partProd.name} 참여명단` : ""}
+        onClose={closeParts}
+        onConfirm={saveParts}
+      >
+        {/* 전체 선택/해제 + 선택 수 */}
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm text-slate-400">{mParts.size}명 선택됨</p>
+          <button
+            onClick={toggleAll}
+            disabled={freshMembers.length === 0 || mPartsLoading}
+            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
           >
-            {/* 헤더 */}
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4">
-              <div className="min-w-0">
-                <p className="truncate font-bold text-slate-900">{partProd.name} 참여명단</p>
-                <p className="text-xs text-slate-400">{mParts.size}명 선택됨</p>
-              </div>
-              <button
-                onClick={toggleAll}
-                disabled={freshMembers.length === 0 || mPartsLoading}
-                className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
-              >
-                {allSelected ? "전체 해제" : "전체 선택"}
-              </button>
-            </div>
-
-            {/* 단원 목록 */}
-            <div className="flex-1 overflow-y-auto p-2">
-              {mPartsLoading ? (
-                <div className="flex justify-center py-10"><Spinner /></div>
-              ) : freshMembers.length === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-400">승인된 단원이 없습니다.</p>
-              ) : (
-                freshMembers.map((m) => {
-                  const checked = mParts.has(m.uid);
-                  const tidx = m.team ? teams.indexOf(m.team) : -1;
-                  const tc = tidx >= 0 ? (TEAM_PALETTE[tidx] ?? null) : null;
-                  return (
-                    <button
-                      key={m.uid}
-                      onClick={() => toggleM(m.uid)}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50"
-                    >
-                      <Avatar src={m.avatar} name={m.name || m.displayName} className="h-7 w-7 text-xs" />
-                      <span className="min-w-0 flex-1 text-sm">
-                        <span className="font-medium text-slate-800">{m.name || m.displayName}</span>
-                        {m.bio && <span className="ml-1.5 text-xs text-slate-400">{m.bio}</span>}
-                      </span>
-                      {m.team && tc && (
-                        <span
-                          style={{ color: tc.color, backgroundColor: tc.bg }}
-                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                        >
-                          {m.team}
-                        </span>
-                      )}
-                      <span
-                        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold transition ${
-                          checked ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-transparent"
-                        }`}
-                      >
-                        ✓
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            {/* 하단 버튼 */}
-            <div className="flex gap-2 border-t border-slate-100 p-4">
-              <button onClick={closeParts} className="btn-ghost flex-1">닫기</button>
-              <button onClick={saveParts} disabled={mBusy || mPartsLoading} className="btn-accent flex-1">
-                {mBusy ? "저장 중…" : "저장"}
-              </button>
-            </div>
-          </div>
+            {allSelected ? "전체 해제" : "전체 선택"}
+          </button>
         </div>
-      )}
+
+        {/* 단원 목록 */}
+        {mPartsLoading ? (
+          <div className="flex justify-center py-10"><Spinner /></div>
+        ) : freshMembers.length === 0 ? (
+          <p className="py-10 text-center text-sm text-slate-400">승인된 단원이 없습니다.</p>
+        ) : (
+          <div className="space-y-0.5">
+            {freshMembers.map((m) => {
+              const checked = mParts.has(m.uid);
+              const tidx = m.team ? teams.indexOf(m.team) : -1;
+              const tc = tidx >= 0 ? (TEAM_PALETTE[tidx] ?? null) : null;
+              return (
+                <button
+                  key={m.uid}
+                  onClick={() => toggleM(m.uid)}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50"
+                >
+                  <Avatar src={m.avatar} name={m.name || m.displayName} className="h-7 w-7 text-xs" />
+                  <span className="min-w-0 flex-1 text-sm">
+                    <span className="font-medium text-slate-800">{m.name || m.displayName}</span>
+                    {m.bio && <span className="ml-1.5 text-xs text-slate-400">{m.bio}</span>}
+                  </span>
+                  {m.team && tc && (
+                    <span
+                      style={{ color: tc.color, backgroundColor: tc.bg }}
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    >
+                      {m.team}
+                    </span>
+                  )}
+                  <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${checked ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
+                    {checked && (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                        <path d="M4 13l5 5L20 7" />
+                      </svg>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

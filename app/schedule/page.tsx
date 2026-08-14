@@ -913,12 +913,12 @@ function CoordCreateForm({
                     <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{m.name}</span>
                     {m.team && <TeamBadge team={m.team} />}
-                    <span
-                      className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold transition ${
-                        on ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-transparent"
-                      }`}
-                    >
-                      ✓
+                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
+                      {on && (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                          <path d="M4 13l5 5L20 7" />
+                        </svg>
+                      )}
                     </span>
                   </button>
                 );
