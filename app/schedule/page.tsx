@@ -1623,7 +1623,7 @@ function EventsSection({
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
   const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
   const todayStr = toDateStr(new Date());
-  const formDate = `${yearMonth}-01`;
+  const [formDate, setFormDate] = useState(`${yearMonth}-01`);
   useEffect(() => {
     if (openNew && isAdmin) setShowForm(true);
   }, [openNew, isAdmin]);
@@ -1761,21 +1761,29 @@ function EventsSection({
               <div
                 key={i}
                 onClick={() => {
-                  if (dayEvents.length === 0) return;
-                  const next = isSelected ? null : ds;
-                  setSelectedDate(next);
-                  if (next) {
-                    setTimeout(() => {
-                      const firstId = dayEvents[0]?.id;
-                      if (firstId) {
-                        document.getElementById(`ev-${firstId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }
-                    }, 60);
+                  if (isSelected) {
+                    // 두 번째 탭: 관리자면 확정일정 등록 바텀시트
+                    if (isAdmin) {
+                      setFormDate(ds);
+                      setShowForm(true);
+                    }
+                    setSelectedDate(null);
+                  } else {
+                    // 첫 번째 탭: 테두리 표시 + 이벤트 있으면 스크롤
+                    setSelectedDate(ds);
+                    if (dayEvents.length > 0) {
+                      setTimeout(() => {
+                        const firstId = dayEvents[0]?.id;
+                        if (firstId) {
+                          document.getElementById(`ev-${firstId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                      }, 60);
+                    }
                   }
                 }}
-                className={`relative min-h-[88px] cursor-default border-t border-slate-100 p-1 transition ${
-                  dayEvents.length > 0 ? "cursor-pointer" : ""
-                } ${isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""}`}
+                className={`relative min-h-[88px] cursor-pointer border-t border-slate-100 p-1 transition ${
+                  isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""
+                }`}
               >
                 <div className={`mb-1 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
                   isToday ? "bg-accent text-accent-fg" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-slate-700"
