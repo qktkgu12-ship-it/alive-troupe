@@ -202,11 +202,9 @@ function AudioInner() {
     <div className="space-y-5">
       <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">자료실</h1>
 
-      {isAdmin && (
-        <p className="text-xs leading-relaxed text-slate-400">
-          💡 자료는 구글 드라이브 등에 올린 뒤 <b className="font-semibold text-slate-500">공유 링크</b>를 등록하는 방식입니다.
-        </p>
-      )}
+      <p className="text-xs leading-relaxed text-slate-400">
+        💡 자료는 구글 드라이브 등에 올린 뒤 <b className="font-semibold text-slate-500">공유 링크</b>를 등록하는 방식입니다.
+      </p>
 
       {productions.length === 0 ? (
         <div className="card">
@@ -230,33 +228,29 @@ function AudioInner() {
                 <option key={p.id} value={p.id}>{p.name}{p.gisu ? ` · ${p.gisu}` : ""}</option>
               ))}
             </Select>
-            {isAdmin && (
-              <button
-                onClick={() => setShowAdd((v) => !v)}
-                aria-label={showAdd ? "닫기" : "자료 추가"}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
-              >
-                {showAdd ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
-              </button>
-            )}
+            <button
+              onClick={() => setShowAdd((v) => !v)}
+              aria-label={showAdd ? "닫기" : "자료 추가"}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+            >
+              {showAdd ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
+            </button>
           </div>
 
           {/* 자료 추가 바텀시트 */}
-          {isAdmin && (
-            <BottomSheet open={showAdd} title="자료실 등록" onClose={() => setShowAdd(false)} onConfirm={() => audioFormRef.current?.()}>
-              <AudioForm
-                productionId={active.id}
-                categories={categories}
-                defaultCat={activeCat || categories[0]}
-                addedByName={profile?.name || profile?.displayName || ""}
-                onAdded={() => { setShowAdd(false); loadItems(active.id); }}
-                onCancel={() => setShowAdd(false)}
-                submitRef={audioFormRef}
-              />
-            </BottomSheet>
-          )}
+          <BottomSheet open={showAdd} title="자료실 등록" onClose={() => setShowAdd(false)} onConfirm={() => audioFormRef.current?.()}>
+            <AudioForm
+              productionId={active.id}
+              categories={categories}
+              defaultCat={activeCat || categories[0]}
+              addedByName={profile?.name || profile?.displayName || ""}
+              onAdded={() => { setShowAdd(false); loadItems(active.id); }}
+              onCancel={() => setShowAdd(false)}
+              submitRef={audioFormRef}
+            />
+          </BottomSheet>
 
-          {/* 자료 수정 바텀시트 */}
+          {/* 자료 수정 바텀시트 — 관리자만 */}
           {isAdmin && (
             <BottomSheet open={!!editItem} title="자료 수정" onClose={() => setEditItem(null)} onConfirm={() => editFormRef.current?.()}>
               {editItem && (

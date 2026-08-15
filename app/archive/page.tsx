@@ -102,6 +102,7 @@ function ArchiveInner() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [kindFilter, setKindFilter] = useState<ArchiveKind | "all">("all");
+  const [prodFilter, setProdFilter] = useState<string>("all"); // "all" | productionId
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<ArchiveItem | null>(null);
   const archiveFormRef = useRef<(() => void) | null>(null);
@@ -183,11 +184,12 @@ function ArchiveInner() {
     const s = search.trim().toLowerCase();
     return items.filter((it) => {
       if (kindFilter !== "all" && it.kind !== kindFilter) return false;
+      if (prodFilter !== "all" && it.productionId !== prodFilter) return false;
       if (!s) return true;
       const prodName = it.productionId ? prodMap.get(it.productionId)?.name ?? "" : "";
       return it.title.toLowerCase().includes(s) || it.description.toLowerCase().includes(s) || prodName.toLowerCase().includes(s);
     });
-  }, [items, search, kindFilter, prodMap]);
+  }, [items, search, kindFilter, prodFilter, prodMap]);
 
   const sorted = useMemo(() => {
     const dir = sortOrder === "newest" ? -1 : 1;
@@ -198,7 +200,7 @@ function ArchiveInner() {
     });
   }, [filtered, sortOrder]);
 
-  useEffect(() => { setVisible(PAGE); }, [search, kindFilter, sortOrder]);
+  useEffect(() => { setVisible(PAGE); }, [search, kindFilter, prodFilter, sortOrder]);
 
   async function removeItem(it: ArchiveItem) {
     if (!confirm("이 자료를 삭제할까요?")) return;
@@ -269,6 +271,21 @@ function ArchiveInner() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {/* 작품 필터 칩 — 작품이 2개 이상일 때만 표시 */}
+        {productions.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            {[{ id: "all", name: "전체" }, ...productions].map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setProdFilter(p.id)}
+                className={`rounded-full px-3 py-1 text-sm font-medium transition ${prodFilter === p.id ? "bg-accent text-accent-fg" : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* 종류 필터 칩 + 뷰 토글 */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
             {([["all", "전체"], ["rehearsal", "연습"], ["performance", "공연"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
