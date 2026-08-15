@@ -1815,17 +1815,24 @@ function EventsSection({
                 }}
                 className="relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition"
               >
-                {/* 날짜 숫자: 선택 → 원 이동 (다크네이비 or 브랜드컬러), 오늘(미선택) → 얇은 브랜드컬러 */}
-                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[15px] ${
-                  isSelected
-                    ? isToday
-                      ? "bg-accent text-accent-fg font-bold"
-                      : "bg-[#1a2744] text-white font-bold"
-                    : isToday
-                      ? "font-normal text-accent"
-                      : `font-bold ${baseColor}`
-                }`}>
-                  {d.getDate()}
+                {/* 날짜 숫자: 원 배경 분리 → 스케일 애니메이션 */}
+                <div className="relative mb-1.5 mx-auto h-7 w-7">
+                  {/* 원 배경: 항상 DOM에 있고 scale로 show/hide */}
+                  <div className={`absolute inset-0 origin-center rounded-full transition-transform duration-200 ease-out ${
+                    isSelected
+                      ? isToday ? "bg-accent scale-100" : "bg-[#1a2744] scale-100"
+                      : "scale-0 " + (isToday ? "bg-accent" : "bg-[#1a2744]")
+                  }`} />
+                  {/* 숫자 */}
+                  <div className={`relative flex h-full w-full items-center justify-center text-[15px] ${
+                    isSelected
+                      ? "font-bold text-white"
+                      : isToday
+                        ? "font-normal text-accent"
+                        : `font-bold ${baseColor}`
+                  }`}>
+                    {d.getDate()}
+                  </div>
                 </div>
                 {/* 이벤트 칩 */}
                 <div className="space-y-px">
@@ -1904,9 +1911,18 @@ function EventsSection({
         }
         if (selectedDate && displayGroups.length === 0) {
           return (
-            <p className="py-6 text-center text-sm text-slate-400">
-              이 날 확정된 일정이 없습니다.
-            </p>
+            <div className="space-y-2">
+              <p className="py-4 text-center text-sm text-slate-400">이 날 확정된 일정이 없습니다.</p>
+              {isAdmin && (
+                <button
+                  onClick={() => { openNewForm(selectedDate); }}
+                  className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition hover:bg-[#243258] active:scale-[0.99]"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                  새로운 확정 일정
+                </button>
+              )}
+            </div>
           );
         }
         return (
