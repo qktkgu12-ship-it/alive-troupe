@@ -108,6 +108,8 @@ function ArchiveInner() {
 
   // 더보기 액션시트
   const [actionItem, setActionItem] = useState<ArchiveItem | null>(null);
+  // 영상 선택 서브시트 (다수 영상일 때 복사/공유 대상 선택)
+  const [clipPicker, setClipPicker] = useState<{ mode: "copy" | "share"; clips: ArchiveClip[]; title: string } | null>(null);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
@@ -383,18 +385,30 @@ function ArchiveInner() {
           return (
             <div className="space-y-0.5">
               {/* 링크 복사 */}
-              {clips.map((c, i) => (
-                <CopyActionRow
-                  key={`copy-${i}`}
-                  url={c.url}
-                  label={clips.length === 1 ? "링크 복사" : `${c.label || `영상 ${i + 1}`} 복사`}
-                />
-              ))}
+              {clips.length === 1 ? (
+                <CopyActionRow url={clips[0].url} label="링크 복사" />
+              ) : (
+                <button
+                  onClick={() => setClipPicker({ mode: "copy", clips, title: actionItem.title })}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
+                >
+                  <LinkIcon className="h-5 w-5 shrink-0 text-slate-500" />
+                  <span className="text-[15px] text-slate-800">링크 복사</span>
+                </button>
+              )}
 
               {/* 공유 */}
-              {clips.length === 1 && (
+              {clips.length === 1 ? (
                 <button
                   onClick={() => { shareUrl(clips[0].url, actionItem.title); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
+                >
+                  <ShareIcon className="h-5 w-5 shrink-0 text-slate-500" />
+                  <span className="text-[15px] text-slate-800">공유</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setClipPicker({ mode: "share", clips, title: actionItem.title })}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
                 >
                   <ShareIcon className="h-5 w-5 shrink-0 text-slate-500" />
@@ -429,6 +443,36 @@ function ArchiveInner() {
             </div>
           );
         })()}
+      </BottomSheet>
+
+      {/* 영상 선택 서브시트 (링크복사·공유 대상 고르기) */}
+      <BottomSheet
+        open={!!clipPicker}
+        title={clipPicker?.mode === "copy" ? "복사할 영상 선택" : "공유할 영상 선택"}
+        onClose={() => setClipPicker(null)}
+      >
+        {clipPicker && (
+          <div className="space-y-0.5">
+            {clipPicker.clips.map((c, i) =>
+              clipPicker.mode === "copy" ? (
+                <CopyActionRow
+                  key={i}
+                  url={c.url}
+                  label={c.label || `영상 ${i + 1}`}
+                />
+              ) : (
+                <button
+                  key={i}
+                  onClick={() => { shareUrl(c.url, `${clipPicker.title} - ${c.label || `영상 ${i + 1}`}`); setClipPicker(null); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
+                >
+                  <ShareIcon className="h-5 w-5 shrink-0 text-slate-500" />
+                  <span className="text-[15px] text-slate-800">{c.label || `영상 ${i + 1}`}</span>
+                </button>
+              )
+            )}
+          </div>
+        )}
       </BottomSheet>
     </div>
   );

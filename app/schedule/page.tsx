@@ -569,19 +569,19 @@ function CoordSection({
 
   return (
     <div ref={coordSectionTopRef} className="space-y-4">
-      {/* 안내 */}
-      <p className="text-xs leading-relaxed text-slate-400">
-        💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
-      </p>
-
-      {/* 만들기 — 스크롤해도 화면에 고정 */}
-      <button
-        onClick={() => setShowCreate(true)}
-        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-4 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(26,39,68,0.5)] transition hover:bg-[#243258] active:scale-[0.99]"
-      >
-        <PlusIcon className="h-5 w-5" />
-        일정방 만들기
-      </button>
+      {/* 헤더 행 */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs leading-relaxed text-slate-400">
+          💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
+        </p>
+        <button
+          onClick={() => setShowCreate(true)}
+          aria-label="일정방 만들기"
+          className="ml-3 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+        >
+          <PlusIcon className="h-5 w-5" />
+        </button>
+      </div>
 
       {/* 방 목록 */}
       {loading ? (
