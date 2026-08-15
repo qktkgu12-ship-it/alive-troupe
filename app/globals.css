@@ -145,7 +145,7 @@ body {
   to { opacity: 1; }
 }
 .animate-list-fade-in {
-  animation: list-fade-in 320ms ease both;
+  animation: list-fade-in 480ms ease both;
 }
 /* 새로운 확정일정 버튼 슬라이드 인 (아래서 올라옴) */
 @keyframes slide-in-btn {
