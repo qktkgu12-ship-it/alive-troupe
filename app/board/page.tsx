@@ -237,34 +237,35 @@ function BoardInner() {
       ) : (
         <div className="space-y-2">
           {pageItems.map((p) => (
-            <Link key={p.id} href={`/board/${p.id}`} className="card block !p-3 transition hover:ring-1 hover:ring-accent/30">
-              <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
+            <Link key={p.id} href={`/board/${p.id}`} className="card block !px-4 !py-3 transition hover:ring-1 hover:ring-accent/30">
+              {/* 제목 행 */}
+              <p className="flex items-center gap-1.5 font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
                 {p.poll && <span className="shrink-0 text-xs text-slate-400">🗳️</span>}
                 {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="shrink-0 text-xs text-slate-400">📷</span>}
                 {(p.commentCount ?? 0) > 0 && (
-                  <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-accent">
-                    <CommentIcon className="h-3.5 w-3.5" />
-                    {p.commentCount}
-                  </span>
+                  <span className="shrink-0 text-sm font-bold text-accent">[{p.commentCount}]</span>
                 )}
               </p>
+              {/* 메타 행: 작성자 | 날짜 | 조회수 | 좋아요 */}
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
-                {(p.likeCount ?? 0) > 0 && (
-                  <span className="inline-flex items-center gap-0.5 text-slate-500">
-                    <HeartIcon className="h-3.5 w-3.5" />
-                    {p.likeCount}
-                  </span>
-                )}
-                <span className="chip !bg-slate-100 !px-1.5 !py-0">{boardCategoryLabel(p.board)}</span>
-                <span className="text-slate-500"><ProfileName uid={p.authorUid} name={p.authorName} /></span>
-                <span>·</span>
+                <span className="text-slate-500 font-medium"><ProfileName uid={p.authorUid} name={p.authorName} /></span>
+                <span>|</span>
+                <span>{relativeTime(p.createdAt)}</span>
+                <span>|</span>
                 <span className="inline-flex items-center gap-0.5">
                   <EyeIcon className="h-3.5 w-3.5" />
-                  {p.viewCount ?? 0}
+                  조회수 {p.viewCount ?? 0}
                 </span>
-                <span>·</span>
-                <span>{relativeTime(p.createdAt)}</span>
+                {(p.likeCount ?? 0) > 0 && (
+                  <>
+                    <span>|</span>
+                    <span className="inline-flex items-center gap-0.5 text-rose-400">
+                      <HeartIcon className="h-3.5 w-3.5" />
+                      {p.likeCount}
+                    </span>
+                  </>
+                )}
               </div>
             </Link>
           ))}
