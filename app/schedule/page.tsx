@@ -1979,7 +1979,7 @@ function EventsSection({
                       })()}
                     </div>
                     {/* 컬러 바: 세로 여백 + 둥근 모서리 */}
-                    <div className="self-stretch flex py-4">
+                    <div className="self-stretch flex py-2">
                       <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: barColor }} />
                     </div>
                     {/* 내용 */}
