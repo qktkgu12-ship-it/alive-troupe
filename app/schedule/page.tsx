@@ -1990,16 +1990,14 @@ function EventsSection({
             {cardList}
             {/* + 새로운 확정일정 버튼 — 슬라이드 애니메이션 (페이드 없음) */}
             {isAdmin && (
-              <div className="overflow-hidden">
-                <button
-                  onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
-                  className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition-all duration-300 ease-out hover:bg-[#243258] active:scale-[0.99] translate-y-0"
-                  style={{ animation: "slide-in-btn 480ms cubic-bezier(0.32,0.72,0,1) both" }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                  새로운 확정 일정
-                </button>
-              </div>
+              <button
+                onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
+                className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white hover:bg-[#243258] active:scale-[0.99]"
+                style={{ animation: "slide-in-btn 480ms cubic-bezier(0.32,0.72,0,1) both" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                새로운 확정 일정
+              </button>
             )}
           </div>
         );

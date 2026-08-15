@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { XIcon } from "@/components/Icons";
 
 const ANIM_MS = 520; // sheet-up/down 동일 duration
@@ -91,7 +92,7 @@ export default function BottomSheet({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4 ${
         closing ? "animate-overlay-out" : "animate-overlay-in"
@@ -144,6 +145,7 @@ export default function BottomSheet({
         {/* 본문 */}
         <div className="flex-1 overflow-y-auto p-4 pb-10">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
