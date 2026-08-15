@@ -1646,6 +1646,23 @@ function EventsSection({
     setSelectedDate(yearMonth === todayStr.slice(0, 7) ? todayStr : null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearMonth]);
+
+  // 일정 목록 페이드 애니메이션 — listDate가 실제 렌더링 날짜, listFade가 투명도 제어
+  const [listDate, setListDate] = useState<string | null>(
+    yearMonth === todayStr.slice(0, 7) ? todayStr : null
+  );
+  const [listFade, setListFade] = useState(true);
+  useEffect(() => {
+    if (selectedDate === listDate) return;
+    setListFade(false);
+    const t = setTimeout(() => {
+      setListDate(selectedDate);
+      setListFade(true);
+    }, 160);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
   const newEventRef = useRef<(() => void) | null>(null);
   const editEventRef = useRef<(() => void) | null>(null);
   // 달력 그리드
@@ -1894,11 +1911,11 @@ function EventsSection({
         </BottomSheet>
       )}
 
-      {/* 일정 리스트 */}
+      {/* 일정 리스트 — listDate 기준 렌더링 + 페이드 애니메이션 */}
       {(() => {
-        // 날짜 선택 시 해당 날짜만, 미선택 시 전체
-        const displayGroups = selectedDate
-          ? groups.filter(([date]) => date === selectedDate)
+        // listDate: 페이드 전환 완료 후의 실제 표시 날짜
+        const displayGroups = listDate
+          ? groups.filter(([date]) => date === listDate)
           : groups;
 
         if (visibleEvents.length === 0) {
@@ -1909,13 +1926,15 @@ function EventsSection({
             />
           );
         }
-        if (selectedDate && displayGroups.length === 0) {
+        if (listDate && displayGroups.length === 0) {
           return (
-            <div className="space-y-2">
+            <div
+              className={`space-y-2 transition-opacity duration-150 ${listFade ? "opacity-100" : "opacity-0"}`}
+            >
               <p className="py-4 text-center text-sm text-slate-400">이 날 확정된 일정이 없습니다.</p>
               {isAdmin && (
                 <button
-                  onClick={() => { openNewForm(selectedDate); }}
+                  onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
                   className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition hover:bg-[#243258] active:scale-[0.99]"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -1926,7 +1945,7 @@ function EventsSection({
           );
         }
         return (
-          <div className="space-y-2">
+          <div className={`space-y-2 transition-opacity duration-150 ${listFade ? "opacity-100" : "opacity-0"}`}>
             {displayGroups.map(([date, evs]) => (
               evs.map((e) => {
 
@@ -1946,7 +1965,7 @@ function EventsSection({
                       {(() => {
                         const sp = formatTimeParts(e.startTime);
                         return (
-                          <p className="whitespace-nowrap tracking-tight text-[17px] font-bold leading-tight text-slate-900">
+                          <p className="whitespace-nowrap tracking-tighter text-[17px] font-bold leading-tight text-slate-900">
                             {sp.time}<span className="ml-[3px] text-[10px] font-semibold tracking-normal">{sp.ampm}</span>
                           </p>
                         );
@@ -1954,7 +1973,7 @@ function EventsSection({
                       {e.endTime && (() => {
                         const ep = formatTimeParts(e.endTime);
                         return (
-                          <p className="mt-0.5 whitespace-nowrap tracking-tight text-[12px] font-medium text-slate-400">
+                          <p className="mt-0.5 whitespace-nowrap tracking-tighter text-[12px] font-medium text-slate-400">
                             {ep.time}<span className="ml-[3px] text-[9px] tracking-normal">{ep.ampm}</span>
                           </p>
                         );
@@ -1966,13 +1985,13 @@ function EventsSection({
                     </div>
                     {/* 내용 */}
                     <div className="min-w-0 flex-1 py-3 pl-3 pr-3">
-                      <p className="flex items-center gap-1.5 text-[17px] font-bold tracking-tight text-slate-900">
+                      <p className="flex items-center gap-1.5 text-[17px] font-bold tracking-tighter text-slate-900">
                         <TeamBadge team={e.team} />
                         <span className="min-w-0 truncate">{e.title}</span>
                         {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
                       </p>
                       {(e.location || e.memo) && (
-                        <p className="mt-0.5 line-clamp-1 text-[11px] tracking-tight text-slate-400">
+                        <p className="mt-0.5 line-clamp-1 text-[11px] tracking-tighter text-slate-400">
                           {[e.location, e.memo].filter(Boolean).join(" · ")}
                         </p>
                       )}
