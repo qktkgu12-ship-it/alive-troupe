@@ -157,9 +157,9 @@ function ArchiveInner() {
         if (myProdIds.length === 0) {
           allItems = [];
         } else {
-          // Firestore 'in' 연산자는 최대 30개 → chunk 처리
+          // Firestore 'in' 연산자는 최대 30개 → chunk 처리 (orderBy 제거 — JS 정렬로 대체, 복합 인덱스 불필요)
           const batches = chunk(myProdIds, 30).map((ids) =>
-            getDocs(query(collection(db, "archives"), where("productionId", "in", ids), orderBy("date", "desc")))
+            getDocs(query(collection(db, "archives"), where("productionId", "in", ids)))
           );
           const snaps = await Promise.all(batches);
           allItems = snaps
@@ -230,19 +230,7 @@ function ArchiveInner() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">아카이브</h1>
-        <button
-          onClick={() => {
-            if (showForm || editItem) { setShowForm(false); setEditItem(null); }
-            else setShowForm(true);
-          }}
-          aria-label={showForm || editItem ? "닫기" : "자료 등록"}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
-        >
-          {showForm || editItem ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
-        </button>
-      </div>
+      <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">아카이브</h1>
 
       {/* 등록·수정 바텀시트 */}
       <BottomSheet
@@ -263,27 +251,44 @@ function ArchiveInner() {
         />
       </BottomSheet>
 
-      {/* 검색 / 필터 */}
-      <div className="space-y-2">
+      {/* 검색 / 필터 — 자료실과 동일한 레이아웃 */}
+      <div className="space-y-4">
+        {/* 작품 Select + 등록 버튼 */}
+        <div className="flex items-center justify-between gap-2">
+          {productions.length > 0 ? (
+            <Select
+              wrapperClassName="inline-block max-w-[75%]"
+              value={prodFilter}
+              onChange={(e) => setProdFilter(e.target.value)}
+              className="font-semibold text-slate-800"
+            >
+              <option value="all">전체 작품</option>
+              {productions.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}{p.gisu ? ` · ${p.gisu}` : ""}</option>
+              ))}
+            </Select>
+          ) : (
+            <span />
+          )}
+          <button
+            onClick={() => {
+              if (showForm || editItem) { setShowForm(false); setEditItem(null); }
+              else setShowForm(true);
+            }}
+            aria-label={showForm || editItem ? "닫기" : "자료 등록"}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+          >
+            {showForm || editItem ? <XIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
+          </button>
+        </div>
+
+        {/* 검색 */}
         <input
           className="input"
           placeholder="검색할 단어 입력"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        {/* 작품 필터 — 자료실과 동일한 Select 형식 */}
-        {productions.length > 0 && (
-          <Select
-            value={prodFilter}
-            onChange={(e) => setProdFilter(e.target.value)}
-            className="font-semibold text-slate-800"
-          >
-            <option value="all">전체 작품</option>
-            {productions.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}{p.gisu ? ` · ${p.gisu}` : ""}</option>
-            ))}
-          </Select>
-        )}
         {/* 종류 필터 칩 + 뷰 토글 */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
