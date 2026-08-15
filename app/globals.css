@@ -139,6 +139,23 @@ body {
   .animate-overlay-in, .animate-overlay-out { animation: none; }
 }
 
+/* 일정 카드 목록 페이드 인 */
+@keyframes list-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-list-fade-in {
+  animation: list-fade-in 320ms ease both;
+}
+/* 새로운 확정일정 버튼 슬라이드 인 (아래서 올라옴) */
+@keyframes slide-in-btn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-list-fade-in { animation: none; }
+}
+
 /* 알림 벨: 알림 있을 때 주기적으로 딸랑딸랑 흔들림 */
 @keyframes bell-ring {
   0% { transform: rotate(0); }

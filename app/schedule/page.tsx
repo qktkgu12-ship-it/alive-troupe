@@ -1647,21 +1647,7 @@ function EventsSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearMonth]);
 
-  // 일정 목록 페이드 애니메이션 — listDate가 실제 렌더링 날짜, listFade가 투명도 제어
-  const [listDate, setListDate] = useState<string | null>(
-    yearMonth === todayStr.slice(0, 7) ? todayStr : null
-  );
-  const [listFade, setListFade] = useState(true);
-  useEffect(() => {
-    if (selectedDate === listDate) return;
-    setListFade(false);
-    const t = setTimeout(() => {
-      setListDate(selectedDate);
-      setListFade(true);
-    }, 640);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+  // 일정 목록 페이드 애니메이션 — key 변경으로 리마운트 + CSS keyframe 동시 페이드
 
   const newEventRef = useRef<(() => void) | null>(null);
   const editEventRef = useRef<(() => void) | null>(null);
@@ -1911,11 +1897,10 @@ function EventsSection({
         </BottomSheet>
       )}
 
-      {/* 일정 리스트 — listDate 기준 렌더링 + 페이드 애니메이션 */}
+      {/* 일정 리스트 — selectedDate 기준 렌더링 + CSS keyframe 동시 페이드 */}
       {(() => {
-        // listDate: 페이드 전환 완료 후의 실제 표시 날짜
-        const displayGroups = listDate
-          ? groups.filter(([date]) => date === listDate)
+        const displayGroups = selectedDate
+          ? groups.filter(([date]) => date === selectedDate)
           : groups;
 
         if (visibleEvents.length === 0) {
@@ -1926,28 +1911,11 @@ function EventsSection({
             />
           );
         }
-        if (listDate && displayGroups.length === 0) {
-          return (
-            <div
-              className={`space-y-2 transition-opacity duration-[640ms] ${listFade ? "opacity-100" : "opacity-0"}`}
-            >
-              {isAdmin && (
-                <button
-                  onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
-                  className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition hover:bg-[#243258] active:scale-[0.99]"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                  새로운 확정 일정
-                </button>
-              )}
-            </div>
-          );
-        }
-        return (
-          <div className={`space-y-2 transition-opacity duration-[640ms] ${listFade ? "opacity-100" : "opacity-0"}`}>
+
+        const cardList = selectedDate && displayGroups.length === 0 ? null : (
+          <div key={selectedDate ?? "all"} className="space-y-2 animate-list-fade-in">
             {displayGroups.map(([date, evs]) => (
               evs.map((e) => {
-
                 const past = eventPassed(e);
                 const barColor = getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))";
                 return (
@@ -2005,15 +1973,24 @@ function EventsSection({
                 );
               })
             ))}
-            {/* + 새로운 확정일정 버튼 */}
+          </div>
+        );
+
+        return (
+          <div className="space-y-2">
+            {cardList}
+            {/* + 새로운 확정일정 버튼 — 슬라이드 애니메이션 (페이드 없음) */}
             {isAdmin && (
-              <button
-                onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
-                className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition hover:bg-[#243258] active:scale-[0.99]"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                새로운 확정 일정
-              </button>
+              <div className="overflow-hidden">
+                <button
+                  onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
+                  className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition-all duration-300 ease-out hover:bg-[#243258] active:scale-[0.99] translate-y-0"
+                  style={{ animation: "slide-in-btn 300ms cubic-bezier(0.32,0.72,0,1) both" }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                  새로운 확정 일정
+                </button>
+              </div>
             )}
           </div>
         );
