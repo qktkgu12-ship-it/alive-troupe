@@ -40,7 +40,7 @@ import { chunk, safeExternalUrl } from "@/lib/utils";
 // 종류별 이모지
 const ARCHIVE_KIND_EMOJI: Record<ArchiveKind, string> = {
   rehearsal: "🎬",
-  performance: "🎭",
+  performance: "🎪",
   etc: "📁",
 };
 
