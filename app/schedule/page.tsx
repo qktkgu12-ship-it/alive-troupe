@@ -1917,20 +1917,20 @@ function EventsSection({
                     } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
                   >
                     {/* 시간 */}
-                    <div className="flex w-[64px] shrink-0 flex-col justify-center px-2.5 py-3">
+                    <div className="flex w-[76px] shrink-0 flex-col justify-center pl-3 pr-5 py-3">
                       {(() => {
                         const sp = formatTimeParts(e.startTime);
                         return (
-                          <p className="whitespace-nowrap text-[15px] font-bold leading-tight text-slate-900">
-                            {sp.time}<span className="ml-[2px] text-[9px] font-semibold">{sp.ampm}</span>
+                          <p className="whitespace-nowrap tracking-wide text-[15px] font-bold leading-tight text-slate-900">
+                            {sp.time}<span className="ml-[3px] text-[9px] font-semibold tracking-normal">{sp.ampm}</span>
                           </p>
                         );
                       })()}
                       {e.endTime && (() => {
                         const ep = formatTimeParts(e.endTime);
                         return (
-                          <p className="mt-0.5 whitespace-nowrap text-[11px] font-medium text-slate-400">
-                            {ep.time}<span className="ml-[2px] text-[8px]">{ep.ampm}</span>
+                          <p className="mt-0.5 whitespace-nowrap tracking-wide text-[11px] font-medium text-slate-400">
+                            {ep.time}<span className="ml-[3px] text-[8px] tracking-normal">{ep.ampm}</span>
                           </p>
                         );
                       })()}
@@ -1940,7 +1940,7 @@ function EventsSection({
                       <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: barColor }} />
                     </div>
                     {/* 내용 */}
-                    <div className="min-w-0 flex-1 py-3 pl-3 pr-1">
+                    <div className="min-w-0 flex-1 py-3 pl-3 pr-3">
                       <p className="flex items-center gap-1.5 text-[15px] font-bold text-slate-900">
                         <TeamBadge team={e.team} />
                         <span className="min-w-0 truncate">{e.title}</span>
@@ -2018,7 +2018,7 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
       <button
         onClick={() => setSheetOpen(true)}
         aria-label="이 날 못 가요"
-        className={`mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${
+        className={`mr-3 grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${
           mine ? "bg-red-50 text-red-500" : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
         }`}
       >
