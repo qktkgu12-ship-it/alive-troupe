@@ -267,7 +267,7 @@ function ArchiveInner() {
       <div className="space-y-2">
         <input
           className="input"
-          placeholder="제목 · 작품 · 설명으로 검색"
+          placeholder="검색할 단어 입력"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
