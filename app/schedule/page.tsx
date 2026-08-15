@@ -1698,63 +1698,7 @@ function EventsSection({
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 + 추가 버튼 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
-          <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
-          <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
-        </div>
-        {isAdmin && (
-          <button
-            onClick={() => setShowForm(true)}
-            aria-label="일정 추가"
-            title="일정 추가"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      {/* 팀 필터 */}
-      {teams.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
-            const isAll = val === "";
-            const teamC = !isAll ? getTeamColor(val, teams) : null;
-            const isActive = evTeam === val;
-            let chipStyle: React.CSSProperties = {};
-            let chipClass = "rounded-full border px-2.5 py-1 text-xs font-medium transition ";
-            if (isAll) {
-              chipClass += isActive
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-slate-200 text-slate-500 hover:bg-slate-50";
-            } else if (teamC) {
-              if (isActive) {
-                chipStyle = { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color };
-              } else {
-                chipClass += "border-slate-200 text-slate-500 hover:bg-slate-50";
-              }
-            } else {
-              chipClass += isActive
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-slate-200 text-slate-500 hover:bg-slate-50";
-            }
-            return (
-              <button
-                key={val || "all"}
-                onClick={() => setEvTeam(val)}
-                style={chipStyle}
-                className={chipClass}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
+      {/* BottomSheets */}
       {isAdmin && (
         <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)} onConfirm={() => newEventRef.current?.()}>
           <EventForm
@@ -1766,8 +1710,6 @@ function EventsSection({
           />
         </BottomSheet>
       )}
-
-      {/* 수정 BottomSheet */}
       {isAdmin && (
         <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)} onConfirm={() => editEventRef.current?.()}>
           {editEvent && (
@@ -1783,18 +1725,75 @@ function EventsSection({
         </BottomSheet>
       )}
 
-      {/* 풀 캘린더 */}
-      <div>
+      {/* 탭 아래 ~ 달력 끝: 화이트 영역 (좌우 여백 제거) */}
+      <div className="-mx-4 bg-white">
+        {/* 헤더: 월 이동 + 추가 버튼 */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-1">
+            <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
+            <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
+            <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setShowForm(true)}
+              aria-label="일정 추가"
+              title="일정 추가"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+            >
+              <PlusIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+
+        {/* 팀 필터 */}
+        {teams.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
+              const isAll = val === "";
+              const teamC = !isAll ? getTeamColor(val, teams) : null;
+              const isActive = evTeam === val;
+              let chipStyle: React.CSSProperties = {};
+              let chipClass = "rounded-full border px-2.5 py-1 text-xs font-medium transition ";
+              if (isAll) {
+                chipClass += isActive
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50";
+              } else if (teamC) {
+                if (isActive) {
+                  chipStyle = { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color };
+                } else {
+                  chipClass += "border-slate-200 text-slate-500 hover:bg-slate-50";
+                }
+              } else {
+                chipClass += isActive
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50";
+              }
+              return (
+                <button
+                  key={val || "all"}
+                  onClick={() => setEvTeam(val)}
+                  style={chipStyle}
+                  className={chipClass}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b border-slate-200">
+        <div className="grid grid-cols-7 border-b border-slate-200 bg-white">
           {WEEKDAYS_KO.map((w) => (
-            <div key={w} className="py-2.5 text-center text-[12px] font-bold text-slate-400">{w}</div>
+            <div key={w} className="py-2 text-center text-[12px] font-bold text-slate-400">{w}</div>
           ))}
         </div>
         {/* 날짜 셀 */}
         <div className="grid grid-cols-7">
           {miniGrid.map((d, i) => {
-            if (!d) return <div key={i} className="min-h-[120px] border-t border-slate-100" />;
+            if (!d) return <div key={i} className="min-h-[80px] border-t border-slate-100 bg-white" />;
             const ds = toDateStr(d);
             const isToday = ds === todayStr;
             const isSelected = ds === selectedDate;
@@ -1816,10 +1815,14 @@ function EventsSection({
                     }
                   }
                 }}
-                className="relative min-h-[120px] cursor-pointer border-t border-slate-100 p-1.5 transition"
+                className={`relative min-h-[80px] cursor-pointer border-t p-1 transition ${
+                  isSelected
+                    ? "border-t-[#1a2744] bg-[#1a2744]/5"
+                    : "border-t-slate-100 bg-white"
+                }`}
               >
                 {/* 날짜 숫자 */}
-                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition ${
+                <div className={`mb-1 mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-[15px] font-bold transition ${
                   isSelected
                     ? "bg-[#1a2744] text-white"
                     : isToday
@@ -1839,7 +1842,7 @@ function EventsSection({
                         style={tc
                           ? { borderLeftColor: tc.border, ...teamChipStyle(e.team, teams, passed) }
                           : passed ? {} : undefined}
-                        className={`truncate rounded border-l-2 px-0.5 text-[11px] font-medium leading-[15px] ${
+                        className={`overflow-hidden rounded border-l-2 px-0.5 text-[11px] font-medium leading-[15px] ${
                           passed
                             ? "border-l-slate-200 bg-slate-100 text-slate-400"
                             : tc
@@ -1859,7 +1862,7 @@ function EventsSection({
             );
           })}
         </div>
-      </div>
+      </div>{/* 화이트 영역 끝 */}
 
       {/* 일정 리스트 (간소화) */}
       {visibleEvents.length === 0 ? (
