@@ -271,19 +271,18 @@ function ArchiveInner() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        {/* 작품 필터 칩 — 작품이 2개 이상일 때만 표시 */}
-        {productions.length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
-            {[{ id: "all", name: "전체" }, ...productions].map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setProdFilter(p.id)}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition ${prodFilter === p.id ? "bg-accent text-accent-fg" : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
-              >
-                {p.name}
-              </button>
+        {/* 작품 필터 — 자료실과 동일한 Select 형식 */}
+        {productions.length > 0 && (
+          <Select
+            value={prodFilter}
+            onChange={(e) => setProdFilter(e.target.value)}
+            className="font-semibold text-slate-800"
+          >
+            <option value="all">전체 작품</option>
+            {productions.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}{p.gisu ? ` · ${p.gisu}` : ""}</option>
             ))}
-          </div>
+          </Select>
         )}
         {/* 종류 필터 칩 + 뷰 토글 */}
         <div className="flex flex-wrap items-center justify-between gap-2">
