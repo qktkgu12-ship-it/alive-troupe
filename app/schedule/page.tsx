@@ -118,13 +118,20 @@ function teamChipStyle(team: string | undefined, teams: string[], passed = false
   return { backgroundColor: c.bg, color: c.color };
 }
 
-// "HH:mm" → "H:MM AM/PM"
-function formatTime(t: string | undefined) {
-  if (!t) return "";
+// "HH:mm" → { time: "H:MM", ampm: "AM"|"PM" }
+function formatTimeParts(t: string | undefined): { time: string; ampm: string } {
+  if (!t) return { time: "—", ampm: "" };
   const [h, m] = t.split(":").map(Number);
   const ampm = h < 12 ? "AM" : "PM";
   const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
+  return { time: `${hour}:${String(m).padStart(2, "0")}`, ampm };
+}
+
+// "HH:mm" → "H:MM AM/PM"
+function formatTime(t: string | undefined) {
+  if (!t) return "";
+  const p = formatTimeParts(t);
+  return `${p.time} ${p.ampm}`;
 }
 
 // 슬롯 "HH:mm" → "H:mm" 표기 (오전/오후 생략)
@@ -1874,6 +1881,7 @@ function EventsSection({
           <div className="space-y-2">
             {displayGroups.map(([date, evs]) => (
               evs.map((e) => {
+
                 const past = eventPassed(e);
                 const barColor = getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))";
                 return (
@@ -1886,21 +1894,31 @@ function EventsSection({
                     } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
                   >
                     {/* 시간 */}
-                    <div className="flex w-[72px] shrink-0 flex-col justify-center px-3 py-3">
-                      <p className="text-[16px] font-bold leading-tight text-slate-900">
-                        {e.startTime ? formatTime(e.startTime) : "—"}
-                      </p>
-                      {e.endTime && (
-                        <p className="mt-0.5 text-[12px] font-medium text-slate-400">{formatTime(e.endTime)}</p>
-                      )}
+                    <div className="flex w-[64px] shrink-0 flex-col justify-center px-2.5 py-3">
+                      {(() => {
+                        const sp = formatTimeParts(e.startTime);
+                        return (
+                          <p className="whitespace-nowrap text-[15px] font-bold leading-tight text-slate-900">
+                            {sp.time}<span className="ml-[2px] text-[9px] font-semibold">{sp.ampm}</span>
+                          </p>
+                        );
+                      })()}
+                      {e.endTime && (() => {
+                        const ep = formatTimeParts(e.endTime);
+                        return (
+                          <p className="mt-0.5 whitespace-nowrap text-[11px] font-medium text-slate-400">
+                            {ep.time}<span className="ml-[2px] text-[8px]">{ep.ampm}</span>
+                          </p>
+                        );
+                      })()}
                     </div>
                     {/* 컬러 바: 세로 여백 + 둥근 모서리 */}
                     <div className="self-stretch flex py-2.5">
-                      <div className="w-[3px] flex-1 rounded-full" style={{ backgroundColor: barColor }} />
+                      <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: barColor }} />
                     </div>
                     {/* 내용 */}
                     <div className="min-w-0 flex-1 py-3 pl-3 pr-1">
-                      <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                      <p className="flex items-center gap-1.5 text-[15px] font-bold text-slate-900">
                         <TeamBadge team={e.team} />
                         <span className="min-w-0 truncate">{e.title}</span>
                         {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
@@ -1921,6 +1939,16 @@ function EventsSection({
                 );
               })
             ))}
+            {/* + 새로운 확정일정 버튼 */}
+            {isAdmin && (
+              <button
+                onClick={() => { setFormDate(selectedDate ?? `${yearMonth}-01`); setShowForm(true); }}
+                className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition hover:bg-[#243258] active:scale-[0.99]"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                새로운 확정 일정
+              </button>
+            )}
           </div>
         );
       })()}
