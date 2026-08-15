@@ -1658,7 +1658,7 @@ function EventsSection({
     const t = setTimeout(() => {
       setListDate(selectedDate);
       setListFade(true);
-    }, 160);
+    }, 640);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
@@ -1929,9 +1929,8 @@ function EventsSection({
         if (listDate && displayGroups.length === 0) {
           return (
             <div
-              className={`space-y-2 transition-opacity duration-150 ${listFade ? "opacity-100" : "opacity-0"}`}
+              className={`space-y-2 transition-opacity duration-[640ms] ${listFade ? "opacity-100" : "opacity-0"}`}
             >
-              <p className="py-4 text-center text-sm text-slate-400">이 날 확정된 일정이 없습니다.</p>
               {isAdmin && (
                 <button
                   onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
@@ -1945,7 +1944,7 @@ function EventsSection({
           );
         }
         return (
-          <div className={`space-y-2 transition-opacity duration-150 ${listFade ? "opacity-100" : "opacity-0"}`}>
+          <div className={`space-y-2 transition-opacity duration-[640ms] ${listFade ? "opacity-100" : "opacity-0"}`}>
             {displayGroups.map(([date, evs]) => (
               evs.map((e) => {
 
