@@ -570,14 +570,11 @@ function CoordSection({
   return (
     <div ref={coordSectionTopRef} className="space-y-4">
       {/* 헤더 행 */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs leading-relaxed text-slate-400">
-          💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
-        </p>
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setShowCreate(true)}
           aria-label="일정방 만들기"
-          className="ml-3 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
         >
           <PlusIcon className="h-5 w-5" />
         </button>
@@ -1713,7 +1710,7 @@ function EventsSection({
             onClick={() => setShowForm(true)}
             aria-label="일정 추가"
             title="일정 추가"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
           >
             <PlusIcon className="h-5 w-5" />
           </button>
