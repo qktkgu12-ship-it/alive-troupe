@@ -1848,21 +1848,26 @@ function EventsSection({
                     return (
                       <div
                         key={e.id}
-                        className={`flex items-stretch gap-[3px] overflow-hidden rounded-sm ${
+                        className={`flex items-center gap-[2px] overflow-hidden rounded-sm ${
                           passed ? "bg-slate-100" : tc ? "" : "bg-accent-soft"
                         }`}
                         style={tc && !passed ? teamChipStyle(e.team, teams, passed) : undefined}
                       >
-                        {/* 컬러바 */}
+                        {/* 컬러바 — 짧게 고정 높이 */}
                         <div
-                          className="w-[3px] shrink-0 self-stretch rounded-full"
+                          className="h-[8px] w-[3px] shrink-0 rounded-full"
                           style={{ backgroundColor: barColor }}
                         />
-                        {/* 제목 */}
-                        <span className={`min-w-0 truncate py-px text-[9px] font-medium leading-[13px] ${
-                          passed ? "text-slate-400" : tc ? "" : "text-accent"
-                        }`}
-                          style={tc && !passed ? { color: tc.color } : undefined}
+                        {/* 제목 — 우측 페이드 마스크 */}
+                        <span
+                          className={`min-w-0 flex-1 whitespace-nowrap py-px text-[9px] font-semibold leading-[13px] ${
+                            passed ? "text-slate-400" : tc ? "" : "text-accent"
+                          }`}
+                          style={{
+                            ...(tc && !passed ? { color: tc.color } : {}),
+                            maskImage: "linear-gradient(to right, black 55%, transparent 95%)",
+                            WebkitMaskImage: "linear-gradient(to right, black 55%, transparent 95%)",
+                          }}
                         >
                           {e.title}
                         </span>
