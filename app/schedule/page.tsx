@@ -569,16 +569,19 @@ function CoordSection({
 
   return (
     <div ref={coordSectionTopRef} className="space-y-4">
-      {/* 헤더 행 */}
-      <div className="flex items-center justify-end">
-        <button
-          onClick={() => setShowCreate(true)}
-          aria-label="일정방 만들기"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
-        >
-          <PlusIcon className="h-5 w-5" />
-        </button>
-      </div>
+      {/* 안내 */}
+      <p className="text-xs leading-relaxed text-slate-400">
+        💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
+      </p>
+
+      {/* 만들기 버튼 */}
+      <button
+        onClick={() => setShowCreate(true)}
+        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-4 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(26,39,68,0.5)] transition hover:bg-[#243258] active:scale-[0.99]"
+      >
+        <PlusIcon className="h-5 w-5" />
+        일정방 만들기
+      </button>
 
       {/* 방 목록 */}
       {loading ? (
@@ -1698,23 +1701,11 @@ function EventsSection({
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 + 추가 버튼 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
-          <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
-          <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
-        </div>
-        {isAdmin && (
-          <button
-            onClick={() => setShowForm(true)}
-            aria-label="일정 추가"
-            title="일정 추가"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
-        )}
+      {/* 헤더: 월 이동 */}
+      <div className="flex items-center gap-1">
+        <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
+        <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
+        <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
       </div>
 
       {/* 팀 필터 */}
@@ -1767,22 +1758,6 @@ function EventsSection({
         </BottomSheet>
       )}
 
-      {/* 수정 BottomSheet */}
-      {isAdmin && (
-        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)} onConfirm={() => editEventRef.current?.()}>
-          {editEvent && (
-            <EventForm
-              key={editEvent.id}
-              eventId={editEvent.id}
-              initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo }}
-              onSaved={() => { setEditEvent(null); onChanged(); }}
-              onCancel={() => setEditEvent(null)}
-              submitRef={editEventRef}
-            />
-          )}
-        </BottomSheet>
-      )}
-
       {/* 풀 캘린더 */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {/* 요일 헤더 */}
@@ -1816,9 +1791,7 @@ function EventsSection({
                     }
                   }
                 }}
-                className={`relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition ${
-                  isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""
-                }`}
+                className="relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition"
               >
                 {/* 날짜 숫자 */}
                 <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-bold ${
@@ -1859,61 +1832,85 @@ function EventsSection({
         </div>
       </div>
 
-      {/* 일정 리스트 (간소화) */}
+      {/* 수정 BottomSheet (카드 클릭으로 열림) */}
+      {isAdmin && (
+        <BottomSheet open={!!editEvent} title="확정 일정 수정" onClose={() => setEditEvent(null)} onConfirm={() => editEventRef.current?.()}>
+          {editEvent && (
+            <>
+              <EventForm
+                key={editEvent.id}
+                eventId={editEvent.id}
+                initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo }}
+                onSaved={() => { setEditEvent(null); onChanged(); }}
+                onCancel={() => setEditEvent(null)}
+                submitRef={editEventRef}
+              />
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <button
+                  onClick={() => removeEvent(editEvent.id)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
+                >
+                  <TrashIcon className="h-5 w-5 shrink-0 text-red-400" />
+                  <span className="text-[15px] text-red-500">일정 삭제</span>
+                </button>
+              </div>
+            </>
+          )}
+        </BottomSheet>
+      )}
+
+      {/* 일정 리스트 */}
       {visibleEvents.length === 0 ? (
         <EmptyState
           icon={CalendarIcon}
           title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."}
         />
       ) : (
-        <div className="space-y-1.5">
-          {groups.map(([date, evs]) => {
-            const d = new Date(date + "T00:00:00");
-            return evs.map((e) => {
+        <div className="space-y-2">
+          {groups.map(([date, evs]) => (
+            evs.map((e) => {
               const past = eventPassed(e);
+              const barColor = getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))";
               return (
                 <div
                   key={e.id}
                   id={`ev-${e.id}`}
-                  className={`relative flex items-start gap-3 overflow-hidden rounded-xl bg-white px-3 py-2.5 pl-4 shadow-sm transition ${
-                    highlightId === e.id || date === selectedDate ? "ring-2 ring-accent" : ""
-                  } ${past ? "opacity-50" : ""}`}
+                  onClick={() => { if (isAdmin) setEditEvent(e); }}
+                  className={`relative flex items-stretch overflow-hidden rounded-2xl bg-white shadow-sm transition ${
+                    highlightId === e.id ? "ring-2 ring-accent" : ""
+                  } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
                 >
-                  {/* 왼쪽 팀 컬러 바 */}
-                  <div
-                    className="absolute bottom-0 left-0 top-0 w-[3px]"
-                    style={{ backgroundColor: getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))" }}
-                  />
-                  {/* 날짜 배지 */}
-                  <div className="w-7 shrink-0 text-center leading-none pt-0.5">
-                    <p className="text-[10px] text-slate-400">{WEEKDAYS_KO[d.getDay()]}</p>
-                    <p className="text-base font-extrabold text-slate-800">{d.getDate()}</p>
+                  {/* 왼쪽 컬러 바 */}
+                  <div className="w-[4px] shrink-0" style={{ backgroundColor: barColor }} />
+                  {/* 시간 영역 */}
+                  <div className="flex w-[72px] shrink-0 flex-col justify-center px-3 py-3.5">
+                    <p className="text-[15px] font-bold leading-tight text-slate-900">
+                      {e.startTime || "—"}
+                    </p>
+                    {e.endTime && (
+                      <p className="text-[12px] font-medium text-slate-400">{e.endTime}</p>
+                    )}
                   </div>
+                  {/* 구분선 */}
+                  <div className="w-px self-stretch bg-slate-100" />
                   {/* 내용 */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <p className="truncate text-sm font-semibold text-slate-900">{e.title}</p>
+                  <div className="min-w-0 flex-1 py-3 pl-3 pr-4">
+                    <p className="font-semibold text-slate-900">{e.title}</p>
+                    {(e.location || e.memo) && (
+                      <p className="mt-0.5 line-clamp-1 text-sm text-slate-400">
+                        {[e.location, e.memo].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <TeamBadge team={e.team} />
-                      {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
+                      {past && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
                     </div>
-                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="text-xs text-slate-400" />
-                    {e.memo && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{e.memo}</p>}
                     {!past && <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />}
                   </div>
-                  {isAdmin && (
-                    <div className="mt-0.5 flex shrink-0 gap-0.5">
-                      <button onClick={() => setEditEvent(e)} aria-label="수정" className="grid h-7 w-7 place-items-center rounded-md text-slate-300 transition hover:text-accent">
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => removeEvent(e.id)} aria-label="삭제" className="grid h-7 w-7 place-items-center rounded-md text-slate-300 transition hover:text-red-500">
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
-            });
-          })}
+            })
+          ))}
         </div>
       )}
     </div>
