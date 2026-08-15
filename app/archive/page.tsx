@@ -243,7 +243,7 @@ function ArchiveInner() {
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
-            {([["all", "전체"], ["rehearsal", "🎬 연습"], ["performance", "🎭 공연"], ["etc", "📁 기타"]] as [ArchiveKind | "all", string][]).map(
+            {([["all", "전체"], ["rehearsal", "연습"], ["performance", "공연"], ["etc", "기타"]] as [ArchiveKind | "all", string][]).map(
               ([k, label]) => (
                 <button
                   key={k}
@@ -382,20 +382,6 @@ function ArchiveInner() {
           const clips = itemClips(actionItem);
           return (
             <div className="space-y-0.5">
-              {/* 열기 */}
-              {clips.map((c, i) => (
-                <button
-                  key={`open-${i}`}
-                  onClick={() => { openLink(c.url); setActionItem(null); }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
-                >
-                  <span className="text-xl">🌐</span>
-                  <span className="text-[15px] text-slate-800">
-                    {clips.length === 1 ? "열기" : `${c.label || `영상 ${i + 1}`} 열기`}
-                  </span>
-                </button>
-              ))}
-
               {/* 링크 복사 */}
               {clips.map((c, i) => (
                 <CopyActionRow

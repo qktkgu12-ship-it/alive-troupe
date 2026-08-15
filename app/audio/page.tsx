@@ -18,7 +18,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { CheckIcon, DotsVerticalIcon, FolderIcon, LinkIcon, MusicIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CheckIcon, DotsVerticalIcon, FolderIcon, LinkIcon, MusicIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
 import Select from "@/components/Select";
 import BottomSheet from "@/components/BottomSheet";
 import AudioForm from "@/components/forms/AudioForm";
@@ -92,6 +92,8 @@ function AudioInner() {
 
   // 더보기 액션시트
   const [actionItem, setActionItem] = useState<AudioTrack | null>(null);
+  const [editItem, setEditItem] = useState<AudioTrack | null>(null);
+  const editFormRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowAdd(true);
@@ -254,6 +256,25 @@ function AudioInner() {
             </BottomSheet>
           )}
 
+          {/* 자료 수정 바텀시트 */}
+          {isAdmin && (
+            <BottomSheet open={!!editItem} title="자료 수정" onClose={() => setEditItem(null)} onConfirm={() => editFormRef.current?.()}>
+              {editItem && (
+                <AudioForm
+                  key={editItem.id}
+                  productionId={active.id}
+                  categories={categories}
+                  defaultCat={activeCat || categories[0]}
+                  addedByName={profile?.name || profile?.displayName || ""}
+                  onAdded={() => { setEditItem(null); loadItems(active.id); }}
+                  onCancel={() => setEditItem(null)}
+                  submitRef={editFormRef}
+                  edit={editItem}
+                />
+              )}
+            </BottomSheet>
+          )}
+
           {/* 검색 */}
           <input
             className="input"
@@ -271,7 +292,7 @@ function AudioInner() {
                   onClick={() => setActiveCat(val)}
                   className={`rounded-full px-3 py-1 text-sm font-medium transition ${activeCat === val && !searching ? "bg-slate-800 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300"}`}
                 >
-                  {val ? `${getEmoji(val)} ${label}` : label}
+                  {label}
                 </button>
               ))}
             </div>
@@ -374,14 +395,6 @@ function AudioInner() {
       <BottomSheet open={!!actionItem} title={actionItem ? itemTitle(actionItem) : ""} onClose={() => setActionItem(null)}>
         {actionItem && (
           <div className="space-y-0.5">
-            <button
-              onClick={() => { openLink(actionItem.url); setActionItem(null); }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
-            >
-              <span className="text-xl">🌐</span>
-              <span className="text-[15px] text-slate-800">열기</span>
-            </button>
-
             <CopyActionRow url={actionItem.url} label="링크 복사" />
 
             <button
@@ -395,6 +408,13 @@ function AudioInner() {
             {isAdmin && (
               <>
                 <div className="my-1 border-t border-slate-100" />
+                <button
+                  onClick={() => { setEditItem(actionItem); setActionItem(null); }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-slate-50"
+                >
+                  <PencilIcon className="h-5 w-5 shrink-0 text-slate-500" />
+                  <span className="text-[15px] text-slate-800">수정</span>
+                </button>
                 <button
                   onClick={() => removeItem(actionItem)}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition hover:bg-red-50"
