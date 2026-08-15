@@ -1849,62 +1849,81 @@ function EventsSection({
       )}
 
       {/* 일정 리스트 */}
-      {visibleEvents.length === 0 ? (
-        <EmptyState
-          icon={CalendarIcon}
-          title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."}
-        />
-      ) : (
-        <div className="space-y-2">
-          {groups.map(([date, evs]) => (
-            evs.map((e) => {
-              const past = eventPassed(e);
-              const barColor = getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))";
-              return (
-                <div
-                  key={e.id}
-                  id={`ev-${e.id}`}
-                  onClick={() => { if (isAdmin) setEditEvent(e); }}
-                  className={`flex items-center overflow-hidden rounded-2xl bg-white shadow-sm transition ${
-                    highlightId === e.id ? "ring-2 ring-accent" : ""
-                  } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
-                >
-                  {/* 시간 */}
-                  <div className="flex w-[68px] shrink-0 flex-col justify-center px-3 py-2.5">
-                    <p className="text-[13px] font-bold leading-tight text-slate-900">
-                      {e.startTime ? formatTime(e.startTime) : "—"}
-                    </p>
-                    {e.endTime && (
-                      <p className="text-[11px] text-slate-400">{formatTime(e.endTime)}</p>
-                    )}
-                  </div>
-                  {/* 컬러 바 (시간 오른쪽) */}
-                  <div className="w-[3px] shrink-0 self-stretch" style={{ backgroundColor: barColor }} />
-                  {/* 내용 */}
-                  <div className="min-w-0 flex-1 py-2.5 pl-3 pr-1">
-                    <p className="flex items-center gap-1.5 font-semibold text-slate-900">
-                      <TeamBadge team={e.team} />
-                      <span className="min-w-0 truncate">{e.title}</span>
-                      {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
-                    </p>
-                    {(e.location || e.memo) && (
-                      <p className="mt-0.5 line-clamp-1 text-sm text-slate-400">
-                        {[e.location, e.memo].filter(Boolean).join(" · ")}
+      {(() => {
+        // 날짜 선택 시 해당 날짜만, 미선택 시 전체
+        const displayGroups = selectedDate
+          ? groups.filter(([date]) => date === selectedDate)
+          : groups;
+
+        if (visibleEvents.length === 0) {
+          return (
+            <EmptyState
+              icon={CalendarIcon}
+              title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."}
+            />
+          );
+        }
+        if (selectedDate && displayGroups.length === 0) {
+          return (
+            <p className="py-6 text-center text-sm text-slate-400">
+              이 날 확정된 일정이 없습니다.
+            </p>
+          );
+        }
+        return (
+          <div className="space-y-2">
+            {displayGroups.map(([date, evs]) => (
+              evs.map((e) => {
+                const past = eventPassed(e);
+                const barColor = getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))";
+                return (
+                  <div
+                    key={e.id}
+                    id={`ev-${e.id}`}
+                    onClick={() => { if (isAdmin) setEditEvent(e); }}
+                    className={`flex items-center overflow-hidden rounded-2xl bg-white shadow-sm transition ${
+                      highlightId === e.id ? "ring-2 ring-accent" : ""
+                    } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
+                  >
+                    {/* 시간 */}
+                    <div className="flex w-[72px] shrink-0 flex-col justify-center px-3 py-3">
+                      <p className="text-[16px] font-bold leading-tight text-slate-900">
+                        {e.startTime ? formatTime(e.startTime) : "—"}
                       </p>
+                      {e.endTime && (
+                        <p className="mt-0.5 text-[12px] font-medium text-slate-400">{formatTime(e.endTime)}</p>
+                      )}
+                    </div>
+                    {/* 컬러 바: 세로 여백 + 둥근 모서리 */}
+                    <div className="self-stretch flex py-2.5">
+                      <div className="w-[3px] flex-1 rounded-full" style={{ backgroundColor: barColor }} />
+                    </div>
+                    {/* 내용 */}
+                    <div className="min-w-0 flex-1 py-3 pl-3 pr-1">
+                      <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                        <TeamBadge team={e.team} />
+                        <span className="min-w-0 truncate">{e.title}</span>
+                        {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
+                      </p>
+                      {(e.location || e.memo) && (
+                        <p className="mt-0.5 line-clamp-1 text-sm text-slate-400">
+                          {[e.location, e.memo].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                    {/* 못 가요 아이콘 */}
+                    {!past && (
+                      <div onClick={(ev) => ev.stopPropagation()}>
+                        <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
+                      </div>
                     )}
                   </div>
-                  {/* 못 가요 아이콘 */}
-                  {!past && (
-                    <div onClick={(ev) => ev.stopPropagation()}>
-                      <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          ))}
-        </div>
-      )}
+                );
+              })
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
