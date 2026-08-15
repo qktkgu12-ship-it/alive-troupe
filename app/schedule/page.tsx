@@ -1784,9 +1784,9 @@ function EventsSection({
       )}
 
       {/* 풀 캘린더 */}
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div>
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/60">
+        <div className="grid grid-cols-7 border-b border-slate-200">
           {WEEKDAYS_KO.map((w) => (
             <div key={w} className="py-2.5 text-center text-[12px] font-bold text-slate-400">{w}</div>
           ))}
@@ -1816,19 +1816,21 @@ function EventsSection({
                     }
                   }
                 }}
-                className={`relative min-h-[120px] cursor-pointer border-t border-slate-100 p-1.5 transition ${
-                  isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""
-                }`}
+                className="relative min-h-[120px] cursor-pointer border-t border-slate-100 p-1.5 transition"
               >
                 {/* 날짜 숫자 */}
-                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-bold ${
-                  isToday ? "bg-accent text-accent-fg" : "text-slate-700"
+                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition ${
+                  isSelected
+                    ? "bg-[#1a2744] text-white"
+                    : isToday
+                      ? "bg-slate-200 text-slate-800"
+                      : "text-slate-700"
                 }`}>
                   {d.getDate()}
                 </div>
                 {/* 이벤트 칩 */}
                 <div className="space-y-px">
-                  {dayEvents.slice(0, 4).map((e) => {
+                  {dayEvents.slice(0, 3).map((e) => {
                     const passed = eventPassed(e);
                     const tc = !passed ? getTeamColor(e.team, teams) : null;
                     return (
@@ -1837,7 +1839,7 @@ function EventsSection({
                         style={tc
                           ? { borderLeftColor: tc.border, ...teamChipStyle(e.team, teams, passed) }
                           : passed ? {} : undefined}
-                        className={`truncate rounded border-l-2 px-0.5 text-[9px] font-medium leading-[13px] ${
+                        className={`truncate rounded border-l-2 px-0.5 text-[11px] font-medium leading-[15px] ${
                           passed
                             ? "border-l-slate-200 bg-slate-100 text-slate-400"
                             : tc
@@ -1849,8 +1851,8 @@ function EventsSection({
                       </div>
                     );
                   })}
-                  {dayEvents.length > 4 && (
-                    <div className="px-0.5 text-[9px] font-medium text-slate-400">+{dayEvents.length - 4}</div>
+                  {dayEvents.length > 3 && (
+                    <div className="px-0.5 text-[10px] font-medium text-slate-400">+{dayEvents.length - 3}</div>
                   )}
                 </div>
               </div>
