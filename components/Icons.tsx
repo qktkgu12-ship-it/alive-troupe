@@ -199,6 +199,15 @@ export const UserPlusIcon = makeIcon(
   </>
 );
 
+// 세로 점 세 개 (더보기 메뉴)
+export const DotsVerticalIcon: FC<IconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <circle cx="12" cy="5" r="1.5" />
+    <circle cx="12" cy="12" r="1.5" />
+    <circle cx="12" cy="19" r="1.5" />
+  </svg>
+);
+
 // 경로(href) → 아이콘 매핑 (헤더/사이드바 공용)
 export const NAV_ICON: Record<string, FC<IconProps>> = {
   "/": HomeIcon,

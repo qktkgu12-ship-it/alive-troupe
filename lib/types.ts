@@ -229,6 +229,7 @@ export interface SiteSettings {
   currentProduction: string; // (구버전) 현재 진행 중인 공연명 텍스트
   currentProductionId?: string; // 현재 진행 작품의 productions 문서 id (자료등록 기본값)
   resourceCategories?: string[]; // 자료실 종류(탭) 목록 — 관리자가 추가/삭제
+  resourceCategoryEmojis?: Record<string, string>; // 자료실 종류별 이모지
   boardCategories?: string[]; // 게시판 종류(탭) 목록 — 관리자가 추가/삭제
   teams?: string[]; // 팀 목록 (A팀/B팀 등) — 관리자가 추가/삭제, 비어있으면 팀 기능 off
   accentColor: string; // HEX 예: #7c3aed
