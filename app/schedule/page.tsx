@@ -305,6 +305,7 @@ function ScheduleInner() {
           teams={teams}
           myTeam={myTeam}
           openNew={openNewEvent}
+          onNewHandled={() => setOpenNewEvent(false)}
         />
       )}
 
@@ -318,6 +319,7 @@ function ScheduleInner() {
           teams={teams}
           memberStat={memberStat}
           openNew={openNewCoord}
+          onNewHandled={() => setOpenNewCoord(false)}
           onConfirmed={() => {
             loadEvents();
           }}
@@ -463,6 +465,7 @@ function CoordSection({
   teams,
   memberStat,
   openNew,
+  onNewHandled,
   onConfirmed,
 }: {
   isAdmin: boolean;
@@ -473,6 +476,7 @@ function CoordSection({
   teams: string[];
   memberStat: { total: number; byTeam: Record<string, number> };
   openNew: boolean;
+  onNewHandled?: () => void;
   onConfirmed: () => void;
 }) {
   const [coords, setCoords] = useState<Coordination[]>([]);
@@ -518,7 +522,11 @@ function CoordSection({
   }, [loadCoords]);
 
   useEffect(() => {
-    if (openNew) setShowCreate(true);
+    if (openNew) {
+      setShowCreate(true);
+      onNewHandled?.();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNew]);
 
   async function createCoord(fields: {
@@ -1622,6 +1630,7 @@ function EventsSection({
   teams,
   myTeam,
   openNew = false,
+  onNewHandled,
 }: {
   monthLabel: string;
   onPrev: () => void;
@@ -1634,6 +1643,7 @@ function EventsSection({
   teams: string[];
   myTeam: string;
   openNew?: boolean;
+  onNewHandled?: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
@@ -1670,7 +1680,10 @@ function EventsSection({
   }
 
   useEffect(() => {
-    if (openNew && isAdmin) openNewForm(`${yearMonth}-01`);
+    if (openNew && isAdmin) {
+      openNewForm(`${yearMonth}-01`);
+      onNewHandled?.();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNew, isAdmin]);
 
