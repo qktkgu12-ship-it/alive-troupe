@@ -1637,16 +1637,38 @@ function EventsSection({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // 초기 진입 시 오늘 날짜 선택 (이번 달이면), 월 이동 시 초기화
+  const todayStr = toDateStr(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(
+    yearMonth === todayStr.slice(0, 7) ? todayStr : null
+  );
+  useEffect(() => {
+    setSelectedDate(yearMonth === todayStr.slice(0, 7) ? todayStr : null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearMonth]);
   const newEventRef = useRef<(() => void) | null>(null);
   const editEventRef = useRef<(() => void) | null>(null);
   // 달력 그리드
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
   const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
-  const todayStr = toDateStr(new Date());
+  // 폼 기본값 (날짜 + 현재시각/1시간뒤)
   const [formDate, setFormDate] = useState(`${yearMonth}-01`);
+  const [formTimes, setFormTimes] = useState({ startTime: "", endTime: "" });
+
+  function openNewForm(date: string) {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const st = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const later = new Date(now.getTime() + 3600000);
+    const et = `${pad(later.getHours())}:${pad(later.getMinutes())}`;
+    setFormDate(date);
+    setFormTimes({ startTime: st, endTime: et });
+    setShowForm(true);
+  }
+
   useEffect(() => {
-    if (openNew && isAdmin) setShowForm(true);
+    if (openNew && isAdmin) openNewForm(`${yearMonth}-01`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNew, isAdmin]);
 
   // 팀 필터 (기본: 전체). 빈값이면 전체
@@ -1679,6 +1701,7 @@ function EventsSection({
   async function removeEvent(id: string) {
     if (!confirm("이 일정을 삭제할까요?")) return;
     await deleteDoc(doc(db, "events", id));
+    setEditEvent(null);
     onChanged();
   }
 
@@ -1745,8 +1768,8 @@ function EventsSection({
       {isAdmin && (
         <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)} onConfirm={() => newEventRef.current?.()}>
           <EventForm
-            key={formDate}
-            initial={{ date: formDate, startTime: "", endTime: "" }}
+            key={`${formDate}-${formTimes.startTime}`}
+            initial={{ date: formDate, startTime: formTimes.startTime, endTime: formTimes.endTime }}
             onSaved={() => { setShowForm(false); onChanged(); }}
             onCancel={() => setShowForm(false)}
             submitRef={newEventRef}
@@ -1775,7 +1798,7 @@ function EventsSection({
                 key={i}
                 onClick={() => {
                   if (isSelected) {
-                    if (isAdmin) { setFormDate(ds); setShowForm(true); }
+                    if (isAdmin) { openNewForm(ds); }
                     setSelectedDate(null);
                   } else {
                     setSelectedDate(ds);
@@ -1942,7 +1965,7 @@ function EventsSection({
             {/* + 새로운 확정일정 버튼 */}
             {isAdmin && (
               <button
-                onClick={() => { setFormDate(selectedDate ?? `${yearMonth}-01`); setShowForm(true); }}
+                onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
                 className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white transition hover:bg-[#243258] active:scale-[0.99]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
