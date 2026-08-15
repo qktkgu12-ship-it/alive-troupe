@@ -1926,20 +1926,20 @@ function EventsSection({
                     } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
                   >
                     {/* 시간 */}
-                    <div className="flex w-[76px] shrink-0 flex-col justify-center pl-3 pr-5 py-3">
+                    <div className="flex w-[80px] shrink-0 flex-col justify-center pl-3 pr-5 py-3">
                       {(() => {
                         const sp = formatTimeParts(e.startTime);
                         return (
-                          <p className="whitespace-nowrap tracking-wide text-[15px] font-bold leading-tight text-slate-900">
-                            {sp.time}<span className="ml-[3px] text-[9px] font-semibold tracking-normal">{sp.ampm}</span>
+                          <p className="whitespace-nowrap tracking-wide text-[17px] font-bold leading-tight text-slate-900">
+                            {sp.time}<span className="ml-[3px] text-[10px] font-semibold tracking-normal">{sp.ampm}</span>
                           </p>
                         );
                       })()}
                       {e.endTime && (() => {
                         const ep = formatTimeParts(e.endTime);
                         return (
-                          <p className="mt-0.5 whitespace-nowrap tracking-wide text-[11px] font-medium text-slate-400">
-                            {ep.time}<span className="ml-[3px] text-[8px] tracking-normal">{ep.ampm}</span>
+                          <p className="mt-0.5 whitespace-nowrap tracking-wide text-[12px] font-medium text-slate-400">
+                            {ep.time}<span className="ml-[3px] text-[9px] tracking-normal">{ep.ampm}</span>
                           </p>
                         );
                       })()}
@@ -1950,13 +1950,13 @@ function EventsSection({
                     </div>
                     {/* 내용 */}
                     <div className="min-w-0 flex-1 py-3 pl-3 pr-3">
-                      <p className="flex items-center gap-1.5 text-[15px] font-bold text-slate-900">
+                      <p className="flex items-center gap-1.5 text-[17px] font-bold text-slate-900">
                         <TeamBadge team={e.team} />
                         <span className="min-w-0 truncate">{e.title}</span>
                         {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
                       </p>
                       {(e.location || e.memo) && (
-                        <p className="mt-0.5 line-clamp-1 text-sm text-slate-400">
+                        <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-400">
                           {[e.location, e.memo].filter(Boolean).join(" · ")}
                         </p>
                       )}
