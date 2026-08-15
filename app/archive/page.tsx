@@ -135,18 +135,44 @@ function ArchiveInner() {
   const prodMap = useMemo(() => new Map(productions.map((p) => [p.id, p])), [productions]);
 
   const load = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     try {
-      const psnap = await getDocs(query(collection(db, "productions"), orderBy("order", "asc")));
-      setProductions(psnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) })));
-      const snap = await getDocs(query(collection(db, "archives"), orderBy("date", "desc")));
-      setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) })));
+      // 관리자: 모든 작품 / 일반: 참여명단에 포함된 작품만
+      const pq = isAdmin
+        ? query(collection(db, "productions"), orderBy("order", "asc"))
+        : query(collection(db, "productions"), where("participants", "array-contains", user.uid));
+      const psnap = await getDocs(pq);
+      const prods = psnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) }));
+      setProductions(prods);
+
+      // 아카이브: 관리자는 전체, 일반은 참여 중인 productionId에 속한 것만
+      let allItems: ArchiveItem[];
+      if (isAdmin) {
+        const snap = await getDocs(query(collection(db, "archives"), orderBy("date", "desc")));
+        allItems = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) }));
+      } else {
+        const myProdIds = prods.map((p) => p.id);
+        if (myProdIds.length === 0) {
+          allItems = [];
+        } else {
+          // Firestore 'in' 연산자는 최대 30개 → chunk 처리
+          const batches = chunk(myProdIds, 30).map((ids) =>
+            getDocs(query(collection(db, "archives"), where("productionId", "in", ids), orderBy("date", "desc")))
+          );
+          const snaps = await Promise.all(batches);
+          allItems = snaps
+            .flatMap((s) => s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchiveItem, "id">) })))
+            .sort((a, b) => b.date.localeCompare(a.date));
+        }
+      }
+      setItems(allItems);
     } catch (e) {
       console.error("아카이브 불러오기 오류:", e);
     } finally {
       setLoading(false);
     }
-  }, [user?.uid]);
+  }, [user, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
