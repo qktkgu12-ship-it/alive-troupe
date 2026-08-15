@@ -659,30 +659,6 @@ function CoordSection({
                   )}
                 </div>
 
-                {/* 액션 */}
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); shareLink(c.title, linkOf(c.id)); }}
-                      className="flex items-center gap-1.5 text-xs font-medium text-slate-400 transition hover:text-slate-600"
-                    >
-                      <ShareIcon className="h-3.5 w-3.5" />
-                      {done ? "확정 링크 공유" : "링크 공유"}
-                    </button>
-                    {(isAdmin || c.createdBy === uid) && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeCoord(c); }}
-                        aria-label="삭제"
-                        className="grid h-7 w-7 place-items-center rounded-lg text-slate-300 transition hover:bg-red-50 hover:text-red-500"
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid h-8 w-8 place-items-center rounded-full text-slate-400">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                  </div>
-                </div>
               </div>
             );
           })}
@@ -1320,20 +1296,13 @@ function CoordDetail({
           </span>
           <AudienceBadge coord={coord} />
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => shareLink(coord.title, link)}
-            aria-label="링크 공유"
-            className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
-          >
-            <ShareIcon className="h-4 w-4" />
-          </button>
-          {(isAdmin || coord.createdBy === uid) && (
-            <button onClick={onRemove} aria-label="삭제" className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500">
-              <TrashIcon className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <button
+          onClick={() => shareLink(coord.title, link)}
+          aria-label="링크 공유"
+          className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
+        >
+          <ShareIcon className="h-4 w-4" />
+        </button>
       </div>
 
       {/* 확정 완료 카드 */}
@@ -1584,6 +1553,17 @@ function CoordDetail({
         <p className="rounded-xl bg-surface px-3 py-3 text-center text-xs text-slate-400">
           {done ? "확정된 일정이라 가능 날짜를 수정할 수 없어요." : "응답이 마감돼 가능 날짜를 수정할 수 없어요."}
         </p>
+      )}
+
+      {/* 삭제 버튼 */}
+      {(isAdmin || coord.createdBy === uid) && (
+        <button
+          onClick={onRemove}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
+        >
+          <TrashIcon className="h-5 w-5 shrink-0 text-red-400" />
+          <span className="text-[15px] text-red-500">일정방 삭제</span>
+        </button>
       )}
 
       {/* 확정 등록 (관리자) */}
