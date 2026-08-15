@@ -1842,21 +1842,30 @@ function EventsSection({
                   {dayEvents.slice(0, 4).map((e) => {
                     const passed = eventPassed(e);
                     const tc = !passed ? getTeamColor(e.team, teams) : null;
+                    const barColor = passed
+                      ? "#cbd5e1"
+                      : tc?.border ?? "rgb(var(--accent))";
                     return (
                       <div
                         key={e.id}
-                        style={tc
-                          ? { borderLeftColor: tc.border, ...teamChipStyle(e.team, teams, passed) }
-                          : passed ? {} : undefined}
-                        className={`truncate rounded border-l-2 px-0.5 text-[9px] font-medium leading-[13px] ${
-                          passed
-                            ? "border-l-slate-200 bg-slate-100 text-slate-400"
-                            : tc
-                              ? ""
-                              : "border-l-[rgb(var(--accent))] bg-accent-soft text-accent"
+                        className={`flex items-stretch gap-[3px] overflow-hidden rounded-sm ${
+                          passed ? "bg-slate-100" : tc ? "" : "bg-accent-soft"
                         }`}
+                        style={tc && !passed ? teamChipStyle(e.team, teams, passed) : undefined}
                       >
-                        {e.title}
+                        {/* 컬러바 */}
+                        <div
+                          className="w-[3px] shrink-0 self-stretch rounded-full"
+                          style={{ backgroundColor: barColor }}
+                        />
+                        {/* 제목 */}
+                        <span className={`min-w-0 truncate py-px text-[9px] font-medium leading-[13px] ${
+                          passed ? "text-slate-400" : tc ? "" : "text-accent"
+                        }`}
+                          style={tc && !passed ? { color: tc.color } : undefined}
+                        >
+                          {e.title}
+                        </span>
                       </div>
                     );
                   })}
