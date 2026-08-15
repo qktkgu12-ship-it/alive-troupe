@@ -118,6 +118,15 @@ function teamChipStyle(team: string | undefined, teams: string[], passed = false
   return { backgroundColor: c.bg, color: c.color };
 }
 
+// "HH:mm" → "H:MM AM/PM"
+function formatTime(t: string | undefined) {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h < 12 ? "AM" : "PM";
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
 // 슬롯 "HH:mm" → "H:mm" 표기 (오전/오후 생략)
 function fmtTime(s: string) {
   const [h, m] = s.split(":").map(Number);
@@ -1791,7 +1800,7 @@ function EventsSection({
                     }
                   }
                 }}
-                className="relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition"
+                className={`relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition ${isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""}`}
               >
                 {/* 날짜 숫자 */}
                 <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-bold ${
@@ -1876,37 +1885,40 @@ function EventsSection({
                   key={e.id}
                   id={`ev-${e.id}`}
                   onClick={() => { if (isAdmin) setEditEvent(e); }}
-                  className={`relative flex items-stretch overflow-hidden rounded-2xl bg-white shadow-sm transition ${
+                  className={`flex items-center overflow-hidden rounded-2xl bg-white shadow-sm transition ${
                     highlightId === e.id ? "ring-2 ring-accent" : ""
                   } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
                 >
-                  {/* 왼쪽 컬러 바 */}
-                  <div className="w-[4px] shrink-0" style={{ backgroundColor: barColor }} />
-                  {/* 시간 영역 */}
-                  <div className="flex w-[72px] shrink-0 flex-col justify-center px-3 py-3.5">
-                    <p className="text-[15px] font-bold leading-tight text-slate-900">
-                      {e.startTime || "—"}
+                  {/* 시간 */}
+                  <div className="flex w-[68px] shrink-0 flex-col justify-center px-3 py-2.5">
+                    <p className="text-[13px] font-bold leading-tight text-slate-900">
+                      {e.startTime ? formatTime(e.startTime) : "—"}
                     </p>
                     {e.endTime && (
-                      <p className="text-[12px] font-medium text-slate-400">{e.endTime}</p>
+                      <p className="text-[11px] text-slate-400">{formatTime(e.endTime)}</p>
                     )}
                   </div>
-                  {/* 구분선 */}
-                  <div className="w-px self-stretch bg-slate-100" />
+                  {/* 컬러 바 (시간 오른쪽) */}
+                  <div className="w-[3px] shrink-0 self-stretch" style={{ backgroundColor: barColor }} />
                   {/* 내용 */}
-                  <div className="min-w-0 flex-1 py-3 pl-3 pr-4">
-                    <p className="font-semibold text-slate-900">{e.title}</p>
+                  <div className="min-w-0 flex-1 py-2.5 pl-3 pr-1">
+                    <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                      <TeamBadge team={e.team} />
+                      <span className="min-w-0 truncate">{e.title}</span>
+                      {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
+                    </p>
                     {(e.location || e.memo) && (
                       <p className="mt-0.5 line-clamp-1 text-sm text-slate-400">
                         {[e.location, e.memo].filter(Boolean).join(" · ")}
                       </p>
                     )}
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <TeamBadge team={e.team} />
-                      {past && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
-                    </div>
-                    {!past && <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />}
                   </div>
+                  {/* 못 가요 아이콘 */}
+                  {!past && (
+                    <div onClick={(ev) => ev.stopPropagation()}>
+                      <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -1917,12 +1929,11 @@ function EventsSection({
   );
 }
 
-// ---------- 불참 의견 ('못 가요' + 사유) ----------
+// ---------- 불참 의견 — 아이콘 버튼 + 바텀시트 ----------
 function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: Absence[]; onChanged: () => void }) {
   const { user, profile } = useAuth();
   const mine = list.find((a) => a.uid === user?.uid);
-  const [editing, setEditing] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1936,8 +1947,8 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
         reason: reason.trim(),
         createdAt: Date.now(),
       });
-      setEditing(false);
       setReason("");
+      setSheetOpen(false);
       onChanged();
     } finally {
       setBusy(false);
@@ -1947,47 +1958,74 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
   async function cancel() {
     if (!user) return;
     await deleteDoc(doc(db, "events", eventId, "absences", user.uid));
+    setSheetOpen(false);
     onChanged();
   }
 
   return (
-    <div className="mt-2 border-t border-slate-100 pt-2">
-      {list.length > 0 && (
-        <div className="mb-2">
-          <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700">
-            🚫 못 가요 {list.length}명
-            <span className="text-[10px] text-slate-400">{open ? "▲" : "▼"}</span>
-          </button>
-          {open && (
-            <div className="mt-1.5 space-y-1">
-              {list.map((a) => (
-                <div key={a.uid} className="flex items-baseline gap-2 text-xs">
-                  <span className="shrink-0 font-medium text-slate-700">{a.name}</span>
-                  {a.reason && <span className="min-w-0 break-words text-slate-400">{a.reason}</span>}
-                </div>
-              ))}
+    <>
+      {/* 아이콘 버튼 */}
+      <button
+        onClick={() => setSheetOpen(true)}
+        aria-label="이 날 못 가요"
+        className={`mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${
+          mine ? "bg-red-50 text-red-500" : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
+        }`}
+      >
+        {/* 🚫 ban icon */}
+        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="9" />
+          <line x1="5.5" y1="5.5" x2="18.5" y2="18.5" />
+        </svg>
+      </button>
+
+      {/* 바텀시트 */}
+      <BottomSheet open={sheetOpen} title="이 날 못 가요" onClose={() => setSheetOpen(false)}>
+        <div className="space-y-4">
+          {/* 불참 목록 */}
+          {list.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-slate-500">🚫 못 가요 {list.length}명</p>
+              <div className="space-y-1">
+                {list.map((a) => (
+                  <div key={a.uid} className="flex items-baseline gap-2 text-sm">
+                    <span className="shrink-0 font-medium text-slate-700">{a.name}</span>
+                    {a.reason && <span className="min-w-0 break-words text-slate-400">{a.reason}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 내 불참 처리 */}
+          {mine ? (
+            <button
+              onClick={cancel}
+              className="w-full rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-500 transition hover:bg-red-50"
+            >
+              못 가요 취소하기
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="사유 (선택)"
+                className="input w-full"
+                onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              />
+              <button
+                onClick={submit}
+                disabled={busy}
+                className="w-full rounded-xl bg-[#1a2744] py-3 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-50"
+              >
+                못 가요 등록
+              </button>
             </div>
           )}
         </div>
-      )}
-      {mine ? (
-        <button onClick={cancel} className="text-xs font-medium text-accent hover:underline">못 감 표시함 · 취소</button>
-      ) : editing ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="사유(선택)"
-            className="input flex-1 !py-1 !text-xs"
-            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-          />
-          <button onClick={submit} disabled={busy} className="btn-accent !px-2.5 !py-1 !text-xs">확인</button>
-          <button onClick={() => setEditing(false)} className="btn-ghost !px-2.5 !py-1 !text-xs">취소</button>
-        </div>
-      ) : (
-        <button onClick={() => setEditing(true)} className="text-xs font-medium text-slate-500 hover:text-red-500">이 날 못 가요</button>
-      )}
-    </div>
+      </BottomSheet>
+    </>
   );
 }
 
