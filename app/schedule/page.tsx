@@ -1866,9 +1866,9 @@ function EventsSection({
                         }`}
                         style={tc && !passed ? teamChipStyle(e.team, teams, passed) : undefined}
                       >
-                        {/* 컬러바 — 짧게 고정 높이 */}
+                        {/* 컬러바 — 칩 전체 높이 */}
                         <div
-                          className="h-[8px] w-[3px] shrink-0 rounded-full"
+                          className="w-[3px] shrink-0 self-stretch rounded-full"
                           style={{ backgroundColor: barColor }}
                         />
                         {/* 제목 — 우측 페이드 마스크 */}
