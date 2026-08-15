@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Select from "@/components/Select";
-import type { Production } from "@/lib/types";
+import type { AudioTrack, Production } from "@/lib/types";
 
 export default function AudioForm({
   productionId,
@@ -18,6 +18,7 @@ export default function AudioForm({
   onAdded,
   onCancel,
   submitRef,
+  edit,
 }: {
   productionId?: string;
   productions?: Production[];
@@ -27,21 +28,22 @@ export default function AudioForm({
   onAdded: () => void;
   onCancel?: () => void;
   submitRef?: React.MutableRefObject<(() => void) | null>;
+  edit?: AudioTrack;
 }) {
   const fixed = !!productionId;
-  const [pid, setPid] = useState(productionId ?? productions?.[0]?.id ?? "");
-  const [cat, setCat] = useState(defaultCat);
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [memo, setMemo] = useState("");
+  const [pid, setPid] = useState(edit?.productionId ?? productionId ?? productions?.[0]?.id ?? "");
+  const [cat, setCat] = useState(edit?.category ?? defaultCat);
+  const [title, setTitle] = useState(edit?.title ?? edit?.song ?? "");
+  const [url, setUrl] = useState(edit?.url ?? "");
+  const [memo, setMemo] = useState(edit?.memo ?? edit?.label ?? "");
   const [busy, setBusy] = useState(false);
 
   // 헤더 ✓ 버튼 등록
   if (submitRef) submitRef.current = () => { void add(); };
 
   useEffect(() => {
-    setCat(defaultCat);
-  }, [defaultCat]);
+    if (!edit) setCat(defaultCat);
+  }, [defaultCat, edit]);
 
   // 작품 목록이 늦게 로드되면 첫 작품을 기본 선택
   useEffect(() => {
@@ -50,29 +52,23 @@ export default function AudioForm({
 
   async function add() {
     const targetPid = fixed ? productionId! : pid;
-    if (!targetPid) {
-      alert("작품을 선택해 주세요.");
-      return;
-    }
-    if (!title.trim() || !url.trim()) {
-      alert("제목과 링크는 필수입니다.");
-      return;
-    }
+    if (!targetPid) { alert("작품을 선택해 주세요."); return; }
+    if (!title.trim() || !url.trim()) { alert("제목과 링크는 필수입니다."); return; }
     setBusy(true);
     try {
-      const id = crypto.randomUUID();
-      await setDoc(doc(db, "audio", id), {
-        productionId: targetPid,
-        category: cat,
-        title: title.trim(),
-        memo: memo.trim(),
-        url: url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`,
-        addedByName,
-        createdAt: Date.now(),
-      });
-      setTitle("");
-      setUrl("");
-      setMemo("");
+      const cleanUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
+      if (edit) {
+        await setDoc(doc(db, "audio", edit.id), {
+          category: cat, title: title.trim(), memo: memo.trim(), url: cleanUrl,
+        }, { merge: true });
+      } else {
+        await setDoc(doc(db, "audio", crypto.randomUUID()), {
+          productionId: targetPid, category: cat,
+          title: title.trim(), memo: memo.trim(), url: cleanUrl,
+          addedByName, createdAt: Date.now(),
+        });
+        setTitle(""); setUrl(""); setMemo("");
+      }
       onAdded();
     } finally {
       setBusy(false);
