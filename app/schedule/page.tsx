@@ -1792,7 +1792,10 @@ function EventsSection({
             const ds = toDateStr(d);
             const isToday = ds === todayStr;
             const isSelected = ds === selectedDate;
+            const dow = d.getDay(); // 0=일, 6=토
             const dayEvents = visibleEvents.filter((e) => e.date === ds);
+            // 날짜 숫자 컬러: 주말은 연하게
+            const baseColor = dow === 0 || dow === 6 ? "text-slate-400" : "text-slate-700";
             return (
               <div
                 key={i}
@@ -1810,11 +1813,17 @@ function EventsSection({
                     }
                   }
                 }}
-                className={`relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition ${isSelected ? "ring-2 ring-inset ring-accent rounded-xl" : ""}`}
+                className="relative min-h-[80px] cursor-pointer border-t border-slate-100 p-1.5 transition"
               >
-                {/* 날짜 숫자 */}
-                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-bold ${
-                  isToday ? "bg-accent text-accent-fg" : "text-slate-700"
+                {/* 날짜 숫자: 선택 → 원 이동 (다크네이비 or 브랜드컬러), 오늘(미선택) → 얇은 브랜드컬러 */}
+                <div className={`mb-1.5 mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[15px] ${
+                  isSelected
+                    ? isToday
+                      ? "bg-accent text-accent-fg font-bold"
+                      : "bg-[#1a2744] text-white font-bold"
+                    : isToday
+                      ? "font-normal text-accent"
+                      : `font-bold ${baseColor}`
                 }`}>
                   {d.getDate()}
                 </div>
