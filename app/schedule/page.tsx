@@ -1638,6 +1638,18 @@ function CoordDetail({
             draft={confirmDraft}
             onDraftChange={(d) => setConfirmDraft(d)}
             onSuccess={async (start, end) => {
+              // 1) events 컬렉션에 확정 일정 등록
+              await setDoc(doc(db, "events", crypto.randomUUID()), {
+                title: coord.title,
+                date: confirmDraft.date,
+                startTime: start,
+                endTime: end,
+                location: coord.location || "스튜디오 얼라이브",
+                memo: "",
+                team: coord.team ?? "",
+                createdAt: Date.now(),
+              });
+              // 2) 일정방 상태 → done
               await updateDoc(doc(db, "coordinations", coord.id), {
                 status: "done",
                 confirmedDate: confirmDraft.date,
