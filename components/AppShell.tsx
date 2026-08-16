@@ -282,7 +282,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const Icon = c.icon;
             const inner = (
               <>
-                <Icon className="h-6 w-6 shrink-0 text-[#1a2744]" />
+                <Icon className="h-6 w-6 shrink-0 text-[#6f7f8f]" />
                 <span className="min-w-0 text-left">
                   <span className="block text-[15px] font-semibold text-slate-800">{c.label}</span>
                   <span className="block truncate text-sm text-slate-400">{c.desc}</span>
