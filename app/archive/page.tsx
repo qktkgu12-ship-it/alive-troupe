@@ -323,7 +323,7 @@ function ArchiveInner() {
       ) : view === "card" ? (
         /* ===== 카드 보기 ===== */
         <div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {sorted.slice(0, visible).map((it) => {
               const clips = itemClips(it);
               const multi = clips.length > 1;
@@ -334,14 +334,14 @@ function ArchiveInner() {
                   tabIndex={multi ? undefined : 0}
                   onClick={() => { if (!multi && clips[0]) openLink(clips[0].url); }}
                   onKeyDown={(e) => { if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url); }}
-                  className={`card flex flex-col !p-3 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
+                  className={`card flex flex-col !p-4 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
                 >
                   {/* 헤더 행: 이모지 + 날짜 + ⋮ */}
                   <div className="mb-2 flex items-center gap-2">
                     <span className="text-xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
-                    <span className="inline-flex items-center gap-0.5 text-xs text-slate-400">
-                      <CalendarIcon className="h-3 w-3" />
-                      {it.date?.slice(5).replace("-", ".")}
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {it.date}
                     </span>
                     {multi && <span className="ml-auto text-xs font-semibold text-slate-400">영상 {clips.length}개</span>}
                     <button
@@ -354,7 +354,7 @@ function ArchiveInner() {
                   </div>
 
                   <h3 className="font-semibold">{it.title}</h3>
-                  {it.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{it.description}</p>}
+                  {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
                   {multi && <div className="mt-3"><ClipChips clips={clips} /></div>}
 
                   <div className="mt-3 border-t border-slate-100 pt-3">
