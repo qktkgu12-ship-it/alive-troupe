@@ -545,6 +545,7 @@ function CoordSection({
 
   async function createCoord(fields: {
     title: string;
+    location: string;
     team: string;
     participantUids?: string[];
     candidateDates: string[];
@@ -554,6 +555,7 @@ function CoordSection({
     const id = crypto.randomUUID();
     await setDoc(doc(db, "coordinations", id), {
       title: fields.title,
+      location: fields.location,
       team: fields.team,
       ...(fields.participantUids && fields.participantUids.length > 0
         ? { participantUids: fields.participantUids }
@@ -780,6 +782,7 @@ function CoordCreateForm({
   myTeam: string;
   onCreate: (fields: {
     title: string;
+    location: string;
     team: string;
     participantUids?: string[];
     candidateDates: string[];
@@ -788,6 +791,7 @@ function CoordCreateForm({
   submitRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("스튜디오 얼라이브");
   const [audienceMode, setAudienceMode] = useState<"team" | "individual">("team");
   const [team, setTeam] = useState(myTeam);
   const [members, setMembers] = useState<{ uid: string; name: string; avatar?: string; team?: string }[]>([]);
@@ -875,6 +879,7 @@ function CoordCreateForm({
     try {
       await onCreate({
         title: title.trim(),
+        location: location.trim() || "스튜디오 얼라이브",
         team: audienceMode === "team" ? team : "",
         participantUids: audienceMode === "individual" ? selectedUids : undefined,
         candidateDates: dates,
@@ -887,9 +892,29 @@ function CoordCreateForm({
 
   return (
     <div className="space-y-3">
-      {/* 일정 이름 */}
-      <div className="card !p-0 overflow-hidden">
+      {/* 일정 이름 + 장소 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
         <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 이름" />
+        <div className="flex items-center">
+          <input
+            className="field flex-1 !border-0 !shadow-none"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="장소"
+          />
+          {location && (
+            <button
+              type="button"
+              onClick={() => setLocation("")}
+              aria-label="장소 지우기"
+              className="mr-3 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="h-3 w-3">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 참여 인원 (팀 / 개별) */}
@@ -1122,8 +1147,8 @@ function CoordDetail({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDraft, setConfirmDraft] = useState<{ date: string; start: string; end: string } | null>(null);
+  const [confirmSuccess, setConfirmSuccess] = useState(false); // 확정 완료 후 성공 화면
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null); // 타임바 범위 선택 첫 탭
-  const confirmDraftRef = useRef<(() => void) | null>(null);
 
   // 후보 날짜가 있는 달로 달력 시작
   const [cursor, setCursor] = useState(() => {
@@ -1601,35 +1626,178 @@ function CoordDetail({
         </button>
       )}
 
-      {/* 확정 등록 (관리자) */}
-      <BottomSheet open={!!confirmDraft} title="확정 일정 등록" onClose={() => setConfirmDraft(null)} onConfirm={() => confirmDraftRef.current?.()}>
+      {/* 확정 확인 바텀시트 */}
+      <BottomSheet
+        open={!!confirmDraft}
+        title={confirmSuccess ? "확정 완료 🎉" : "이 일정으로 확정할까요?"}
+        onClose={() => { setConfirmDraft(null); setConfirmSuccess(false); }}
+      >
         {confirmDraft && (
-          <EventForm
-            initial={{
-              date: confirmDraft.date,
-              startTime: confirmDraft.start,
-              endTime: confirmDraft.end,
-              title: coord.title,
-              team: coord.team ?? "",
-            }}
-            submitRef={confirmDraftRef}
-            onSaved={async (saved) => {
+          <ConfirmSheet
+            coord={coord}
+            draft={confirmDraft}
+            onDraftChange={(d) => setConfirmDraft(d)}
+            onSuccess={async (start, end) => {
               await updateDoc(doc(db, "coordinations", coord.id), {
                 status: "done",
-                confirmedDate: saved.date,
-                confirmedStart: saved.startTime || "",
-                confirmedEnd: saved.endTime || "",
+                confirmedDate: confirmDraft.date,
+                confirmedStart: start,
+                confirmedEnd: end,
                 confirmedAt: Date.now(),
               }).catch(() => {});
-              setConfirmDraft(null);
-              setActiveDate(saved.date);
               onChanged();
               onConfirmed();
+              setConfirmSuccess(true);
             }}
-            onCancel={() => setConfirmDraft(null)}
+            onNo={() => { setConfirmDraft(null); setConfirmSuccess(false); onClose(); }}
+            success={confirmSuccess}
+            onDone={() => { setConfirmDraft(null); setConfirmSuccess(false); onClose(); }}
           />
         )}
       </BottomSheet>
+    </div>
+  );
+}
+
+/* =========================================================================
+   확정 확인 시트 내용
+   ========================================================================= */
+const NAVER_BOOKING_URL = "https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?";
+
+function ConfirmSheet({
+  coord,
+  draft,
+  onDraftChange,
+  onSuccess,
+  onNo,
+  success,
+  onDone,
+}: {
+  coord: Coordination;
+  draft: { date: string; start: string; end: string };
+  onDraftChange: (d: { date: string; start: string; end: string }) => void;
+  onSuccess: (start: string, end: string) => Promise<void>;
+  onNo: () => void;
+  success: boolean;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  // 대상 텍스트
+  const audienceLabel = coord.participantUids && coord.participantUids.length > 0
+    ? `${coord.participantUids.length}명 개별 지정`
+    : coord.team || "전체";
+
+  async function handleYes() {
+    setBusy(true);
+    try { await onSuccess(draft.start, draft.end); }
+    finally { setBusy(false); }
+  }
+
+  function openNaver() {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) window.location.href = NAVER_BOOKING_URL;
+    else window.open(NAVER_BOOKING_URL, "_blank", "noopener,noreferrer");
+  }
+
+  if (success) {
+    return (
+      <div className="space-y-4 text-center">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10">
+            <path d="M4 13l5 5L20 7" />
+          </svg>
+        </span>
+        <div>
+          <p className="text-xl font-bold text-slate-900">이 일정으로 확정되었습니다!</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {fullDateLabel(draft.date)}
+            {draft.start ? ` · ${draft.start}${draft.end ? `~${draft.end}` : ""}` : ""}
+          </p>
+        </div>
+        <div className="card text-left space-y-1.5">
+          <InfoRow label="대상" value={audienceLabel} />
+          <InfoRow label="장소" value={coord.location || "스튜디오 얼라이브"} />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={openNaver}
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[15px] font-bold text-white transition active:brightness-90"
+            style={{ backgroundColor: "#03C75A" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+            </svg>
+            예약하기
+          </button>
+          <button
+            onClick={onDone}
+            className="flex-1 rounded-2xl border border-slate-200 py-3.5 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 정보 */}
+      <div className="card space-y-2">
+        <InfoRow label="대상" value={audienceLabel} />
+        <InfoRow label="장소" value={coord.location || "스튜디오 얼라이브"} />
+        <InfoRow label="날짜" value={fullDateLabel(draft.date)} />
+      </div>
+
+      {/* 시간 (편집 가능) */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">시작</span>
+          <input
+            type="time"
+            value={draft.start}
+            onChange={(e) => onDraftChange({ ...draft, start: e.target.value })}
+            className="field-chip"
+          />
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-[15px] font-medium text-slate-700">종료</span>
+          <input
+            type="time"
+            value={draft.end}
+            onChange={(e) => onDraftChange({ ...draft, end: e.target.value })}
+            className="field-chip"
+          />
+        </div>
+      </div>
+      <p className="text-[11px] text-slate-400 px-1">⏰ 가장 겹치는 시간이 자동으로 설정됐어요. 필요하면 변경하세요.</p>
+
+      {/* 네 / 아니오 */}
+      <div className="flex gap-2">
+        <button
+          onClick={handleYes}
+          disabled={busy}
+          className="flex-1 rounded-2xl bg-[#1a2744] py-3.5 text-[15px] font-bold text-white transition hover:bg-[#243258] disabled:opacity-60"
+        >
+          {busy ? "처리 중…" : "네, 확정할게요"}
+        </button>
+        <button
+          onClick={onNo}
+          className="flex-1 rounded-2xl border border-slate-200 py-3.5 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          아니오
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <span className="w-10 shrink-0 text-xs font-semibold text-slate-400">{label}</span>
+      <span className="text-[15px] font-medium text-slate-800">{value}</span>
     </div>
   );
 }
