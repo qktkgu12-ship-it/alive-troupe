@@ -94,8 +94,17 @@ function HomeInner() {
   }, []);
 
   // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이거나 관리자면 전체
+  // 네이버 예약(초록색) 일정은 메인페이지에 표시 안 함
   const myTeam = role === "admin" ? "" : (profile?.team ?? "");
-  const shownEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam).slice(0, 4);
+  const shownEvents = upcoming
+    .filter((e) => e.source !== "naver")
+    .filter((e) => !myTeam || !e.team || e.team === myTeam)
+    .slice(0, 4);
+
+  // 팀 컬러 → border rgba 변환 헬퍼 (rgb(r,g,b) → rgba(r,g,b,0.5))
+  function teamBorderAlpha(borderColor: string, alpha = 0.5) {
+    return borderColor.replace("rgb(", "rgba(").replace(")", `, ${alpha})`);
+  }
 
   return (
     <div className="space-y-8">
@@ -124,13 +133,23 @@ function HomeInner() {
             {(() => {
               const e = shownEvents[0];
               const dt = parseDate(e.date);
+              const tc = getTeamColor(e.team, teams);
+              // 팀 컬러 있으면 팀 컬러, 없으면 accent
+              const borderColor = tc ? teamBorderAlpha(tc.border, 0.5) : "rgb(var(--accent) / 0.5)";
+              const ddayBg     = tc ? tc.bg    : undefined;
+              const ddayColor  = tc ? tc.color : undefined;
               return (
                 <Link
                   href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
                   className="card relative flex items-start transition"
-                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -10px rgba(16,24,40,0.12)", border: "1px solid rgb(var(--accent) / 0.5)" }}
+                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -10px rgba(16,24,40,0.12)", border: `1px solid ${borderColor}` }}
                 >
-                  <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
+                  <span
+                    className={`absolute right-4 top-4 rounded-full px-2.5 py-1 text-xs font-bold ${tc ? "" : "bg-accent-soft text-accent"}`}
+                    style={tc ? { backgroundColor: ddayBg, color: ddayColor } : undefined}
+                  >
+                    {ddayLabel(e.date)}
+                  </span>
                   <div className="min-w-0 flex-1 pr-12">
                     <p className="mb-0.5 text-xs text-slate-400">
                       {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
@@ -141,8 +160,8 @@ function HomeInner() {
                         const c = getTeamColor(e.team, teams);
                         return (
                           <span
-                            style={c ? { borderColor: c.border, color: c.color } : {}}
-                            className={`inline-flex shrink-0 items-center rounded-full border bg-white px-2 py-0.5 text-[11px] font-semibold ${!c ? "border-slate-200 text-slate-500" : ""}`}
+                            style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                            className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!c ? "bg-slate-100 text-slate-500" : ""}`}
                           >
                             {e.team}
                           </span>
@@ -176,8 +195,8 @@ function HomeInner() {
                         const c = getTeamColor(e.team, teams);
                         return (
                           <span
-                            style={c ? { color: c.color } : {}}
-                            className={`shrink-0 text-xs font-semibold ${!c ? "text-slate-400" : ""}`}
+                            style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                            className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!c ? "bg-slate-100 text-slate-500" : ""}`}
                           >
                             {e.team}
                           </span>
