@@ -1480,7 +1480,7 @@ function CoordDetail({
           {/* 선택된 날짜를 따라 부드럽게 이동하는 ring 오버레이 */}
           {ringStyle && (
             <div
-              className="pointer-events-none absolute rounded-lg ring-[3px] ring-accent transition-all duration-300 ease-out"
+              className="pointer-events-none absolute rounded-lg ring-2 ring-accent transition-all duration-200 ease-out"
               style={{ left: ringStyle.left, top: ringStyle.top, width: ringStyle.width, height: ringStyle.height }}
             />
           )}
