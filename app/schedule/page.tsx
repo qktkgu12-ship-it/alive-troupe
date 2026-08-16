@@ -298,7 +298,7 @@ function ScheduleInner() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg px-2 py-2 transition ${tab === t ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+            className={`flex-1 rounded-lg px-2 py-2 transition ${tab === t ? "bg-white text-[#1a2744] shadow-sm" : "text-slate-500"}`}
           >
             {TAB_INFO[t].label}
           </button>
@@ -2323,7 +2323,7 @@ function EventsSection({
             {isAdmin && (
               <button
                 onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
-                className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white hover:bg-[#243258] active:scale-[0.99]"
+                className="flex w-full items-center gap-2 rounded-2xl bg-accent px-4 py-3.5 text-[14px] font-bold text-accent-fg hover:brightness-110 active:scale-[0.99]"
                 style={{ animation: "slide-in-btn 480ms cubic-bezier(0.32,0.72,0,1) both" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>

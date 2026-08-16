@@ -41,7 +41,7 @@ export default function ViewToggle({
           onClick={() => onChange(o.v)}
           aria-label={`${o.label} 보기`}
           className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 transition ${
-            value === o.v ? "bg-white text-accent shadow-sm" : "text-slate-500"
+            value === o.v ? "bg-white text-[#1a2744] shadow-sm" : "text-slate-500"
           }`}
         >
           {o.icon}
