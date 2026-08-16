@@ -232,8 +232,9 @@ function ArchiveInner() {
     <div className="space-y-5">
       <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">아카이브</h1>
 
-      <p className="text-xs leading-relaxed text-slate-400">
-        💡 공연·연습 영상을 기록으로 남겨보세요. 링크를 등록하면 팀원 모두가 볼 수 있어요.
+      <p className="flex items-start gap-1 text-xs leading-relaxed text-slate-400">
+        <span aria-hidden className="shrink-0">💡</span>
+          <span>공연·연습 영상을 기록으로 남겨보세요. 링크를 등록하면 팀원 모두가 볼 수 있어요.</span>
       </p>
 
       {/* 등록·수정 바텀시트 */}
