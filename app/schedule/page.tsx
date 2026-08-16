@@ -24,7 +24,7 @@ import { useCreateSheet } from "@/lib/create-sheet-context";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
-import { CalendarIcon, ClockIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, Coordination, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
@@ -1701,6 +1701,8 @@ function EventsSection({
   // 팀 필터 (기본: 전체). 빈값이면 전체
   const [evTeam, setEvTeam] = useState("");
   const visibleEvents = events.filter((e) => {
+    // 숨겨진 일정: 관리자만 볼 수 있음
+    if (e.hidden && !isAdmin) return false;
     if (teams.length === 0 || !evTeam) return true; // 전체 보기
     if (e.source === 'naver') return false;          // 네이버 예약은 팀 필터 시 숨김
     return !e.team || e.team === evTeam;
@@ -1732,6 +1734,12 @@ function EventsSection({
   async function removeEvent(id: string) {
     if (!confirm("이 일정을 삭제할까요?")) return;
     await deleteDoc(doc(db, "events", id));
+    setEditEvent(null);
+    onChanged();
+  }
+
+  async function toggleHide(e: ScheduleEvent) {
+    await updateDoc(doc(db, "events", e.id), { hidden: !e.hidden });
     setEditEvent(null);
     onChanged();
   }
@@ -1891,17 +1899,16 @@ function EventsSection({
                 <div className="space-y-px">
                   {dayEvents.slice(0, 4).map((e) => {
                     const passed = eventPassed(e);
-                    const tc = !passed ? getEventColor(e, teams) : null;
-                    const barColor = passed
-                      ? "#cbd5e1"
-                      : tc?.border ?? "rgb(var(--accent))";
+                    const isHidden = !!e.hidden; // 관리자에게만 보임 (여기까지 오면 관리자)
+                    const tc = (!passed && !isHidden) ? getEventColor(e, teams) : null;
+                    const barColor = (passed || isHidden) ? "#cbd5e1" : tc?.border ?? "rgb(var(--accent))";
                     return (
                       <div
                         key={e.id}
                         className={`flex items-center gap-[2px] overflow-hidden rounded-sm ${
-                          passed ? "bg-slate-100" : tc ? "" : "bg-accent-soft"
+                          (passed || isHidden) ? "bg-slate-100" : tc ? "" : "bg-accent-soft"
                         }`}
-                        style={tc && !passed ? { backgroundColor: tc.bg, color: tc.color } : undefined}
+                        style={tc && !passed && !isHidden ? { backgroundColor: tc.bg, color: tc.color } : undefined}
                       >
                         {/* 컬러바 — 칩 전체 높이 */}
                         <div
@@ -1911,10 +1918,10 @@ function EventsSection({
                         {/* 제목 — 우측 페이드 마스크 */}
                         <span
                           className={`min-w-0 flex-1 whitespace-nowrap py-px text-[9px] font-semibold leading-[13px] ${
-                            passed ? "text-slate-400" : tc ? "" : "text-accent"
+                            (passed || isHidden) ? "text-slate-400 line-through" : tc ? "" : "text-accent"
                           }`}
                           style={{
-                            ...(tc && !passed ? { color: tc.color } : {}),
+                            ...(tc && !passed && !isHidden ? { color: tc.color } : {}),
                             maskImage: "linear-gradient(to right, black 55%, transparent 95%)",
                             WebkitMaskImage: "linear-gradient(to right, black 55%, transparent 95%)",
                           }}
@@ -1947,7 +1954,19 @@ function EventsSection({
                 onCancel={() => setEditEvent(null)}
                 submitRef={editEventRef}
               />
-              <div className="mt-4 border-t border-slate-100 pt-3">
+              <div className="mt-4 border-t border-slate-100 pt-3 space-y-1">
+                <button
+                  onClick={() => toggleHide(editEvent)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50"
+                >
+                  {editEvent.hidden
+                    ? <EyeIcon className="h-5 w-5 shrink-0 text-slate-400" />
+                    : <EyeOffIcon className="h-5 w-5 shrink-0 text-slate-400" />
+                  }
+                  <span className="text-[15px] text-slate-600">
+                    {editEvent.hidden ? "숨기기 해제" : "일정 숨기기"}
+                  </span>
+                </button>
                 <button
                   onClick={() => removeEvent(editEvent.id)}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
@@ -1981,7 +2000,11 @@ function EventsSection({
             {displayGroups.map(([date, evs]) => (
               evs.map((e) => {
                 const past = eventPassed(e);
-                const barColor = getEventColor(e, teams)?.border ?? "rgb(var(--accent))";
+                const isHidden = !!e.hidden;
+                const dimmed = past || isHidden;
+                const barColor = dimmed
+                  ? "#cbd5e1"
+                  : getEventColor(e, teams)?.border ?? "rgb(var(--accent))";
                 return (
                   <div
                     key={e.id}
@@ -1989,14 +2012,14 @@ function EventsSection({
                     onClick={() => { if (isAdmin) setEditEvent(e); }}
                     className={`flex items-center overflow-hidden rounded-2xl bg-white shadow-sm transition ${
                       highlightId === e.id ? "ring-2 ring-accent" : ""
-                    } ${past ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
+                    } ${dimmed ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
                   >
                     {/* 시간 */}
                     <div className="flex w-[72px] shrink-0 flex-col justify-center pl-3 pr-3 py-3">
                       {(() => {
                         const sp = formatTimeParts(e.startTime);
                         return (
-                          <p className="whitespace-nowrap tracking-tighter text-[17px] font-bold leading-tight text-slate-900">
+                          <p className={`whitespace-nowrap tracking-tighter text-[17px] font-bold leading-tight ${isHidden ? "text-slate-400 line-through" : "text-slate-900"}`}>
                             {sp.time}<span className="ml-[3px] text-[10px] font-semibold tracking-normal">{sp.ampm}</span>
                           </p>
                         );
@@ -2018,17 +2041,18 @@ function EventsSection({
                     <div className="min-w-0 flex-1 py-3 pl-3 pr-3">
                       <p className="flex items-center gap-1.5 text-[17px] font-bold tracking-tighter text-slate-900">
                         <TeamBadge team={e.team} />
-                        <span className="min-w-0 truncate">{e.title}</span>
-                        {past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
+                        <span className={`min-w-0 truncate ${isHidden ? "line-through text-slate-400" : ""}`}>{e.title}</span>
+                        {isHidden && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">숨김</span>}
+                        {!isHidden && past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
                       </p>
                       {(e.location || e.memo) && (
-                        <p className="mt-0.5 line-clamp-1 text-[11px] tracking-tighter text-slate-400">
+                        <p className={`mt-0.5 line-clamp-1 text-[11px] tracking-tighter text-slate-400 ${isHidden ? "line-through" : ""}`}>
                           {[e.location, e.memo].filter(Boolean).join(" · ")}
                         </p>
                       )}
                     </div>
-                    {/* 못 가요 아이콘 */}
-                    {!past && (
+                    {/* 못 가요 아이콘 (숨긴 일정·지난 일정은 표시 안 함) */}
+                    {!past && !isHidden && (
                       <div onClick={(ev) => ev.stopPropagation()}>
                         <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
                       </div>

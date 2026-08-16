@@ -82,6 +82,7 @@ export interface ScheduleEvent {
   memo: string; // 메모·준비물
   team?: string; // 대상 팀 (빈값이면 전체 공통)
   source?: string; // 'naver' = 네이버 스마트플레이스 예약 (초록색)
+  hidden?: boolean; // 숨겨진 일정 (관리자만 볼 수 있음, 취소선으로 표시)
   createdAt: number;
 }
 
