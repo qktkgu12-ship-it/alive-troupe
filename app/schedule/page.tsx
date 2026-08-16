@@ -1753,10 +1753,18 @@ function EventsSection({
         <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
         <div className="flex-1" />
-        <a
-          href="https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => {
+            const BOOKING_URL = "https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?";
+            // 모바일: window.location으로 이동하면 OS가 네이버 앱 Universal Link 감지 → 앱 자동 실행
+            // 데스크탑: 새 탭으로 fallback
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+              window.location.href = BOOKING_URL;
+            } else {
+              window.open(BOOKING_URL, "_blank", "noopener,noreferrer");
+            }
+          }}
           className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
           style={{ backgroundColor: "#03C75A" }}
         >
@@ -1765,7 +1773,7 @@ function EventsSection({
             <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
           </svg>
           예약하기
-        </a>
+        </button>
       </div>
 
       {/* 팀 필터 */}
