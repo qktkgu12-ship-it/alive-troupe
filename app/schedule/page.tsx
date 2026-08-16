@@ -1494,25 +1494,26 @@ function CoordDetail({
                     isConfirmed
                       ? "border-transparent bg-accent font-bold text-accent-fg"
                       : mine
-                        ? "border-accent bg-[#f5f0e8] font-bold text-accent"
+                        ? "border-accent bg-[#faf7f2] font-bold text-accent"
                         : cnt > 0
                           ? "font-semibold text-slate-800"
                           : "border-slate-200 bg-surface text-slate-500 hover:bg-slate-200"
                   } ${active && !isConfirmed ? "ring-2 ring-accent ring-offset-1" : ""}`}
                 >
-                  {/* 선택됨 체크 배지 */}
-                  {mine && !isConfirmed && (
-                    <span className="absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent">
-                      <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-2 w-2 text-accent-fg">
+                  <span>{d.getDate()}</span>
+                  {/* 인원수 자리: mine이면 체크 배지, 아니면 인원 수 */}
+                  {mine && !isConfirmed ? (
+                    <span className="mt-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent">
+                      <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-2 w-2 text-accent-fg">
                         <path d="M1.5 5l2.5 2.5 4.5-4" />
                       </svg>
                     </span>
+                  ) : (
+                    <span className={`mt-0.5 text-[9px] font-bold ${isConfirmed ? "opacity-90" : cnt > 0 ? "text-slate-500" : "text-slate-400"}`}>
+                      {cnt}
+                      {denom > 0 ? `/${denom}` : ""}
+                    </span>
                   )}
-                  <span>{d.getDate()}</span>
-                  <span className={`mt-0.5 text-[9px] font-bold ${isConfirmed ? "opacity-90" : mine ? "text-accent/70" : cnt > 0 ? "text-slate-500" : "text-slate-400"}`}>
-                    {cnt}
-                    {denom > 0 ? `/${denom}` : ""}
-                  </span>
                 </button>
               </div>
             );
