@@ -105,6 +105,7 @@ export interface Coordination {
   confirmedStart?: string; // 확정 시작 HH:mm
   confirmedEnd?: string; // 확정 종료 HH:mm
   confirmedAt?: number; // 확정 시각(ms) — '며칠 만에 성사' 표시용
+  confirmedEventId?: string; // 확정 시 생성된 events 문서 ID (변경 시 이 문서를 update)
   createdAt: number;
 }
 

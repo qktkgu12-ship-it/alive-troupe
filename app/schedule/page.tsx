@@ -1638,8 +1638,7 @@ function CoordDetail({
             draft={confirmDraft}
             onDraftChange={(d) => setConfirmDraft(d)}
             onSuccess={async (start, end) => {
-              // 1) events 컬렉션에 확정 일정 등록
-              await setDoc(doc(db, "events", crypto.randomUUID()), {
+              const eventData = {
                 title: coord.title,
                 date: confirmDraft.date,
                 startTime: start,
@@ -1647,15 +1646,26 @@ function CoordDetail({
                 location: coord.location || "스튜디오 얼라이브",
                 memo: "",
                 team: coord.team ?? "",
-                createdAt: Date.now(),
-              });
-              // 2) 일정방 상태 → done
+              };
+              // 1) events 컬렉션 — 기존 이벤트 있으면 update, 없으면 신규 생성
+              let eventId = coord.confirmedEventId ?? "";
+              if (eventId) {
+                await updateDoc(doc(db, "events", eventId), eventData).catch(() => {
+                  eventId = ""; // 문서가 없으면 새로 생성
+                });
+              }
+              if (!eventId) {
+                eventId = crypto.randomUUID();
+                await setDoc(doc(db, "events", eventId), { ...eventData, createdAt: Date.now() });
+              }
+              // 2) 일정방 상태 → done + confirmedEventId 저장
               await updateDoc(doc(db, "coordinations", coord.id), {
                 status: "done",
                 confirmedDate: confirmDraft.date,
                 confirmedStart: start,
                 confirmedEnd: end,
                 confirmedAt: Date.now(),
+                confirmedEventId: eventId,
               }).catch(() => {});
               onChanged();
               onConfirmed();
