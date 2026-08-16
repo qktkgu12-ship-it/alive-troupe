@@ -125,22 +125,31 @@ function HomeInner() {
             {(() => {
               const e = shownEvents[0];
               const dt = parseDate(e.date);
+              const tc = getTeamColor(e.team, teams);
+              const barColor = tc?.border ?? "rgb(var(--accent))";
               return (
                 <Link
                   href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
-                  className="card relative flex items-start gap-4 transition"
+                  className="card relative flex items-stretch gap-3 transition"
                   style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgb(var(--accent) / 0.18)" }}
                 >
+                  {/* 팀 컬러바 — 달력 칩과 동일한 시각 언어 */}
+                  <div className="w-1 shrink-0 self-stretch rounded-full" style={{ backgroundColor: barColor }} />
                   <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
                   <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
-                  <div className="min-w-0 flex-1 pr-12">
+                  <div className="min-w-0 flex-1 self-center pr-12">
                     <p className="mb-0.5 text-xs text-slate-400">
                       {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
                     </p>
                     <div className="flex items-center gap-1.5">
-                      <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
+                      <h3
+                        className="truncate text-lg font-bold text-slate-900"
+                        style={tc ? { color: tc.color } : {}}
+                      >
+                        {e.title}
+                      </h3>
                       {e.team && (() => {
-                        const c = getTeamColor(e.team, teams);
+                        const c = tc;
                         return (
                           <span
                             style={c ? { borderColor: c.border, color: c.color } : {}}
@@ -165,26 +174,28 @@ function HomeInner() {
               <div className="px-1">
                 {shownEvents.slice(1, 4).map((e) => {
                   const dt = parseDate(e.date);
+                  const tc = getTeamColor(e.team, teams);
+                  const barColor = tc?.border ?? "rgb(var(--accent))";
                   return (
                     <Link
                       key={e.id}
                       href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-black/[0.03]"
+                      className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs transition hover:bg-black/[0.03]"
                     >
                       <span className="shrink-0 font-bold text-slate-800">{dt.getMonth() + 1}.{dt.getDate()}</span>
                       <span className="shrink-0 text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{e.title}</span>
-                      {e.team && (() => {
-                        const c = getTeamColor(e.team, teams);
-                        return (
-                          <span
-                            style={c ? { color: c.color } : {}}
-                            className={`shrink-0 text-xs font-semibold ${!c ? "text-slate-400" : ""}`}
-                          >
-                            {e.team}
-                          </span>
-                        );
-                      })()}
+                      {/* 팀 컬러바 — 달력 칩과 동일 */}
+                      <div className="w-[3px] shrink-0 self-stretch rounded-full" style={{ backgroundColor: barColor }} />
+                      <span
+                        className="min-w-0 flex-1 whitespace-nowrap font-semibold text-slate-700"
+                        style={{
+                          ...(tc ? { color: tc.color } : {}),
+                          maskImage: "linear-gradient(to right, black 80%, transparent 100%)",
+                          WebkitMaskImage: "linear-gradient(to right, black 80%, transparent 100%)",
+                        }}
+                      >
+                        {e.title}
+                      </span>
                       <span className="shrink-0 text-slate-400">{ddayLabel(e.date)}</span>
                     </Link>
                   );
