@@ -1747,11 +1747,25 @@ function EventsSection({
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 */}
+      {/* 헤더: 월 이동 + 네이버 예약 버튼 */}
       <div className="flex items-center gap-1">
         <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
         <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+        <div className="flex-1" />
+        <a
+          href="https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
+          style={{ backgroundColor: "#03C75A" }}
+        >
+          {/* 네이버 N 아이콘 */}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+          </svg>
+          예약하기
+        </a>
       </div>
 
       {/* 팀 필터 */}
