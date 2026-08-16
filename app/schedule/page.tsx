@@ -1792,18 +1792,23 @@ function NaverNoticeModal({
         </div>
         <p className="text-center text-[15px] font-bold text-slate-900">예약 전 확인해주세요</p>
         <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
-          네이버 예약 시 <span className="font-semibold text-slate-700">'요청사항'</span>에 입력한 내용이
+          네이버 예약 시 <span className="font-semibold text-slate-700">'요청사항'</span>에 입력한 내용이<br />
           그대로 <span className="font-semibold text-slate-700">일정 제목</span>이 돼요.
         </p>
-        <label className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-          <input
-            type="checkbox"
-            checked={dontShowAgain}
-            onChange={(e) => setDontShowAgain(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-slate-300 text-accent focus:ring-accent"
-          />
+        <button
+          type="button"
+          onClick={() => setDontShowAgain((v) => !v)}
+          className="mx-auto mt-4 flex items-center gap-1.5 text-xs text-slate-400"
+        >
+          <span className={`grid h-4 w-4 place-items-center rounded-full transition ${dontShowAgain ? "bg-red-500" : "border border-slate-300"}`}>
+            {dontShowAgain && (
+              <svg viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-2.5 w-2.5">
+                <path d="M1.5 5l2.5 2.5 4.5-4" />
+              </svg>
+            )}
+          </span>
           다시 보지 않기
-        </label>
+        </button>
         <div className="mt-4 flex gap-2">
           <button
             onClick={onClose}
