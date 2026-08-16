@@ -103,11 +103,22 @@ const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
   { border: "rgb(196,181,253)", color: "rgb(109,40,217)", bg: "rgba(196,181,253,0.35)" }, // pastel violet
 ];
 
+// 네이버 예약 (source='naver') 전용 초록색
+const NAVER_COLOR = { border: "rgb(34,197,94)", color: "rgb(21,128,57)", bg: "rgba(34,197,94,0.15)" };
+
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
   const idx = teams.indexOf(team);
   if (idx < 0) return null;
   return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)", bg: "rgba(148,163,184,0.2)" };
+}
+
+// 이벤트 색상 결정 (팀색 우선, 네이버 예약이면 초록)
+function getEventColor(e: { team?: string; source?: string }, teams: string[]) {
+  const tc = getTeamColor(e.team, teams);
+  if (tc) return tc;
+  if (e.source === 'naver') return NAVER_COLOR;
+  return null;
 }
 
 // 팀별 달력 칩 색상 (배경 채우기 — 전체 일정과 동일한 방식, 팀 파스텔 색으로)
@@ -1854,7 +1865,7 @@ function EventsSection({
                 <div className="space-y-px">
                   {dayEvents.slice(0, 4).map((e) => {
                     const passed = eventPassed(e);
-                    const tc = !passed ? getTeamColor(e.team, teams) : null;
+                    const tc = !passed ? getEventColor(e, teams) : null;
                     const barColor = passed
                       ? "#cbd5e1"
                       : tc?.border ?? "rgb(var(--accent))";
@@ -1864,7 +1875,7 @@ function EventsSection({
                         className={`flex items-center gap-[2px] overflow-hidden rounded-sm ${
                           passed ? "bg-slate-100" : tc ? "" : "bg-accent-soft"
                         }`}
-                        style={tc && !passed ? teamChipStyle(e.team, teams, passed) : undefined}
+                        style={tc && !passed ? { backgroundColor: tc.bg, color: tc.color } : undefined}
                       >
                         {/* 컬러바 — 칩 전체 높이 */}
                         <div
@@ -1944,7 +1955,7 @@ function EventsSection({
             {displayGroups.map(([date, evs]) => (
               evs.map((e) => {
                 const past = eventPassed(e);
-                const barColor = getTeamColor(e.team, teams)?.border ?? "rgb(var(--accent))";
+                const barColor = getEventColor(e, teams)?.border ?? "rgb(var(--accent))";
                 return (
                   <div
                     key={e.id}

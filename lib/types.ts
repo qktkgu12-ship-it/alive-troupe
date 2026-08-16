@@ -81,6 +81,7 @@ export interface ScheduleEvent {
   location: string; // 장소
   memo: string; // 메모·준비물
   team?: string; // 대상 팀 (빈값이면 전체 공통)
+  source?: string; // 'naver' = 네이버 스마트플레이스 예약 (초록색)
   createdAt: number;
 }
 
