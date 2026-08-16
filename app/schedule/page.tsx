@@ -213,6 +213,7 @@ function ScheduleInner() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [highlightEvent, setHighlightEvent] = useState<string | null>(null);
+  const [highlightDate, setHighlightDate] = useState<string | null>(null);
   const [openNewEvent, setOpenNewEvent] = useState(false);
   const [openNewCoord, setOpenNewCoord] = useState(false);
 
@@ -247,6 +248,7 @@ function ScheduleInner() {
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
       const [y, m] = dateParam.split("-").map(Number);
       setCursor(new Date(y, m - 1, 1));
+      setHighlightDate(dateParam);
     }
     const ev = p.get("event");
     if (ev) {
@@ -313,6 +315,7 @@ function ScheduleInner() {
           isAdmin={isAdmin}
           onChanged={loadEvents}
           highlightId={highlightEvent}
+          highlightDate={highlightDate}
           teams={teams}
           myTeam={myTeam}
           openNew={openNewEvent}
@@ -1638,6 +1641,7 @@ function EventsSection({
   isAdmin,
   onChanged,
   highlightId,
+  highlightDate,
   teams,
   myTeam,
   openNew = false,
@@ -1651,6 +1655,7 @@ function EventsSection({
   isAdmin: boolean;
   onChanged: () => void;
   highlightId?: string | null;
+  highlightDate?: string | null;
   teams: string[];
   myTeam: string;
   openNew?: boolean;
@@ -1658,11 +1663,12 @@ function EventsSection({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
-  // 초기 진입 시 오늘 날짜 선택 (이번 달이면), 월 이동 시 초기화
+  // 초기 진입 시: highlightDate가 있으면 그 날짜 선택, 없으면 오늘(이번 달이면)
   const todayStr = toDateStr(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(
-    yearMonth === todayStr.slice(0, 7) ? todayStr : null
-  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
+    if (highlightDate && highlightDate.slice(0, 7) === yearMonth) return highlightDate;
+    return yearMonth === todayStr.slice(0, 7) ? todayStr : null;
+  });
   useEffect(() => {
     setSelectedDate(yearMonth === todayStr.slice(0, 7) ? todayStr : null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
