@@ -617,7 +617,7 @@ function CoordSection({
       {/* 만들기 버튼 */}
       <button
         onClick={() => setShowCreate(true)}
-        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#6f7f8f] px-4 py-4 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(111,127,143,0.5)] transition hover:bg-[#5e6e7d] active:scale-[0.99]"
+        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-4 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(26,39,68,0.5)] transition hover:bg-[#243258] active:scale-[0.99]"
       >
         <PlusIcon className="h-5 w-5" />
         일정방 만들기
@@ -1490,18 +1490,26 @@ function CoordDetail({
                     }
                   }}
                   style={isConfirmed ? undefined : mine ? undefined : redBorderHeatStyle(cnt, denom, maxDateCount)}
-                  className={`flex h-full w-full flex-col items-center justify-center rounded-lg border text-[13px] leading-none transition ${
+                  className={`relative flex h-full w-full flex-col items-center justify-center rounded-lg border text-[13px] leading-none transition ${
                     isConfirmed
                       ? "border-transparent bg-accent font-bold text-accent-fg"
                       : mine
-                        ? "border-accent bg-accent font-bold text-accent-fg"
+                        ? "border-accent bg-[#f5f0e8] font-bold text-accent"
                         : cnt > 0
                           ? "font-semibold text-slate-800"
                           : "border-slate-200 bg-surface text-slate-500 hover:bg-slate-200"
-                  } ${active && !isConfirmed ? "ring-2 ring-accent/60 ring-offset-1" : ""}`}
+                  } ${active && !isConfirmed ? "ring-2 ring-accent ring-offset-1" : ""}`}
                 >
+                  {/* 선택됨 체크 배지 */}
+                  {mine && !isConfirmed && (
+                    <span className="absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent">
+                      <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-2 w-2 text-accent-fg">
+                        <path d="M1.5 5l2.5 2.5 4.5-4" />
+                      </svg>
+                    </span>
+                  )}
                   <span>{d.getDate()}</span>
-                  <span className={`mt-0.5 text-[9px] font-bold ${isConfirmed ? "opacity-90" : mine ? "text-accent-fg/70" : cnt > 0 ? "text-slate-500" : "text-slate-400"}`}>
+                  <span className={`mt-0.5 text-[9px] font-bold ${isConfirmed ? "opacity-90" : mine ? "text-accent/70" : cnt > 0 ? "text-slate-500" : "text-slate-400"}`}>
                     {cnt}
                     {denom > 0 ? `/${denom}` : ""}
                   </span>
@@ -1588,7 +1596,7 @@ function CoordDetail({
                 <div className="border-t border-slate-100 pt-3">
                   <button
                     onClick={() => void saveMine()}
-                    className="w-full rounded-xl bg-[#6f7f8f] py-2.5 text-sm font-bold text-white transition hover:bg-[#5e6e7d] active:scale-[0.98]"
+                    className="w-full rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] active:scale-[0.98]"
                   >
                     내 일정 저장하기
                   </button>
@@ -1613,7 +1621,7 @@ function CoordDetail({
               setConfirmDraft({ date: activeDate, start: best?.start ?? "", end: best?.end ?? "" });
             }}
             disabled={!activeDate}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#6f7f8f] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5e6e7d] disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1a2744] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-40"
           >
             <CalendarIcon className="h-4 w-4" />
             이 날짜로 확정하기
@@ -1812,7 +1820,7 @@ function ConfirmSheet({
         <button
           onClick={handleYes}
           disabled={busy}
-          className="flex-1 rounded-2xl bg-[#6f7f8f] py-3.5 text-[15px] font-bold text-white transition hover:bg-[#5e6e7d] disabled:opacity-60"
+          className="flex-1 rounded-2xl bg-[#1a2744] py-3.5 text-[15px] font-bold text-white transition hover:bg-[#243258] disabled:opacity-60"
         >
           {busy ? "처리 중…" : "네, 확정할게요"}
         </button>
@@ -2095,8 +2103,8 @@ function EventsSection({
                   {/* 원 배경: 항상 DOM에 있고 scale로 show/hide */}
                   <div className={`absolute inset-0 origin-center rounded-full transition-transform duration-200 ease-out ${
                     isSelected
-                      ? isToday ? "bg-accent scale-100" : "bg-[#6f7f8f] scale-100"
-                      : "scale-0 " + (isToday ? "bg-accent" : "bg-[#6f7f8f]")
+                      ? isToday ? "bg-accent scale-100" : "bg-[#1a2744] scale-100"
+                      : "scale-0 " + (isToday ? "bg-accent" : "bg-[#1a2744]")
                   }`} />
                   {/* 숫자 */}
                   <div className={`relative flex h-full w-full items-center justify-center text-[15px] ${
@@ -2285,7 +2293,7 @@ function EventsSection({
             {isAdmin && (
               <button
                 onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
-                className="flex w-full items-center gap-2 rounded-2xl bg-[#6f7f8f] px-4 py-3.5 text-[14px] font-bold text-white hover:bg-[#5e6e7d] active:scale-[0.99]"
+                className="flex w-full items-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-3.5 text-[14px] font-bold text-white hover:bg-[#243258] active:scale-[0.99]"
                 style={{ animation: "slide-in-btn 480ms cubic-bezier(0.32,0.72,0,1) both" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -2387,7 +2395,7 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
               <button
                 onClick={submit}
                 disabled={busy}
-                className="w-full rounded-xl bg-[#6f7f8f] py-3 text-sm font-bold text-white transition hover:bg-[#5e6e7d] disabled:opacity-50"
+                className="w-full rounded-xl bg-[#1a2744] py-3 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-50"
               >
                 못 가요 등록
               </button>
