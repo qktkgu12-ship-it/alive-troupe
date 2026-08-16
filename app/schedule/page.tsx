@@ -1405,8 +1405,8 @@ function CoordDetail({
         </div>
       ) : (
         <>
-          {/* 응답 진행 */}
-          <div className="card space-y-2.5">
+          {/* 응답 진행 — 방장만 */}
+          {coord.createdBy === uid && <div className="card space-y-2.5">
             <p className="font-bold text-slate-900">
               {denom > 0 && remain > 0
                 ? remain === 1
@@ -1428,7 +1428,7 @@ function CoordDetail({
             {coord.deadline && (
               <p className="text-[11px] text-slate-400">{closed ? "응답이 마감됐어요" : `${deadlineLabel(coord.deadline)} 마감`}</p>
             )}
-          </div>
+          </div>}
 
         </>
       )}
@@ -1494,14 +1494,14 @@ function CoordDetail({
                     isConfirmed
                       ? "border-transparent bg-accent font-bold text-accent-fg"
                       : mine
-                        ? "border-red-500 bg-red-500 font-bold text-white"
+                        ? "border-[#1a2744] bg-[#1a2744] font-bold text-white"
                         : cnt > 0
                           ? "font-semibold text-slate-800"
                           : "border-slate-200 bg-surface text-slate-500 hover:bg-slate-200"
-                  } ${active && !isConfirmed ? "ring-2 ring-red-400 ring-offset-1" : ""}`}
+                  } ${active && !isConfirmed ? "ring-2 ring-[#1a2744]/60 ring-offset-1" : ""}`}
                 >
                   <span>{d.getDate()}</span>
-                  <span className={`mt-0.5 text-[9px] font-bold ${isConfirmed ? "opacity-90" : mine ? "text-white/80" : cnt > 0 ? "text-red-600" : "text-slate-400"}`}>
+                  <span className={`mt-0.5 text-[9px] font-bold ${isConfirmed ? "opacity-90" : mine ? "text-white/70" : cnt > 0 ? "text-slate-500" : "text-slate-400"}`}>
                     {cnt}
                     {denom > 0 ? `/${denom}` : ""}
                   </span>
@@ -1582,13 +1582,25 @@ function CoordDetail({
               ) : (
                 !mine && <p className="text-sm text-slate-400">이 날 가능한 단원이 아직 없어요.</p>
               )}
+
+              {/* 내 일정 저장하기 버튼 */}
+              {!locked && isParticipant && (
+                <div className="border-t border-slate-100 pt-3">
+                  <button
+                    onClick={() => void saveMine()}
+                    className="w-full rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] active:scale-[0.98]"
+                  >
+                    내 일정 저장하기
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
       </div>
 
-      {/* 일정 확정 (방 만든 사람만) */}
-      {(isAdmin || coord.createdBy === uid) && !done && (
+      {/* 일정 확정 (방장만) */}
+      {coord.createdBy === uid && !done && (
         <div className="card space-y-2">
           <p className="font-bold text-slate-900">일정 확정</p>
           <p className="text-sm text-slate-400">
