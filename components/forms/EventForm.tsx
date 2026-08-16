@@ -34,14 +34,17 @@ export default function EventForm({
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // 헤더 ✓ 버튼이 이 함수를 호출하도록 등록
-  if (submitRef) submitRef.current = () => { void save(); };
-
-  async function save() {
+  // 헤더 ✓ 버튼이 이 함수를 호출하도록 등록 (유효성 실패 시 false 반환 → 바텀시트 유지)
+  if (submitRef) submitRef.current = () => {
     if (!title.trim() || !date) {
       alert("제목과 날짜는 필수예요.");
-      return;
+      return false;
     }
+    void save();
+  };
+
+  async function save() {
+    if (!title.trim() || !date) return;
     setBusy(true);
     try {
       const finalTeam = teams.includes(team) ? team : "";

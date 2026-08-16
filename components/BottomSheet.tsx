@@ -22,7 +22,8 @@ export default function BottomSheet({
   open: boolean;
   title?: string;
   onClose: () => void;
-  onConfirm?: () => void;
+  /** false를 반환(또는 resolve)하면 바텀시트를 닫지 않음 (유효성 검사 실패 등) */
+  onConfirm?: () => boolean | void | Promise<boolean | void>;
   children: React.ReactNode;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -63,9 +64,9 @@ export default function BottomSheet({
     }, ANIM_MS);
   }
 
-  // ✓ 버튼: 확인 로직 실행 후 닫힘
+  // ✓ 버튼: 확인 로직 실행 후 닫힘 (false 반환 시 유효성 실패 → 닫지 않음)
   function handleConfirm() {
-    onConfirm?.();
+    if (onConfirm?.() === false) return;
     handleClose();
   }
 

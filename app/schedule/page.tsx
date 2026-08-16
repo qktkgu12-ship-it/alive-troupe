@@ -812,8 +812,13 @@ function CoordCreateForm({
   });
   const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
 
-  // 헤더 ✓ 버튼 등록
-  if (submitRef) submitRef.current = () => { void submit(); };
+  // 헤더 ✓ 버튼 등록 (유효성 실패 시 false 반환 → 바텀시트 유지)
+  if (submitRef) submitRef.current = () => {
+    if (!title.trim()) { alert("일정 이름을 입력해 주세요."); return false; }
+    if (audienceMode === "individual" && selectedUids.length === 0) { alert("참여 인원을 한 명 이상 선택해 주세요."); return false; }
+    if (dates.length < 2) { alert("후보 날짜를 2개 이상 골라주세요."); return false; }
+    void submit();
+  };
   const todayStr = toDateStr(new Date());
 
   const { settings } = useTheme();
@@ -1531,9 +1536,10 @@ function CoordDetail({
               )}
 
               {best && (
-                <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
-                  가장 겹치는 시간 <b className="text-slate-800">{best.start}~{best.end}</b> · {best.count}명
-                </p>
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs text-slate-400">가장 겹치는 시간</p>
+                  <p className="mt-0.5 text-[17px] font-bold text-slate-800">{best.start}~{best.end} <span className="text-sm font-semibold text-slate-400">{best.count}명</span></p>
+                </div>
               )}
 
               {membersForActive.length > 0 ? (
