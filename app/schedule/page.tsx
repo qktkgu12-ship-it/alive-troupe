@@ -1700,7 +1700,11 @@ function EventsSection({
 
   // 팀 필터 (기본: 전체). 빈값이면 전체
   const [evTeam, setEvTeam] = useState("");
-  const visibleEvents = events.filter((e) => teams.length === 0 || !evTeam || !e.team || e.team === evTeam);
+  const visibleEvents = events.filter((e) => {
+    if (teams.length === 0 || !evTeam) return true; // 전체 보기
+    if (e.source === 'naver') return false;          // 네이버 예약은 팀 필터 시 숨김
+    return !e.team || e.team === evTeam;
+  });
 
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
   const loadAbsences = useCallback(async () => {
