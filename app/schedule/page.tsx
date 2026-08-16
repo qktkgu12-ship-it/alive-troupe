@@ -1494,11 +1494,11 @@ function CoordDetail({
                     isConfirmed
                       ? "border-transparent bg-accent font-bold text-accent-fg"
                       : mine
-                        ? "border-transparent bg-[#faf7f2] font-bold text-accent"
+                        ? "border-accent bg-[#faf7f2] font-bold text-accent animate-date-ring"
                         : cnt > 0
                           ? "font-semibold text-slate-800"
                           : "border-slate-200 bg-surface text-slate-500 hover:bg-slate-200"
-                  } ${active && !isConfirmed ? "ring-2 ring-accent" : mine ? "ring-2 ring-accent" : ""}`}
+                  } ${active && !isConfirmed && !mine ? "ring-2 ring-accent/60 ring-offset-1" : ""}`}
                 >
                   <span>{d.getDate()}</span>
                   {/* 인원수 자리: mine이면 체크 배지, 아니면 인원 수 */}

@@ -173,3 +173,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-bell { animation: none; }
 }
+
+@keyframes date-ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-accent); opacity: 1; }
+  50%       { box-shadow: 0 0 0 3.5px var(--color-accent); opacity: 0.6; }
+}
+.animate-date-ring {
+  animation: date-ring-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-date-ring { animation: none; }
+}
