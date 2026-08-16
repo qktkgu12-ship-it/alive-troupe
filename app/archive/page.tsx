@@ -116,7 +116,7 @@ function ArchiveInner() {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
   }, []);
 
-  const [view, setViewState] = useState<ViewMode>("card");
+  const [view, setViewState] = useState<ViewMode>("list");
   useEffect(() => {
     if (!user) return;
     try {
