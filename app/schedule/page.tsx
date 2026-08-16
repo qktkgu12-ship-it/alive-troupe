@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Spinner from "@/components/Spinner";
 import {
   collection,
@@ -1735,6 +1736,94 @@ function CoordDetail({
    확정 확인 시트 내용
    ========================================================================= */
 const NAVER_BOOKING_URL = "https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?";
+const NAVER_NOTICE_KEY = "naver-booking-notice-dismissed";
+
+// 네이버 예약 링크 이동 + '요청사항=일정 제목' 안내 모달 게이팅 (다시 보지 않기 지원)
+function useNaverBooking() {
+  const [showNotice, setShowNotice] = useState(false);
+
+  function goToNaver() {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) window.location.href = NAVER_BOOKING_URL;
+    else window.open(NAVER_BOOKING_URL, "_blank", "noopener,noreferrer");
+  }
+
+  function openNaver() {
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(NAVER_NOTICE_KEY) === "1"; } catch { /* 무시 */ }
+    if (dismissed) goToNaver();
+    else setShowNotice(true);
+  }
+
+  function confirmNotice(dontShowAgain: boolean) {
+    if (dontShowAgain) {
+      try { localStorage.setItem(NAVER_NOTICE_KEY, "1"); } catch { /* 무시 */ }
+    }
+    setShowNotice(false);
+    goToNaver();
+  }
+
+  return { showNotice, closeNotice: () => setShowNotice(false), openNaver, confirmNotice };
+}
+
+// 네이버 예약 전 안내 모달: 요청사항 내용이 일정 제목이 된다는 안내 + 다시 보지 않기
+function NaverNoticeModal({
+  open,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (dontShowAgain: boolean) => void;
+}) {
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  if (!open) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-accent-soft">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-accent">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5M12 8h.01" />
+          </svg>
+        </div>
+        <p className="text-center text-[15px] font-bold text-slate-900">예약 전 확인해주세요</p>
+        <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
+          네이버 예약 시 <span className="font-semibold text-slate-700">'요청사항'</span>에 입력한 내용이
+          그대로 <span className="font-semibold text-slate-700">일정 제목</span>이 돼요.
+        </p>
+        <label className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => setDontShowAgain(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-slate-300 text-accent focus:ring-accent"
+          />
+          다시 보지 않기
+        </label>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={() => onConfirm(dontShowAgain)}
+            className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white transition active:brightness-90"
+            style={{ backgroundColor: "#03C75A" }}
+          >
+            확인하고 예약하기
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 function ConfirmSheet({
   coord,
@@ -1754,6 +1843,7 @@ function ConfirmSheet({
   onDone: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const naver = useNaverBooking();
 
   // 대상 텍스트
   const audienceLabel = coord.participantUids && coord.participantUids.length > 0
@@ -1764,12 +1854,6 @@ function ConfirmSheet({
     setBusy(true);
     try { await onSuccess(draft.start, draft.end); }
     finally { setBusy(false); }
-  }
-
-  function openNaver() {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) window.location.href = NAVER_BOOKING_URL;
-    else window.open(NAVER_BOOKING_URL, "_blank", "noopener,noreferrer");
   }
 
   if (success) {
@@ -1793,7 +1877,7 @@ function ConfirmSheet({
         </div>
         <div className="flex gap-2">
           <button
-            onClick={openNaver}
+            onClick={naver.openNaver}
             className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[15px] font-bold text-white transition active:brightness-90"
             style={{ backgroundColor: "#03C75A", boxShadow: "0 8px 20px -6px rgba(3,199,90,0.55)" }}
           >
@@ -1809,6 +1893,7 @@ function ConfirmSheet({
             확인
           </button>
         </div>
+        <NaverNoticeModal open={naver.showNotice} onClose={naver.closeNotice} onConfirm={naver.confirmNotice} />
       </div>
     );
   }
@@ -2009,6 +2094,8 @@ function EventsSection({
     else groups.push([e.date, [e]]);
   }
 
+  const naver = useNaverBooking();
+
   return (
     <div className="space-y-4">
       {/* 헤더: 월 이동 + 네이버 예약 버튼 */}
@@ -2018,17 +2105,7 @@ function EventsSection({
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
         <div className="flex-1" />
         <button
-          onClick={() => {
-            const BOOKING_URL = "https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?";
-            // 모바일: window.location으로 이동하면 OS가 네이버 앱 Universal Link 감지 → 앱 자동 실행
-            // 데스크탑: 새 탭으로 fallback
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (isMobile) {
-              window.location.href = BOOKING_URL;
-            } else {
-              window.open(BOOKING_URL, "_blank", "noopener,noreferrer");
-            }
-          }}
+          onClick={naver.openNaver}
           className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold leading-none text-white transition active:brightness-90"
           style={{ backgroundColor: "#03C75A" }}
         >
@@ -2039,6 +2116,7 @@ function EventsSection({
           예약하기
         </button>
       </div>
+      <NaverNoticeModal open={naver.showNotice} onClose={naver.closeNotice} onConfirm={naver.confirmNotice} />
 
       {/* 팀 필터 */}
       {teams.length > 0 && (
