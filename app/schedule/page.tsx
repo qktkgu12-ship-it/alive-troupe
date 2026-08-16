@@ -617,7 +617,7 @@ function CoordSection({
       {/* 만들기 버튼 */}
       <button
         onClick={() => setShowCreate(true)}
-        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a2744] px-4 py-4 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(26,39,68,0.5)] transition hover:bg-[#243258] active:scale-[0.99]"
+        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-4 text-[15px] font-bold text-accent-fg shadow-[0_10px_24px_-10px_rgba(0,0,0,0.3)] transition hover:brightness-110 active:scale-[0.99]"
       >
         <PlusIcon className="h-5 w-5" />
         일정방 만들기
@@ -1626,7 +1626,7 @@ function CoordDetail({
                 <div className="border-t border-slate-100 pt-3">
                   <button
                     onClick={() => void saveMine()}
-                    className="w-full rounded-xl bg-[#1a2744] py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] active:scale-[0.98]"
+                    className="w-full rounded-xl bg-accent py-2.5 text-sm font-bold text-accent-fg transition hover:brightness-110 active:scale-[0.98]"
                   >
                     내 일정 저장하기
                   </button>
