@@ -7,7 +7,6 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
-import DateBadge from "@/components/DateBadge";
 import EventMeta from "@/components/EventMeta";
 import { ProfileName } from "@/components/ProfileViewer";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
@@ -128,11 +127,10 @@ function HomeInner() {
               return (
                 <Link
                   href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
-                  className="card relative flex items-start gap-4 transition"
-                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgb(var(--accent) / 0.18)" }}
+                  className="card relative flex items-start transition"
+                  style={{ boxShadow: "none", border: "1px solid rgb(226,232,240)" }}
                 >
                   <span className="absolute right-4 top-4 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">{ddayLabel(e.date)}</span>
-                  <DateBadge day={dt.getDate()} weekday={WEEKDAYS_KO[dt.getDay()]} size="md" />
                   <div className="min-w-0 flex-1 pr-12">
                     <p className="mb-0.5 text-xs text-slate-400">
                       {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
@@ -203,14 +201,12 @@ function HomeInner() {
             <Link
               key={href}
               href={href}
-              className="group flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-10px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(16,24,40,0.18)]"
+              className="group flex items-center gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-10px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(16,24,40,0.18)]"
             >
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-accent text-white transition group-hover:brightness-110">
-                <Icon className="h-6 w-6" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{title}</p>
-                <p className="mt-0.5 text-xs text-slate-400">{desc}</p>
+              <Icon className="h-6 w-6 shrink-0 text-accent" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
+                <p className="truncate text-xs text-slate-400">{desc}</p>
               </div>
             </Link>
           ))}
