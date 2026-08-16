@@ -1745,7 +1745,7 @@ function ConfirmSheet({
           <button
             onClick={openNaver}
             className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[15px] font-bold text-white transition active:brightness-90"
-            style={{ backgroundColor: "#03C75A" }}
+            style={{ backgroundColor: "#03C75A", boxShadow: "0 8px 20px -6px rgba(3,199,90,0.55)" }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
@@ -1986,7 +1986,7 @@ function EventsSection({
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
           </svg>
-          예약
+          예약하기
         </button>
       </div>
 
