@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Spinner from "@/components/Spinner";
 import {
   collection,
@@ -1142,6 +1142,9 @@ function CoordDetail({
 
   const [allAvail, setAllAvail] = useState<Availability[]>([]);
   const [myDates, setMyDates] = useState<string[]>([]);
+  // 선택된 날짜 셀을 따라 부드럽게 이동하는 ring 오버레이
+  const ringWrapRef = useRef<HTMLDivElement>(null);
+  const [ringStyle, setRingStyle] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [slotsByDate, setSlotsByDate] = useState<Record<string, string[]>>({});
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -1161,6 +1164,22 @@ function CoordDetail({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
+
+  // activeDate가 바뀔 때마다 해당 셀 위치를 측정해 ring 오버레이를 부드럽게 이동
+  useLayoutEffect(() => {
+    const wrap = ringWrapRef.current;
+    if (!wrap || !activeDate) { setRingStyle(null); return; }
+    const el = wrap.querySelector<HTMLElement>(`[data-date="${activeDate}"]`);
+    if (!el) { setRingStyle(null); return; }
+    const wrapRect = wrap.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    setRingStyle({
+      left: elRect.left - wrapRect.left,
+      top: elRect.top - wrapRect.top,
+      width: elRect.width,
+      height: elRect.height,
+    });
+  }, [activeDate, cursor]);
 
   const loadAll = useCallback(async () => {
     const snap = await getDocs(collection(db, "coordinations", coord.id, "availability"));
@@ -1457,48 +1476,57 @@ function CoordDetail({
             </button>
           </div>
         </div>
-        <CalendarGrid
-          grid={grid}
-          renderCell={(d) => {
-            const ds = toDateStr(d);
-            const isCandidate = candidates.includes(ds);
-            const cnt = dateCount[ds] ?? 0;
-            const active = activeDate === ds;
-            const isConfirmed = done && coord.confirmedDate === ds;
-            if (!isCandidate) {
-              return <div className="flex h-full w-full items-center justify-center text-[13px] text-slate-300">{d.getDate()}</div>;
-            }
-            const mine = myDates.includes(ds);
-            return (
-              <div className="relative h-full w-full">
-                <button
-                  onClick={() => {
-                    if (locked || !isParticipant) { setActiveDate(active ? null : ds); return; }
-                    if (active) {
-                      // 두 번째 탭: 패널 닫기 + 가능 해제
-                      setActiveDate(null);
-                      setMyDates((prev) => prev.filter((d) => d !== ds));
-                      setSlotsByDate((s) => { const n = { ...s }; delete n[ds]; return n; });
-                      setDirty(true);
-                    } else {
-                      // 첫 번째 탭: 패널 열기 + 가능으로 표시
-                      setActiveDate(ds);
-                      if (!myDates.includes(ds)) {
-                        setMyDates((prev) => [...prev, ds].sort());
+        <div ref={ringWrapRef} className="relative">
+          {/* 선택된 날짜를 따라 부드럽게 이동하는 ring 오버레이 */}
+          {ringStyle && (
+            <div
+              className="pointer-events-none absolute rounded-lg ring-[3px] ring-accent transition-all duration-300 ease-out"
+              style={{ left: ringStyle.left, top: ringStyle.top, width: ringStyle.width, height: ringStyle.height }}
+            />
+          )}
+          <CalendarGrid
+            grid={grid}
+            renderCell={(d) => {
+              const ds = toDateStr(d);
+              const isCandidate = candidates.includes(ds);
+              const cnt = dateCount[ds] ?? 0;
+              const active = activeDate === ds;
+              const isConfirmed = done && coord.confirmedDate === ds;
+              if (!isCandidate) {
+                return <div className="flex h-full w-full items-center justify-center text-[13px] text-slate-300">{d.getDate()}</div>;
+              }
+              const mine = myDates.includes(ds);
+              return (
+                <div className="relative h-full w-full">
+                  <button
+                    data-date={ds}
+                    onClick={() => {
+                      if (locked || !isParticipant) { setActiveDate(active ? null : ds); return; }
+                      if (active) {
+                        // 두 번째 탭: 패널 닫기 + 가능 해제
+                        setActiveDate(null);
+                        setMyDates((prev) => prev.filter((d) => d !== ds));
+                        setSlotsByDate((s) => { const n = { ...s }; delete n[ds]; return n; });
                         setDirty(true);
+                      } else {
+                        // 첫 번째 탭: 패널 열기 + 가능으로 표시
+                        setActiveDate(ds);
+                        if (!myDates.includes(ds)) {
+                          setMyDates((prev) => [...prev, ds].sort());
+                          setDirty(true);
+                        }
                       }
-                    }
-                  }}
-                  style={isConfirmed ? undefined : mine ? undefined : redBorderHeatStyle(cnt, denom, maxDateCount)}
-                  className={`relative flex h-full w-full flex-col items-center justify-center rounded-lg border text-[13px] leading-none transition ${
-                    isConfirmed
-                      ? "border-transparent bg-accent font-bold text-accent-fg"
-                      : mine
-                        ? "border-accent bg-[#faf7f2] font-bold text-accent animate-date-ring"
-                        : cnt > 0
-                          ? "font-semibold text-slate-800"
-                          : "border-slate-200 bg-surface text-slate-500 hover:bg-slate-200"
-                  } ${active && !isConfirmed && !mine ? "ring-2 ring-accent/60 ring-offset-1" : ""}`}
+                    }}
+                    style={isConfirmed ? undefined : mine ? undefined : redBorderHeatStyle(cnt, denom, maxDateCount)}
+                    className={`relative flex h-full w-full flex-col items-center justify-center rounded-lg border text-[13px] leading-none transition ${
+                      isConfirmed
+                        ? "border-transparent bg-accent font-bold text-accent-fg"
+                        : mine
+                          ? "border-accent bg-[#faf7f2] font-bold text-accent"
+                          : cnt > 0
+                            ? "font-semibold text-slate-800"
+                            : "border-slate-200 bg-surface text-slate-500 hover:bg-slate-200"
+                    }`}
                 >
                   <span>{d.getDate()}</span>
                   {/* 인원수 자리: mine이면 체크 배지, 아니면 인원 수 */}
@@ -1518,7 +1546,8 @@ function CoordDetail({
               </div>
             );
           }}
-        />
+          />
+        </div>
         {(locked || !isParticipant) && (
           <p className="mt-3 text-xs text-slate-400">
             {locked ? "응답이 마감된 일정방이에요." : "이 일정방의 응답 대상이 아니에요."}
