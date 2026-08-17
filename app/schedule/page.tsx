@@ -2344,10 +2344,10 @@ function EventsSection({
                   <div
                     key={e.id}
                     id={`ev-${e.id}`}
-                    onClick={() => { if (isAdmin) setEditEvent(e); }}
+                    onClick={() => { if (isAdmin && !past) setEditEvent(e); }}
                     className={`flex items-center overflow-hidden rounded-2xl bg-white shadow-sm transition ${
                       highlightId === e.id ? "ring-2 ring-accent" : ""
-                    } ${dimmed ? "opacity-50" : ""} ${isAdmin ? "cursor-pointer hover:shadow-md" : ""}`}
+                    } ${dimmed ? "opacity-50" : ""} ${isAdmin && !past ? "cursor-pointer hover:shadow-md" : ""}`}
                   >
                     {/* 시간 */}
                     <div className="flex w-[72px] shrink-0 flex-col justify-center pl-3 pr-3 py-3">

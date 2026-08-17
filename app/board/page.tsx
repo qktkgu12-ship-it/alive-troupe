@@ -15,6 +15,9 @@ import { ProfileName } from "@/components/ProfileViewer";
 import { relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
+const DAY = 86_400_000;
+const isRecent = (p: Post) => (p.createdAt ?? 0) > Date.now() - 7 * DAY;
+
 function BoardInner() {
   const { role } = useAuth();
   const isAdmin = role === "admin";
@@ -217,6 +220,9 @@ function BoardInner() {
             >
               <span className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">공지</span>
               <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{p.title}</span>
+              {isRecent(p) && (
+                <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
+              )}
               <span className="shrink-0 text-xs text-slate-400">{relativeTime(p.createdAt)}</span>
             </Link>
           ))}
@@ -241,6 +247,9 @@ function BoardInner() {
               {/* 제목 행 */}
               <p className="flex items-center gap-1.5 font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
+                {isRecent(p) && (
+                  <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
+                )}
                 {p.poll && <span className="shrink-0 text-xs text-slate-400">🗳️</span>}
                 {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="shrink-0 text-xs text-slate-400">📷</span>}
                 {(p.commentCount ?? 0) > 0 && (
