@@ -126,10 +126,12 @@ function HomeInner() {
     }, 420);
   }
 
-  // 카드 스택 배치 상수 (px) — iOS 알림처럼 좌우로 살짝 좁아지며 겹치되, 정보가 보이도록 넉넉히 드러냄
-  const FRONT_H = 148; // 맨 앞 카드 높이 기준값
-  const PEEK_H = 56; // 뒤 카드(간략) 전체 높이 — 대부분 앞 카드 밑에 파묻힘
-  const REVEAL = 30; // 그중 실제로 드러나는(읽히는) 폭
+  // 카드 스택 배치 상수 (px) — 모든 카드(맨 앞 포함) 사이 간격을 동일하게 두어
+  // 앞·뒤 카드가 항상 일정하게 겹치도록 함. 뒤 카드는 위쪽이 앞 카드 밑에 파묻혀
+  // 텍스트 일부가 살짝 잘려 보이고(= 카드가 있다는 걸 알 수 있게), 아래로 갈수록 살짝 더 어둡게.
+  const FRONT_MAX_H = 170; // 맨 앞 카드가 가질 수 있는 최대 높이(메모 2줄 포함) — 컨테이너 높이 계산용
+  const GAP = 34; // 카드 사이 간격(=뒤 카드가 드러나는 폭) — 1·2번째 카드 포함 모든 카드 동일
+  const PEEK_H = 46; // 뒤 카드 자체 높이 — GAP보다 커서 위쪽이 앞 카드 밑에 파묻힘
   const INSET_STEP = 8; // 뒤로 갈수록 좌우로 살짝 좁아지는 정도
   const STACK_EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; // 부드러운 easeOutQuint 느낌
 
@@ -159,7 +161,7 @@ function HomeInner() {
             className="relative"
             style={
               shownEvents.length > 1
-                ? { height: FRONT_H + (shownEvents.length - 1) * REVEAL + 4 }
+                ? { height: Math.max(FRONT_MAX_H, (shownEvents.length - 1) * GAP + PEEK_H) + 4 }
                 : undefined
             }
           >
@@ -172,9 +174,11 @@ function HomeInner() {
               const borderColor = tc ? teamBorderAlpha(tc.border, 0.5) : "rgb(var(--accent) / 0.5)";
               const ddayBg = tc ? tc.bg : undefined;
               const ddayColor = tc ? tc.color : undefined;
-              // 위치·순서는 고정 — i가 클수록(뒤쪽 카드일수록) 조금씩 더 아래로, 좌우로 살짝 좁게
-              const top = isFront ? 0 : FRONT_H - PEEK_H + i * REVEAL;
+              // 위치·순서는 고정 — 카드 사이 간격(GAP)이 모두 동일해서 1·2번째 카드도 같은 폭으로 겹침
+              const top = i * GAP;
               const inset = isFront ? 0 : i * INSET_STEP;
+              // 아래로 갈수록 살짝 더 어둡게(미묘한 명도 차이로 깊이감)
+              const darken = isFront ? 0 : Math.min(0.22, i * 0.07);
 
               return (
                 <Link
@@ -186,11 +190,12 @@ function HomeInner() {
                       selectStacked(e);
                     }
                   }}
-                  className={`card absolute overflow-hidden ${isFront ? "flex items-start" : "flex items-end px-3.5 pb-2 pt-0"}`}
+                  className={`card absolute overflow-hidden ${isFront ? "flex items-start" : "flex items-start px-3.5 pb-2 pt-1"}`}
                   style={{
                     top,
                     left: inset,
                     right: inset,
+                    height: isFront ? undefined : PEEK_H,
                     zIndex: isPopped ? 50 : isFront ? 30 : 30 - i,
                     transform: isPopped ? "translateY(-8px) scale(1.02)" : undefined,
                     transition: `top 0.5s ${STACK_EASE}, left 0.5s ${STACK_EASE}, right 0.5s ${STACK_EASE}, transform 0.42s ${STACK_EASE}, box-shadow 0.42s ${STACK_EASE}`,
@@ -202,6 +207,13 @@ function HomeInner() {
                     border: `1px solid ${borderColor}`,
                   }}
                 >
+                  {!isFront && darken > 0 && (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0"
+                      style={{ backgroundColor: `rgba(15,23,42,${darken})` }}
+                    />
+                  )}
                   {isFront ? (
                     <>
                       <span
