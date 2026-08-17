@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import {
   collection,
@@ -235,9 +236,12 @@ function ScheduleInner() {
     loadMemberStat();
   }, [loadMemberStat]);
 
-  // 홈·헤더에서 넘어온 경우 (탭 이동 / 일정 강조 / 등록 폼 열기)
+  // 홈·알림에서 넘어온 경우 (탭 이동 / 일정 강조 / 등록 폼 열기)
+  // useSearchParams를 쓰는 이유: 이미 /schedule에 있는 상태에서 알림을 눌러도
+  // (router.push = 클라이언트 이동, 리마운트 없음) 파라미터 변경을 감지해 다시 실행돼야 함
+  const searchParams = useSearchParams();
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
+    const p = searchParams;
     const tabParam = p.get("tab");
     if (tabParam === "coord") setTab("coord");
     else if (tabParam === "events" || tabParam === "past") setTab("events");
@@ -257,7 +261,7 @@ function ScheduleInner() {
       const t = setTimeout(() => setHighlightEvent(null), 3000);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [searchParams]);
 
   const year = cursor.getFullYear();
   const month0 = cursor.getMonth();
@@ -1378,9 +1382,10 @@ function CoordDetail({
         <button
           onClick={() => shareLink(coord.title, link)}
           aria-label="링크 공유"
-          className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-accent-soft hover:text-accent"
+          className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-slate-400 transition hover:bg-accent-soft hover:text-accent"
         >
-          <ShareIcon className="h-4 w-4" />
+          <ShareIcon className="h-4 w-4 shrink-0" />
+          <span className="text-xs font-semibold leading-none translate-y-[1px]">링크 공유</span>
         </button>
       </div>
 
@@ -1999,16 +2004,21 @@ function EventsSection({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
-  // 초기 진입 시: highlightDate가 있으면 그 날짜 선택, 없으면 오늘(이번 달이면)
+  // 보는 달이 바뀌거나, 홈·알림에서 넘어와 highlightDate가 들어오면 선택 날짜를 맞춤
+  // (highlightDate는 부모가 URL 파라미터를 읽은 뒤 = 첫 렌더 이후에 도착하므로 반드시 deps에 있어야 함)
   const todayStr = toDateStr(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(() => {
     if (highlightDate && highlightDate.slice(0, 7) === yearMonth) return highlightDate;
     return yearMonth === todayStr.slice(0, 7) ? todayStr : null;
   });
   useEffect(() => {
+    if (highlightDate && highlightDate.slice(0, 7) === yearMonth) {
+      setSelectedDate(highlightDate);
+      return;
+    }
     setSelectedDate(yearMonth === todayStr.slice(0, 7) ? todayStr : null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearMonth]);
+  }, [yearMonth, highlightDate]);
 
   // 일정 목록 페이드 애니메이션 — key 변경으로 리마운트 + CSS keyframe 동시 페이드
 
@@ -2523,7 +2533,10 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
 export default function SchedulePage() {
   return (
     <Guard>
-      <ScheduleInner />
+      {/* useSearchParams는 Suspense 경계가 필요 */}
+      <Suspense fallback={<div className="grid place-items-center py-20"><Spinner /></div>}>
+        <ScheduleInner />
+      </Suspense>
     </Guard>
   );
 }
