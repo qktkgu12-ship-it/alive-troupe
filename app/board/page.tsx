@@ -145,7 +145,7 @@ function BoardInner() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">게시판</h1>
         <Link
-          href="/board/write"
+          href={tab !== "all" ? `/board/write?cat=${encodeURIComponent(tab)}` : "/board/write"}
           aria-label="글쓰기"
           title="글쓰기"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"

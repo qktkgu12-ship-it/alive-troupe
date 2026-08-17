@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -21,6 +21,7 @@ function WriteInner() {
   const { user, profile, role } = useAuth();
   const isAdmin = role === "admin";
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { settings } = useTheme();
   const categories =
     settings.boardCategories && settings.boardCategories.length > 0 ? settings.boardCategories : DEFAULT_BOARD_CATEGORIES;
@@ -71,7 +72,10 @@ function WriteInner() {
     } catch {
       /* 무시 */
     }
-    if (!usedDraft) setBoard(categories[0] ?? "");
+    if (!usedDraft) {
+      const cat = searchParams.get("cat");
+      setBoard(cat && categories.includes(cat) ? cat : categories[0] ?? "");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -243,7 +247,9 @@ function WriteInner() {
 export default function WritePage() {
   return (
     <Guard>
-      <WriteInner />
+      <Suspense>
+        <WriteInner />
+      </Suspense>
     </Guard>
   );
 }

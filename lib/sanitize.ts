@@ -4,6 +4,7 @@
 const ALLOWED = new Set([
   "B", "STRONG", "I", "EM", "U", "S", "STRIKE", "A",
   "UL", "OL", "LI", "BLOCKQUOTE", "BR", "P", "DIV", "SPAN", "H1", "H2", "H3",
+  "FONT",
 ]);
 
 export function sanitizeRichHtml(html: string): string {
@@ -32,6 +33,9 @@ export function sanitizeRichHtml(html: string): string {
       Array.from(el.attributes).forEach((a) => {
         const n = a.name.toLowerCase();
         if (el.tagName === "A" && n === "href" && /^https?:\/\//i.test(a.value)) return;
+        if (el.tagName === "FONT" && n === "size") return; // 글자 크기
+        // text-align만 허용 (정렬)
+        if (n === "style" && /^text-align:\s*(left|center|right);?$/i.test(a.value.trim())) return;
         el.removeAttribute(a.name);
       });
       if (el.tagName === "A") {
