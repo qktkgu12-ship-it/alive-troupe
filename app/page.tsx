@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -111,29 +111,26 @@ function HomeInner() {
     return borderColor.replace("rgb(", "rgba(").replace(")", `, ${alpha})`);
   }
 
-  // 카드 스택: 눌린 카드가 맨 위로 올라오는 동안 잠깐 순서를 앞당겨 애니메이션한 뒤 이동
+  // 카드 스택: 카드 위치·순서는 그대로 두고, 선택한 카드만 위에 있던 카드들 위로
+  // z-index가 올라오는 느낌만 준 뒤 해당 확정일정 페이지로 이동
   const router = useRouter();
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const orderedEvents = useMemo(() => {
-    if (!activeId) return shownEvents;
-    const idx = shownEvents.findIndex((e) => e.id === activeId);
-    if (idx <= 0) return shownEvents;
-    const picked = shownEvents[idx];
-    return [picked, ...shownEvents.filter((_, i) => i !== idx)];
-  }, [shownEvents, activeId]);
+  const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [poppedId, setPoppedId] = useState<string | null>(null);
+  useEffect(() => () => { if (popTimer.current) clearTimeout(popTimer.current); }, []);
 
   function selectStacked(e: ScheduleEvent) {
-    if (orderedEvents[0]?.id === e.id) return;
-    setActiveId(e.id);
-    window.setTimeout(() => {
+    setPoppedId(e.id);
+    if (popTimer.current) clearTimeout(popTimer.current);
+    popTimer.current = setTimeout(() => {
       router.push(`/schedule?tab=events&event=${e.id}&date=${e.date}`);
-    }, 320);
+    }, 260);
   }
 
-  // 카드 스택 배치 상수 (px)
+  // 카드 스택 배치 상수 (px) — 겹치는 느낌을 강하게: 뒤 카드는 아주 조금만(REVEAL) 드러남
   const FRONT_H = 148; // 맨 앞 카드 높이 기준값
-  const PEEK_H = 48; // 뒤 카드(간략) 높이
-  const OVERLAP = 16; // 앞 카드 밑으로 파묻히는 정도
+  const PEEK_H = 44; // 뒤 카드(간략) 높이
+  const REVEAL = 14; // 바로 위 카드 아래로 드러나는 폭
+  const INSET_STEP = 6; // 뒤로 갈수록 좌우로 살짝 좁아지는 정도
 
   return (
     <div className="space-y-8">
@@ -160,20 +157,23 @@ function HomeInner() {
           <div
             className="relative"
             style={
-              orderedEvents.length > 1
-                ? { height: FRONT_H - OVERLAP + (orderedEvents.length - 1) * (PEEK_H - OVERLAP) + PEEK_H }
+              shownEvents.length > 1
+                ? { height: FRONT_H + (shownEvents.length - 1) * REVEAL + 4 }
                 : undefined
             }
           >
-            {orderedEvents.map((e, i) => {
+            {shownEvents.map((e, i) => {
               const isFront = i === 0;
+              const isPopped = poppedId === e.id;
               const dt = parseDate(e.date);
               const tc = getEventColor(e, teams);
               // 팀/네이버 컬러 있으면 그 컬러, 없으면 accent
               const borderColor = tc ? teamBorderAlpha(tc.border, 0.5) : "rgb(var(--accent) / 0.5)";
               const ddayBg = tc ? tc.bg : undefined;
               const ddayColor = tc ? tc.color : undefined;
-              const top = isFront ? 0 : FRONT_H - OVERLAP + (i - 1) * (PEEK_H - OVERLAP);
+              // 위치·순서는 고정 — i가 클수록(뒤쪽 카드일수록) 조금씩 더 아래로, 좌우로 살짝 좁게
+              const top = isFront ? 0 : FRONT_H - PEEK_H + i * REVEAL;
+              const inset = isFront ? 0 : i * INSET_STEP;
 
               return (
                 <Link
@@ -185,15 +185,20 @@ function HomeInner() {
                       selectStacked(e);
                     }
                   }}
-                  className={`card absolute inset-x-0 overflow-hidden transition-all duration-300 ease-out ${
-                    isFront ? "flex items-start" : "flex items-center !p-3"
+                  className={`card absolute overflow-hidden transition-all duration-300 ease-out ${
+                    isFront ? "flex items-start" : "flex items-end !p-3"
                   }`}
                   style={{
                     top,
-                    zIndex: isFront ? 30 : 30 - i,
-                    boxShadow: isFront
-                      ? "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -10px rgba(16,24,40,0.12)"
-                      : "0 1px 2px rgba(16,24,40,0.06)",
+                    left: inset,
+                    right: inset,
+                    zIndex: isPopped ? 50 : isFront ? 30 : 30 - i,
+                    transform: isPopped ? "translateY(-6px) scale(1.02)" : undefined,
+                    boxShadow: isPopped
+                      ? "0 1px 2px rgba(16,24,40,0.04), 0 10px 26px -10px rgba(16,24,40,0.22)"
+                      : isFront
+                        ? "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -10px rgba(16,24,40,0.12)"
+                        : "0 1px 2px rgba(16,24,40,0.06)",
                     border: `1px solid ${borderColor}`,
                   }}
                 >
