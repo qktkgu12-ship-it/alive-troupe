@@ -2111,14 +2111,14 @@ function EventsSection({
         <div className="flex-1" />
         <button
           onClick={naver.openNaver}
-          className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold leading-none text-white transition active:brightness-90"
+          className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
           style={{ backgroundColor: "#03C75A" }}
         >
           {/* 네이버 N 아이콘 */}
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
             <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
           </svg>
-          예약하기
+          <span className="leading-none">예약하기</span>
         </button>
       </div>
       <NaverNoticeModal open={naver.showNotice} onClose={naver.closeNotice} onConfirm={naver.confirmNotice} />
