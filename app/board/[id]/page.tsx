@@ -16,6 +16,7 @@ import { ProfileAvatar, ProfileName } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import { relativeTime } from "@/lib/utils";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
+import { clearSearchCache } from "@/lib/search";
 import { boardCategoryLabel, type Comment, type Post, type PostMedia, type PollVote } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -237,6 +238,7 @@ function PostDetailInner() {
       } else {
         await deleteDoc(doc(db, "postMedia", post.id)).catch(() => {});
       }
+      clearSearchCache(); // 고친 내용이 검색에 바로 반영되도록
       setPost({ ...post, title: update.title, content: update.content, isNotice: update.isNotice, hasImages: update.hasImages, images: undefined });
       setEditing(false);
     } finally {
@@ -248,6 +250,7 @@ function PostDetailInner() {
     if (!post || !confirm("이 글을 삭제할까요?")) return;
     await deleteDoc(doc(db, "posts", post.id));
     await deleteDoc(doc(db, "postMedia", post.id)).catch(() => {});
+    clearSearchCache(); // 지운 글이 검색 결과에 남지 않도록
     router.replace("/board");
   }
 

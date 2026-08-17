@@ -12,6 +12,7 @@ import ImagePicker from "@/components/ImagePicker";
 import Select from "@/components/Select";
 import RichEditor from "@/components/RichEditor";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
+import { clearSearchCache } from "@/lib/search";
 import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -153,6 +154,7 @@ function WriteInner() {
       if (images.length > 0) {
         await setDoc(doc(db, "postMedia", id), { images, authorUid: user?.uid });
       }
+      clearSearchCache(); // 방금 쓴 글이 검색에 바로 잡히도록
       clearDraft();
       router.replace(`/board/${id}`);
     } finally {

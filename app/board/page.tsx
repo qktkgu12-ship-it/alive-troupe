@@ -1,8 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  where,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
@@ -52,25 +62,42 @@ function BoardInner() {
     );
   }, []);
 
-  // 글은 한 번에 모두 불러오고, 탭/검색은 화면에서 거름 (카테고리가 동적이라 단순·안전)
-  const loadBoard = useCallback(async () => {
-    setLoading(true);
+  // 글은 최신순으로 필요한 만큼만 끊어서 불러온다.
+  // (예전엔 컬렉션 전체를 본문 HTML까지 통째로 읽어서, 글이 쌓일수록 계속 무거워졌음)
+  // 카테고리는 동적이라 where 대신 화면에서 거르고, 부족하면 아래 효과가 더 불러온다.
+  // → orderBy 하나만 쓰므로 복합 색인을 따로 만들 필요가 없다.
+  const FETCH = 150;
+  const cursor = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const fetching = useRef(false);
+  const [hasMore, setHasMore] = useState(false);
+
+  const loadBoard = useCallback(async (first = false) => {
+    if (fetching.current) return;
+    fetching.current = true;
+    if (first) setLoading(true);
     try {
-      const snap = await getDocs(collection(db, "posts"));
-      setPosts(
-        snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))
-          .filter((p) => !p.isNotice)
-          .sort((a, b) => b.createdAt - a.createdAt)
+      const after = first ? null : cursor.current;
+      const snap = await getDocs(
+        after
+          ? query(collection(db, "posts"), orderBy("createdAt", "desc"), startAfter(after), limit(FETCH))
+          : query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(FETCH))
       );
+      cursor.current = snap.docs[snap.docs.length - 1] ?? cursor.current;
+      setHasMore(snap.docs.length === FETCH); // 꽉 채워 왔으면 더 있을 수 있음
+      // 공지는 위쪽 고정 영역에서 따로 보여주므로 목록에서는 제외
+      const batch = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))
+        .filter((p) => !p.isNotice);
+      setPosts((prev) => (first ? batch : [...prev, ...batch]));
     } finally {
-      setLoading(false);
+      fetching.current = false;
+      if (first) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadNotices();
-    loadBoard();
+    loadBoard(true);
   }, [loadNotices, loadBoard]);
 
   // 글 목록 순서를 저장 → 상세의 이전/다음글이 게시판 전체를 다시 읽지 않도록 공유
@@ -121,10 +148,12 @@ function BoardInner() {
     setTab(name);
   }
   async function removeCategory(c: string) {
+    // 목록을 끊어서 불러오므로 아직 안 읽은 글이 있을 수 있음 → 그럴 땐 '이상'으로 표기
     const cnt = countByCat(c);
+    const cntText = hasMore ? `${cnt}개 이상` : `${cnt}개`;
     const msg =
       cnt > 0
-        ? `'${c}' 종류에 글 ${cnt}개가 있어요. 탭을 지우면 그 글들은 '전체'에서만 보이게 됩니다(삭제는 아님). 계속할까요?`
+        ? `'${c}' 종류에 글 ${cntText}가 있어요. 탭을 지우면 그 글들은 '전체'에서만 보이게 됩니다(삭제는 아님). 계속할까요?`
         : `'${c}' 종류를 삭제할까요?`;
     if (!confirm(msg)) return;
     await saveSettings({ boardCategories: categories.filter((x) => x !== c) });
@@ -134,6 +163,13 @@ function BoardInner() {
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE));
   const curPage = Math.min(page, pageCount);
   const pageItems = filtered.slice((curPage - 1) * PAGE, curPage * PAGE);
+
+  // 지금 보는 탭·검색 조건으로 걸러낸 글이 현재 페이지를 채우기에 모자라면 다음 묶음을 더 받는다.
+  // 드물게 쓰는 카테고리를 골라도 예전(전체 로드)과 같은 결과가 나오되, 필요한 만큼만 읽는다.
+  useEffect(() => {
+    if (loading || !hasMore) return;
+    if (filtered.length < curPage * PAGE + PAGE) loadBoard();
+  }, [filtered.length, curPage, hasMore, loading, loadBoard]);
 
   function runSearch() {
     setSearchQuery(searchInput);
