@@ -1434,7 +1434,9 @@ function CoordDetail({
     for (const e of eventsByDate[activeDate] ?? []) {
       if (!e.startTime) continue;
       const startM = toMinutes(e.startTime);
-      const endM = e.endTime ? toMinutes(e.endTime) : startM + 30;
+      let endM = e.endTime ? toMinutes(e.endTime) : startM + 30;
+      // 자정을 넘기는 예약(예: 23:00~01:00)은 그날 끝까지로 본다 — 안 그러면 한 칸도 막히지 않음
+      if (endM <= startM) endM = 24 * 60;
       for (const s of TIME_SLOTS) {
         const sM = toMinutes(s);
         const eM = toMinutes(slotEnd(s));
