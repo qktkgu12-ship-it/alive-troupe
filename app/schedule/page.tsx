@@ -77,6 +77,11 @@ function eventPassed(e: ScheduleEvent): boolean {
 
 
 // 가능 인원 비율 → 초록 히트맵 색 (타임바 슬롯용)
+function toMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
 function heatStyle(count: number, denom: number, max: number) {
   if (count <= 0) return undefined;
   const ratio = denom > 0 ? count / denom : max > 0 ? count / max : 0;
@@ -375,6 +380,7 @@ function TimeRangeBar({
   anchor,
   onTap,
   locked,
+  disabledSlots,
 }: {
   mySlots: string[];
   othersBySlot: Record<string, number>;
@@ -383,6 +389,7 @@ function TimeRangeBar({
   anchor: string | null;
   onTap: (slot: string) => void;
   locked: boolean;
+  disabledSlots?: Set<string>;
 }) {
   const hours = useMemo(() => [...new Set(TIME_SLOTS.map((s) => s.slice(0, 2)))], []);
 
@@ -424,28 +431,30 @@ function TimeRangeBar({
               const on1 = mySlots.includes(s1);
               const isAnchor0 = anchor === s0;
               const isAnchor1 = anchor === s1;
+              const dis0 = !!disabledSlots?.has(s0);
+              const dis1 = !!disabledSlots?.has(s1);
               return (
                 <div key={h} className="flex h-full w-[52px] shrink-0">
                   {/* :00 슬롯 */}
                   <button
                     type="button"
                     onClick={() => onTap(s0)}
-                    disabled={locked}
-                    title={`${s0}~${slotEnd(s0)}${othersBySlot[s0] ? ` · ${othersBySlot[s0]}명 가능` : ""}${isAnchor0 ? " · 시작점" : ""}`}
-                    style={!on0 && !isAnchor0 ? heatStyle(othersBySlot[s0] ?? 0, denom, maxDateCount) : undefined}
+                    disabled={locked || dis0}
+                    title={`${s0}~${slotEnd(s0)}${dis0 ? " · 확정 일정 있음" : othersBySlot[s0] ? ` · ${othersBySlot[s0]}명 가능` : ""}${isAnchor0 ? " · 시작점" : ""}`}
+                    style={!on0 && !isAnchor0 && !dis0 ? heatStyle(othersBySlot[s0] ?? 0, denom, maxDateCount) : undefined}
                     className={`h-full w-[26px] border-r border-dashed border-slate-200 transition ${
-                      on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
+                      dis0 ? "cursor-not-allowed bg-slate-300" : on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
                     }`}
                   />
                   {/* :30 슬롯 */}
                   <button
                     type="button"
                     onClick={() => onTap(s1)}
-                    disabled={locked}
-                    title={`${s1}~${slotEnd(s1)}${othersBySlot[s1] ? ` · ${othersBySlot[s1]}명 가능` : ""}${isAnchor1 ? " · 시작점" : ""}`}
-                    style={!on1 && !isAnchor1 ? heatStyle(othersBySlot[s1] ?? 0, denom, maxDateCount) : undefined}
+                    disabled={locked || dis1}
+                    title={`${s1}~${slotEnd(s1)}${dis1 ? " · 확정 일정 있음" : othersBySlot[s1] ? ` · ${othersBySlot[s1]}명 가능` : ""}${isAnchor1 ? " · 시작점" : ""}`}
+                    style={!on1 && !isAnchor1 && !dis1 ? heatStyle(othersBySlot[s1] ?? 0, denom, maxDateCount) : undefined}
                     className={`h-full w-[26px] transition ${
-                      on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
+                      dis1 ? "cursor-not-allowed bg-slate-300" : on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
                     }`}
                   />
                 </div>
@@ -506,6 +515,20 @@ function CoordSection({
   const [createdId, setCreatedId] = useState<string | null>(null); // 만든 직후 확인 시트
   const coordCreateRef = useRef<(() => void) | null>(null);
   const coordSectionTopRef = useRef<HTMLDivElement>(null);
+
+  // 날짜 후보 선택 시 겹치는 확정 일정 검사에 쓸 전체 확정 일정
+  const [allEvents, setAllEvents] = useState<ScheduleEvent[]>([]);
+  useEffect(() => {
+    (async () => {
+      const snap = await getDocs(collection(db, "events"));
+      setAllEvents(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) })));
+    })();
+  }, []);
+  const eventsByDate = useMemo(() => {
+    const m: Record<string, ScheduleEvent[]> = {};
+    for (const e of allEvents) (m[e.date] ??= []).push(e);
+    return m;
+  }, [allEvents]);
 
   const denomOf = useCallback(
     (c: Coordination) =>
@@ -703,7 +726,7 @@ function CoordSection({
 
       {/* 일정방 만들기 */}
       <BottomSheet open={showCreate} title="일정방 만들기" onClose={() => setShowCreate(false)} onConfirm={() => coordCreateRef.current?.()}>
-        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} submitRef={coordCreateRef} />
+        <CoordCreateForm teams={teams} myTeam={myTeam} onCreate={createCoord} submitRef={coordCreateRef} eventsByDate={eventsByDate} />
       </BottomSheet>
 
       {/* 일정방 상세 — 바텀시트 */}
@@ -727,6 +750,7 @@ function CoordSection({
             onConfirmed={onConfirmed}
             onRemove={() => removeCoord(openCoord)}
             saveRef={coordDetailSaveRef}
+            eventsByDate={eventsByDate}
           />
         )}
       </BottomSheet>
@@ -782,6 +806,7 @@ function CoordCreateForm({
   myTeam,
   onCreate,
   submitRef,
+  eventsByDate,
 }: {
   teams: string[];
   myTeam: string;
@@ -794,6 +819,7 @@ function CoordCreateForm({
     deadline?: number;
   }) => Promise<void>;
   submitRef?: React.MutableRefObject<(() => void) | null>;
+  eventsByDate: Record<string, ScheduleEvent[]>;
 }) {
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("스튜디오 얼라이브");
@@ -863,8 +889,24 @@ function CoordCreateForm({
     setSelectedUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
   }
 
+  const [conflictDate, setConflictDate] = useState<string | null>(null);
+
   function toggleDate(ds: string) {
-    setDates((prev) => (prev.includes(ds) ? prev.filter((d) => d !== ds) : [...prev, ds].sort()));
+    setDates((prev) => {
+      if (prev.includes(ds)) return prev.filter((d) => d !== ds);
+      // 이미 확정 일정이 있는 날짜면 먼저 확인 모달을 띄우고 여기서는 추가하지 않음
+      if ((eventsByDate[ds] ?? []).length > 0) {
+        setConflictDate(ds);
+        return prev;
+      }
+      return [...prev, ds].sort();
+    });
+  }
+
+  function confirmConflictDate() {
+    if (!conflictDate) return;
+    setDates((prev) => (prev.includes(conflictDate) ? prev : [...prev, conflictDate].sort()));
+    setConflictDate(null);
   }
 
   async function submit() {
@@ -1024,14 +1066,18 @@ function CoordCreateForm({
           renderCell={(d) => {
             const ds = toDateStr(d);
             const on = dates.includes(ds);
+            const hasConflict = (eventsByDate[ds] ?? []).length > 0;
             return (
               <button
                 onClick={() => toggleDate(ds)}
-                className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition ${
+                className={`relative flex h-full w-full items-center justify-center rounded-lg text-sm transition ${
                   on ? "bg-accent font-bold text-accent-fg" : "bg-surface text-slate-600 hover:bg-slate-200"
                 } ${!on && ds === todayStr ? "ring-1 ring-accent/50" : ""}`}
               >
                 {d.getDate()}
+                {hasConflict && (
+                  <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${on ? "bg-accent-fg" : "bg-rose-400"}`} />
+                )}
               </button>
             );
           }}
@@ -1102,7 +1148,77 @@ function CoordCreateForm({
         </div>
       </div>
 
+      <DateConflictModal
+        date={conflictDate}
+        events={conflictDate ? eventsByDate[conflictDate] ?? [] : []}
+        onCancel={() => setConflictDate(null)}
+        onConfirm={confirmConflictDate}
+      />
     </div>
+  );
+}
+
+// 날짜 후보로 고른 날에 이미 확정 일정이 있을 때 띄우는 확인 모달
+function DateConflictModal({
+  date,
+  events,
+  onCancel,
+  onConfirm,
+}: {
+  date: string | null;
+  events: ScheduleEvent[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!date) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-rose-50">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-rose-500">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5M12 16h.01" />
+          </svg>
+        </div>
+        <p className="text-center text-[15px] font-bold text-slate-900">
+          현재 다른 일정이 있는 날짜입니다.
+          <br />
+          그래도 선택하시겠습니까?
+        </p>
+        <div className="mt-3 space-y-1.5 rounded-xl bg-surface p-3">
+          {events.map((e) => (
+            <div key={e.id} className="flex items-center gap-2 text-sm">
+              <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
+              <span className="min-w-0 flex-1 truncate font-semibold text-slate-700">{e.title}</span>
+              {e.startTime && (
+                <span className="shrink-0 text-xs text-slate-400">
+                  {e.startTime}
+                  {e.endTime ? `~${e.endTime}` : ""}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-bold text-accent-fg transition hover:brightness-110"
+          >
+            그래도 선택
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1120,6 +1236,7 @@ function CoordDetail({
   onConfirmed,
   onRemove,
   saveRef,
+  eventsByDate,
 }: {
   coord: Coordination;
   isAdmin: boolean;
@@ -1133,6 +1250,7 @@ function CoordDetail({
   onConfirmed: () => void;
   onRemove: () => void;
   saveRef?: React.MutableRefObject<(() => void) | null>;
+  eventsByDate: Record<string, ScheduleEvent[]>;
 }) {
   const candidates = useMemo(() => [...(coord.candidateDates ?? [])].sort(), [coord.candidateDates]);
   const closed = !!coord.deadline && Date.now() > coord.deadline;
@@ -1278,6 +1396,23 @@ function CoordDetail({
     return m;
   }, [activeDate, allAvail, uid]);
 
+  // 활성 날짜에 이미 확정된 일정이 있으면 그 시간대는 선택 불가(회색 처리)
+  const disabledSlots = useMemo(() => {
+    const set = new Set<string>();
+    if (!activeDate) return set;
+    for (const e of eventsByDate[activeDate] ?? []) {
+      if (!e.startTime) continue;
+      const startM = toMinutes(e.startTime);
+      const endM = e.endTime ? toMinutes(e.endTime) : startM + 30;
+      for (const s of TIME_SLOTS) {
+        const sM = toMinutes(s);
+        const eM = toMinutes(slotEnd(s));
+        if (sM < endM && eM > startM) set.add(s);
+      }
+    }
+    return set;
+  }, [activeDate, eventsByDate]);
+
   // ----- 내 가능 날짜 편집 (후보 날짜 중에서만) -----
   function toggleMyDate(ds: string) {
     if (locked || !isParticipant || !candidates.includes(ds)) return;
@@ -1293,17 +1428,17 @@ function CoordDetail({
 
   // 타임바 범위 선택: 1탭=시작, 2탭=끝(채우기+리셋), 3탭=전체초기화+새시작, 4탭=끝(채우기+리셋) …
   function tapSlot(slot: string) {
-    if (!activeDate || locked || !isParticipant) return;
+    if (!activeDate || locked || !isParticipant || disabledSlots.has(slot)) return;
     if (rangeAnchor === null) {
       // 홀수 탭: 슬롯 전체 초기화 후 시작점 설정
       setSlotsByDate((prev) => ({ ...prev, [activeDate]: [] }));
       setRangeAnchor(slot);
     } else {
-      // 짝수 탭: 앵커~현재 사이 채우고 앵커 초기화
+      // 짝수 탭: 앵커~현재 사이 채우고 앵커 초기화 (확정 일정이 있는 슬롯은 제외)
       const iA = TIME_SLOTS.indexOf(rangeAnchor);
       const iB = TIME_SLOTS.indexOf(slot);
       const [lo, hi] = iA <= iB ? [iA, iB] : [iB, iA];
-      const range = TIME_SLOTS.slice(lo, hi + 1);
+      const range = TIME_SLOTS.slice(lo, hi + 1).filter((s) => !disabledSlots.has(s));
       setSlotsByDate((prev) => {
         const cur = new Set(prev[activeDate] ?? []);
         range.forEach((s) => cur.add(s));
@@ -1599,6 +1734,7 @@ function CoordDetail({
                     anchor={rangeAnchor}
                     onTap={tapSlot}
                     locked={locked}
+                    disabledSlots={disabledSlots}
                   />
                   <p className="mt-2 text-[11px] text-slate-400">⏰ 비워두면 모두가능으로 표시돼요.</p>
                 </div>
