@@ -123,14 +123,15 @@ function HomeInner() {
     if (popTimer.current) clearTimeout(popTimer.current);
     popTimer.current = setTimeout(() => {
       router.push(`/schedule?tab=events&event=${e.id}&date=${e.date}`);
-    }, 260);
+    }, 420);
   }
 
-  // 카드 스택 배치 상수 (px) — 겹치는 느낌을 강하게: 뒤 카드는 아주 조금만(REVEAL) 드러남
+  // 카드 스택 배치 상수 (px) — iOS 알림처럼 좌우로 살짝 좁아지며 겹치되, 정보가 보이도록 넉넉히 드러냄
   const FRONT_H = 148; // 맨 앞 카드 높이 기준값
-  const PEEK_H = 44; // 뒤 카드(간략) 높이
-  const REVEAL = 14; // 바로 위 카드 아래로 드러나는 폭
-  const INSET_STEP = 6; // 뒤로 갈수록 좌우로 살짝 좁아지는 정도
+  const PEEK_H = 56; // 뒤 카드(간략) 전체 높이 — 대부분 앞 카드 밑에 파묻힘
+  const REVEAL = 30; // 그중 실제로 드러나는(읽히는) 폭
+  const INSET_STEP = 8; // 뒤로 갈수록 좌우로 살짝 좁아지는 정도
+  const STACK_EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; // 부드러운 easeOutQuint 느낌
 
   return (
     <div className="space-y-8">
@@ -185,15 +186,14 @@ function HomeInner() {
                       selectStacked(e);
                     }
                   }}
-                  className={`card absolute overflow-hidden transition-all duration-300 ease-out ${
-                    isFront ? "flex items-start" : "flex items-end !p-3"
-                  }`}
+                  className={`card absolute overflow-hidden ${isFront ? "flex items-start" : "flex items-end px-3.5 pb-2 pt-0"}`}
                   style={{
                     top,
                     left: inset,
                     right: inset,
                     zIndex: isPopped ? 50 : isFront ? 30 : 30 - i,
-                    transform: isPopped ? "translateY(-6px) scale(1.02)" : undefined,
+                    transform: isPopped ? "translateY(-8px) scale(1.02)" : undefined,
+                    transition: `top 0.5s ${STACK_EASE}, left 0.5s ${STACK_EASE}, right 0.5s ${STACK_EASE}, transform 0.42s ${STACK_EASE}, box-shadow 0.42s ${STACK_EASE}`,
                     boxShadow: isPopped
                       ? "0 1px 2px rgba(16,24,40,0.04), 0 10px 26px -10px rgba(16,24,40,0.22)"
                       : isFront
