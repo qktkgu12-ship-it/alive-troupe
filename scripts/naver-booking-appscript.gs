@@ -172,6 +172,66 @@ function extractProduct(flat) {
   return extractAfterLabel(flat, "예약상품", MAX_TITLE_LEN);
 }
 
+// ── 마스킹된 예약자명 → 홈페이지 멤버 이름 대조 ────────────────────
+// 네이버는 예약자명을 "박*현"처럼 가운데를 가려서 보냄.
+// publicProfiles의 단원 이름과 글자수·보이는 글자로 대조해 원래 이름을 복원한다.
+// 후보가 2명 이상이면(예: 박지현·박수현) 추측하지 않고 빈값을 돌려준다.
+
+const EMPTY_REQUEST_TOKENS = ["", "-", "--", "―", ".", "없음", "무", "x", "X"];
+function isEmptyRequest(s) {
+  return EMPTY_REQUEST_TOKENS.indexOf(String(s || "").trim()) !== -1;
+}
+
+let MEMBER_NAMES_CACHE = null;   // 실행(run) 1회만 조회
+
+function fetchMemberNames() {
+  if (MEMBER_NAMES_CACHE) return MEMBER_NAMES_CACHE;
+  const names = [];
+  let token = "";
+  do {
+    const url = firestoreUrl("publicProfiles") + "?pageSize=300" + (token ? "&pageToken=" + token : "");
+    const res = UrlFetchApp.fetch(url, { headers: authHeader(), muteHttpExceptions: true });
+    if (res.getResponseCode() >= 300) {
+      console.error("❌ 멤버 이름 조회 실패", res.getContentText());
+      MEMBER_NAMES_CACHE = [];
+      return MEMBER_NAMES_CACHE;
+    }
+    const json = JSON.parse(res.getContentText());
+    (json.documents || []).forEach(d => {
+      const n = ((d.fields || {}).name || {}).stringValue || "";
+      const t = n.trim();
+      if (t) names.push(t);
+    });
+    token = json.nextPageToken || "";
+  } while (token);
+  MEMBER_NAMES_CACHE = names;
+  console.log(`👥 멤버 이름 ${names.length}명 로드`);
+  return names;
+}
+
+// "박*현" → 정규식 /^박.현$/ 로 대조. * 가 여러 개여도 동작.
+function resolveMemberName(masked) {
+  const m = String(masked || "").trim();
+  if (!m || m.indexOf("*") === -1) return "";   // 마스킹이 아니면 대조할 필요 없음
+
+  const names = fetchMemberNames();
+  if (!names.length) return "";
+
+  // 정규식 특수문자 이스케이프 후 * 만 '아무 글자 1개'로
+  const pattern = "^" + m.split("").map(ch =>
+    ch === "*" ? "." : ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  ).join("") + "$";
+  const re = new RegExp(pattern);
+
+  const hits = [];
+  names.forEach(n => { if (re.test(n) && hits.indexOf(n) === -1) hits.push(n); });
+
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1) console.warn(`⚠️ 이름 후보 여러 명 — "${m}" → ${hits.join(", ")} (추측 안 함)`);
+  else                 console.warn(`⚠️ 일치하는 멤버 없음 — "${m}"`);
+  return "";
+}
+
 // ── 파싱 ─────────────────────────────────────────────────────────────
 function toHm(ampm, h, m) {
   let hh = parseInt(h, 10);
@@ -209,10 +269,22 @@ function parseBlock(flat, msgDate) {
   const nameMatch = flat.match(/예약자명\s*(\S+?)님/);
   const guest     = nameMatch ? cleanText(nameMatch[1]) : "";
 
-  let team = "", title = request;
-  for (const t of TEAM_NAMES) if (request.indexOf(t) !== -1) { team = t; break; }
-  if (team && title.indexOf(team) === 0) title = title.slice(team.length).trim();
-  if (!title) title = guest ? `${guest} 예약` : "네이버 예약";
+  // 요청사항이 '-' 처럼 사실상 비어 있으면 제목으로 쓰지 않는다
+  const hasRequest = !isEmptyRequest(request);
+
+  let team = "", title = hasRequest ? request : "";
+  if (hasRequest) {
+    for (const t of TEAM_NAMES) if (request.indexOf(t) !== -1) { team = t; break; }
+    if (team && title.indexOf(team) === 0) title = title.slice(team.length).trim();
+  }
+
+  // 요청사항이 없으면 마스킹된 예약자명(박*현)을 멤버 명단과 대조해 실제 이름으로
+  if (!title) {
+    const resolved = resolveMemberName(guest);
+    if (resolved)      title = resolved;
+    else if (guest)    title = `${guest} 예약`;   // 대조 실패 시 기존 동작 유지
+    else               title = "네이버 예약";
+  }
 
   return {
     bookingNo: noMatch[1],

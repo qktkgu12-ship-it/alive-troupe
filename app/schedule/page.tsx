@@ -523,7 +523,11 @@ function CoordSection({
     (async () => {
       const [evSnap, exSnap] = await Promise.all([
         getDocs(collection(db, "events")),
-        getDocs(collection(db, "externalBookings")).catch(() => null),
+        // 규칙 미배포 등으로 읽기가 막히면 조용히 넘기지 말고 콘솔에 남긴다
+        getDocs(collection(db, "externalBookings")).catch((err) => {
+          console.warn("[일정방] 외부 손님 예약을 읽지 못했어요 (firestore 규칙 배포 확인 필요)", err);
+          return null;
+        }),
       ]);
       const events = evSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) }));
       // 외부 예약은 ScheduleEvent 모양으로 변환해 같은 로직(모달·타임바)에 태운다
