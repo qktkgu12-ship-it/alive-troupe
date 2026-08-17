@@ -81,8 +81,20 @@ export interface ScheduleEvent {
   location: string; // 장소
   memo: string; // 메모·준비물
   team?: string; // 대상 팀 (빈값이면 전체 공통)
-  source?: string; // 'naver' = 네이버 스마트플레이스 예약 (초록색)
+  source?: string; // 'naver' = 네이버 스마트플레이스 예약 (초록색), 'external' = 외부 손님 예약
   hidden?: boolean; // 숨겨진 일정 (관리자만 볼 수 있음, 취소선으로 표시)
+  createdAt: number;
+}
+
+// 외부 손님 예약 (Apps Script가 네이버 예약 메일에서 파싱해 넣음)
+// 예약상품이 '극단 얼라이브 소속 회원 예약'이 아닌 경우 → 확정 일정에는 안 뜨지만
+// 일정방에서 스튜디오가 이미 잡혀 있다는 걸 알 수 있게 날짜·시간만 보관한다.
+export interface ExternalBooking {
+  id: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  product?: string; // 예약상품명 (참고용)
   createdAt: number;
 }
 

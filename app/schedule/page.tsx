@@ -27,7 +27,7 @@ import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
 import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
-import type { Absence, Availability, Coordination, PublicProfile, ScheduleEvent } from "@/lib/types";
+import type { Absence, Availability, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
   buildMonthGrid,
   slotEnd,
@@ -440,7 +440,7 @@ function TimeRangeBar({
                     type="button"
                     onClick={() => onTap(s0)}
                     disabled={locked || dis0}
-                    title={`${s0}~${slotEnd(s0)}${dis0 ? " · 확정 일정 있음" : othersBySlot[s0] ? ` · ${othersBySlot[s0]}명 가능` : ""}${isAnchor0 ? " · 시작점" : ""}`}
+                    title={`${s0}~${slotEnd(s0)}${dis0 ? " · 이미 예약된 시간" : othersBySlot[s0] ? ` · ${othersBySlot[s0]}명 가능` : ""}${isAnchor0 ? " · 시작점" : ""}`}
                     style={!on0 && !isAnchor0 && !dis0 ? heatStyle(othersBySlot[s0] ?? 0, denom, maxDateCount) : undefined}
                     className={`h-full w-[26px] border-r border-dashed border-slate-200 transition ${
                       dis0 ? "cursor-not-allowed bg-slate-300" : on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
@@ -451,7 +451,7 @@ function TimeRangeBar({
                     type="button"
                     onClick={() => onTap(s1)}
                     disabled={locked || dis1}
-                    title={`${s1}~${slotEnd(s1)}${dis1 ? " · 확정 일정 있음" : othersBySlot[s1] ? ` · ${othersBySlot[s1]}명 가능` : ""}${isAnchor1 ? " · 시작점" : ""}`}
+                    title={`${s1}~${slotEnd(s1)}${dis1 ? " · 이미 예약된 시간" : othersBySlot[s1] ? ` · ${othersBySlot[s1]}명 가능` : ""}${isAnchor1 ? " · 시작점" : ""}`}
                     style={!on1 && !isAnchor1 && !dis1 ? heatStyle(othersBySlot[s1] ?? 0, denom, maxDateCount) : undefined}
                     className={`h-full w-[26px] transition ${
                       dis1 ? "cursor-not-allowed bg-slate-300" : on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
@@ -516,17 +516,38 @@ function CoordSection({
   const coordCreateRef = useRef<(() => void) | null>(null);
   const coordSectionTopRef = useRef<HTMLDivElement>(null);
 
-  // 날짜 후보 선택 시 겹치는 확정 일정 검사에 쓸 전체 확정 일정
+  // 날짜 후보 선택 시 겹치는 일정 검사에 쓸 목록
+  // = 확정 일정(events) + 외부 손님 예약(externalBookings, 확정 일정에는 안 뜨지만 스튜디오는 잡혀 있음)
   const [allEvents, setAllEvents] = useState<ScheduleEvent[]>([]);
   useEffect(() => {
     (async () => {
-      const snap = await getDocs(collection(db, "events"));
-      setAllEvents(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) })));
+      const [evSnap, exSnap] = await Promise.all([
+        getDocs(collection(db, "events")),
+        getDocs(collection(db, "externalBookings")).catch(() => null),
+      ]);
+      const events = evSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) }));
+      // 외부 예약은 ScheduleEvent 모양으로 변환해 같은 로직(모달·타임바)에 태운다
+      const external: ScheduleEvent[] = (exSnap?.docs ?? []).map((d) => {
+        const b = d.data() as Omit<ExternalBooking, "id">;
+        return {
+          id: `ext_${d.id}`,
+          title: "외부 손님 예약",
+          date: b.date,
+          startTime: b.startTime ?? "",
+          endTime: b.endTime ?? "",
+          location: "",
+          memo: "",
+          source: "external",
+          createdAt: b.createdAt ?? 0,
+        };
+      });
+      setAllEvents([...events, ...external]);
     })();
   }, []);
   const eventsByDate = useMemo(() => {
     const m: Record<string, ScheduleEvent[]> = {};
     for (const e of allEvents) (m[e.date] ??= []).push(e);
+    for (const list of Object.values(m)) list.sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
     return m;
   }, [allEvents]);
 
@@ -1201,7 +1222,7 @@ function DateConflictModal({
         <div className="mt-3 space-y-1.5 rounded-xl bg-surface p-3">
           {events.map((e) => (
             <div key={e.id} className="flex items-center gap-2 text-sm">
-              <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
+              <CalendarIcon className={`h-4 w-4 shrink-0 ${e.source === "external" ? "text-emerald-500" : "text-slate-400"}`} />
               <span className="min-w-0 flex-1 truncate font-semibold text-slate-700">{e.title}</span>
               {e.startTime && (
                 <span className="shrink-0 text-xs text-slate-400">
@@ -1406,7 +1427,7 @@ function CoordDetail({
     return m;
   }, [activeDate, allAvail, uid]);
 
-  // 활성 날짜에 이미 확정된 일정이 있으면 그 시간대는 선택 불가(회색 처리)
+  // 활성 날짜에 이미 잡힌 일정(확정 일정 + 외부 손님 예약)이 있으면 그 시간대는 선택 불가(회색 처리)
   const disabledSlots = useMemo(() => {
     const set = new Set<string>();
     if (!activeDate) return set;
