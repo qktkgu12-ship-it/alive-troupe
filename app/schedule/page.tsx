@@ -2664,7 +2664,7 @@ function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: A
               <button
                 onClick={submit}
                 disabled={busy}
-                className="w-full rounded-xl bg-[#1a2744] py-3 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-50"
+                className="w-full rounded-xl bg-accent py-3 text-sm font-bold text-accent-fg transition hover:brightness-110 disabled:opacity-50"
               >
                 못 가요 등록
               </button>
