@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -111,30 +110,6 @@ function HomeInner() {
     return borderColor.replace("rgb(", "rgba(").replace(")", `, ${alpha})`);
   }
 
-  // 카드 스택: 카드 위치·순서는 그대로 두고, 선택한 카드만 위에 있던 카드들 위로
-  // z-index가 올라오는 느낌만 준 뒤 해당 확정일정 페이지로 이동
-  const router = useRouter();
-  const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [poppedId, setPoppedId] = useState<string | null>(null);
-  useEffect(() => () => { if (popTimer.current) clearTimeout(popTimer.current); }, []);
-
-  function selectStacked(e: ScheduleEvent) {
-    setPoppedId(e.id);
-    if (popTimer.current) clearTimeout(popTimer.current);
-    popTimer.current = setTimeout(() => {
-      router.push(`/schedule?tab=events&event=${e.id}&date=${e.date}`);
-    }, 420);
-  }
-
-  // 카드 스택 배치 상수 (px) — 모든 카드(맨 앞 포함) 사이 간격을 동일하게 두어
-  // 앞·뒤 카드가 항상 일정하게 겹치도록 함. 뒤 카드는 위쪽이 앞 카드 밑에 파묻혀
-  // 텍스트 일부가 살짝 잘려 보이고(= 카드가 있다는 걸 알 수 있게), 아래로 갈수록 살짝 더 어둡게.
-  const FRONT_MAX_H = 170; // 맨 앞 카드가 가질 수 있는 최대 높이(메모 2줄 포함) — 컨테이너 높이 계산용
-  const GAP = 34; // 카드 사이 간격(=뒤 카드가 드러나는 폭) — 1·2번째 카드 포함 모든 카드 동일
-  const PEEK_H = 46; // 뒤 카드 자체 높이 — GAP보다 커서 위쪽이 앞 카드 밑에 파묻힘
-  const INSET_STEP = 8; // 뒤로 갈수록 좌우로 살짝 좁아지는 정도
-  const STACK_EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; // 부드러운 easeOutQuint 느낌
-
   return (
     <div className="space-y-8">
       {/* 인사 — 담백하게 */}
@@ -157,118 +132,86 @@ function HomeInner() {
         {shownEvents.length === 0 ? (
           <div className="card py-10 text-center text-sm text-slate-400">예정된 확정 일정이 없습니다.</div>
         ) : (
-          <div
-            className="relative"
-            style={
-              shownEvents.length > 1
-                ? { height: Math.max(FRONT_MAX_H, (shownEvents.length - 1) * GAP + PEEK_H) + 4 }
-                : undefined
-            }
-          >
-            {shownEvents.map((e, i) => {
-              const isFront = i === 0;
-              const isPopped = poppedId === e.id;
+          <div className="space-y-2">
+            {/* 가장 가까운 일정 — 크게 */}
+            {(() => {
+              const e = shownEvents[0];
               const dt = parseDate(e.date);
               const tc = getEventColor(e, teams);
               // 팀/네이버 컬러 있으면 그 컬러, 없으면 accent
               const borderColor = tc ? teamBorderAlpha(tc.border, 0.5) : "rgb(var(--accent) / 0.5)";
-              const ddayBg = tc ? tc.bg : undefined;
-              const ddayColor = tc ? tc.color : undefined;
-              // 위치·순서는 고정 — 카드 사이 간격(GAP)이 모두 동일해서 1·2번째 카드도 같은 폭으로 겹침
-              const top = i * GAP;
-              const inset = isFront ? 0 : i * INSET_STEP;
-              // 아래로 갈수록 살짝 더 어둡게(미묘한 명도 차이로 깊이감)
-              const darken = isFront ? 0 : Math.min(0.22, i * 0.07);
-
+              const ddayBg     = tc ? tc.bg    : undefined;
+              const ddayColor  = tc ? tc.color : undefined;
               return (
                 <Link
-                  key={e.id}
                   href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
-                  onClick={(ev) => {
-                    if (!isFront) {
-                      ev.preventDefault();
-                      selectStacked(e);
-                    }
-                  }}
-                  className={`card absolute overflow-hidden ${isFront ? "flex items-start" : "flex items-start px-3.5 pb-2 pt-1"}`}
-                  style={{
-                    top,
-                    left: inset,
-                    right: inset,
-                    height: isFront ? undefined : PEEK_H,
-                    zIndex: isPopped ? 50 : isFront ? 30 : 30 - i,
-                    transform: isPopped ? "translateY(-8px) scale(1.02)" : undefined,
-                    transition: `top 0.5s ${STACK_EASE}, left 0.5s ${STACK_EASE}, right 0.5s ${STACK_EASE}, transform 0.42s ${STACK_EASE}, box-shadow 0.42s ${STACK_EASE}`,
-                    boxShadow: isPopped
-                      ? "0 1px 2px rgba(16,24,40,0.04), 0 10px 26px -10px rgba(16,24,40,0.22)"
-                      : isFront
-                        ? "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -10px rgba(16,24,40,0.12)"
-                        : "0 1px 2px rgba(16,24,40,0.06)",
-                    border: `1px solid ${borderColor}`,
-                  }}
+                  className="card relative flex items-start transition"
+                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -10px rgba(16,24,40,0.12)", border: `1px solid ${borderColor}` }}
                 >
-                  {!isFront && darken > 0 && (
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-0"
-                      style={{ backgroundColor: `rgba(15,23,42,${darken})` }}
-                    />
-                  )}
-                  {isFront ? (
-                    <>
-                      <span
-                        className={`absolute right-4 top-4 rounded-full px-2.5 py-1 text-xs font-bold ${tc ? "" : "bg-accent-soft text-accent"}`}
-                        style={tc ? { backgroundColor: ddayBg, color: ddayColor } : undefined}
-                      >
-                        {ddayLabel(e.date)}
-                      </span>
-                      <div className="min-w-0 flex-1 pr-12">
-                        <p className="mb-0.5 text-xs text-slate-400">
-                          {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-                        </p>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
-                          {e.team && (
-                            <span
-                              style={tc ? { backgroundColor: tc.bg, color: tc.color } : {}}
-                              className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!tc ? "bg-slate-100 text-slate-500" : ""}`}
-                            >
-                              {e.team}
-                            </span>
-                          )}
-                        </div>
-                        <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
-                        {e.memo && (
-                          <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="shrink-0 text-xs font-bold text-slate-800">
-                        {dt.getMonth() + 1}.{dt.getDate()}
-                      </span>
-                      <span className="shrink-0 text-[11px] text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700">{e.title}</span>
-                      {e.team && (
-                        <span
-                          style={tc ? { backgroundColor: tc.bg, color: tc.color } : {}}
-                          className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${!tc ? "bg-slate-100 text-slate-500" : ""}`}
-                        >
-                          {e.team}
-                        </span>
-                      )}
-                      <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${tc ? "" : "bg-accent-soft text-accent"}`}
-                        style={tc ? { backgroundColor: ddayBg, color: ddayColor } : undefined}
-                      >
-                        {ddayLabel(e.date)}
-                      </span>
+                  <span
+                    className={`absolute right-4 top-4 rounded-full px-2.5 py-1 text-xs font-bold ${tc ? "" : "bg-accent-soft text-accent"}`}
+                    style={tc ? { backgroundColor: ddayBg, color: ddayColor } : undefined}
+                  >
+                    {ddayLabel(e.date)}
+                  </span>
+                  <div className="min-w-0 flex-1 pr-12">
+                    <p className="mb-0.5 text-xs text-slate-400">
+                      {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="truncate text-lg font-bold text-slate-900">{e.title}</h3>
+                      {e.team && (() => {
+                        const c = getTeamColor(e.team, teams);
+                        return (
+                          <span
+                            style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                            className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!c ? "bg-slate-100 text-slate-500" : ""}`}
+                          >
+                            {e.team}
+                          </span>
+                        );
+                      })()}
                     </div>
-                  )}
+                    <EventMeta startTime={e.startTime} endTime={e.endTime} location={e.location} className="mt-1 text-sm text-slate-500" />
+                    {e.memo && (
+                      <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{e.memo}</p>
+                    )}
+                  </div>
                 </Link>
               );
-            })}
+            })()}
+
+            {/* 그다음 일정 2~3개 — 아주 작게 */}
+            {shownEvents.length > 1 && (
+              <div className="px-1">
+                {shownEvents.slice(1, 4).map((e) => {
+                  const dt = parseDate(e.date);
+                  return (
+                    <Link
+                      key={e.id}
+                      href={`/schedule?tab=events&event=${e.id}&date=${e.date}`}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-black/[0.03]"
+                    >
+                      <span className="shrink-0 font-bold text-slate-800">{dt.getMonth() + 1}.{dt.getDate()}</span>
+                      <span className="shrink-0 text-slate-400">{WEEKDAYS_KO[dt.getDay()]}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{e.title}</span>
+                      {e.team && (() => {
+                        const c = getTeamColor(e.team, teams);
+                        return (
+                          <span
+                            style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                            className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!c ? "bg-slate-100 text-slate-500" : ""}`}
+                          >
+                            {e.team}
+                          </span>
+                        );
+                      })()}
+                      <span className="shrink-0 text-slate-400">{ddayLabel(e.date)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </section>
