@@ -19,11 +19,20 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: "#ffffff",
+  colorScheme: "light", // 다크모드 기기의 '검은 로딩화면' 방지
 };
 
-// 화면 그려지기 직전: (1) 마지막으로 본 강조색을 즉시 칠해 깜빡임 방지,
-// (2) Pretendard 폰트를 '비차단'으로 주입 → CDN이 느려도 화면이 멈추지 않음(검은 화면 방지).
-const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css';document.head.appendChild(l);}catch(e){}})();`;
+const FONT_CSS =
+  "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css";
+
+// 스타일시트가 오기 전에도 배경이 흰색으로 칠해지도록 최소한의 색만 인라인으로.
+// (globals.css는 별도 파일이라 로드 전 한 프레임 동안 기기 기본색 = 다크모드면 검정)
+const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{background:#f7f8fa;color:#0f172a;margin:0;padding:0}`;
+
+// (1) 마지막으로 본 강조색을 즉시 칠해 깜빡임 방지
+// (2) 폰트 <link>를 media="print"로 받아 렌더를 막지 않다가, 다 받으면 media="all"로 전환.
+//     React는 서버 HTML에 onLoad 문자열을 넣어주지 않으므로 이 스크립트가 직접 처리한다.
+const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.getElementById('alive-font');if(l){var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -33,7 +42,16 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        {/* 폰트 CDN은 아래 스크립트에서 '비차단'으로 주입 → CDN이 느려도 화면이 멈추지 않음 */}
+        {/* 1순위: 첫 페인트 색 확보 → 검은 화면 방지 */}
+        <style dangerouslySetInnerHTML={{ __html: criticalCss }} />
+        {/* 폰트 CDN 연결을 미리 열어 두면 왕복 1회(DNS+TLS)를 아낌 */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
+        {/* 폰트는 JS 파싱을 기다리지 않고 HTML 파싱 시점에 바로 요청 시작.
+            media="print"라 렌더를 막지 않고, 아래 스크립트가 로드 후 all로 전환 */}
+        <link id="alive-font" rel="stylesheet" href={FONT_CSS} media="print" />
+        <noscript>
+          <link rel="stylesheet" href={FONT_CSS} />
+        </noscript>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>

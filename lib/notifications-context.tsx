@@ -64,11 +64,26 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     [user, isMember, role, profile?.notifSince]
   );
 
-  // 최초 1회 + 3분 간격 백그라운드 갱신
+  // 최초 1회 + 3분 간격 백그라운드 갱신.
+  // 알림은 '지금 보는 화면'에 필요한 데이터가 아니므로, 브라우저가 한가해질 때까지 미룬다.
+  // (바로 쏘면 페이지 자체 조회와 커넥션을 두고 경쟁해서 첫 화면이 늦게 뜬다)
   useEffect(() => {
-    refresh();
+    let idleId: number | undefined;
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+    }).requestIdleCallback;
+
+    if (ric) idleId = ric(() => refresh(), { timeout: 3000 });
+    else idleId = window.setTimeout(() => refresh(), 1200);
+
     const t = setInterval(() => refresh(), 180_000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      const cic = (window as unknown as {
+        cancelIdleCallback?: (id: number) => void;
+      }).cancelIdleCallback;
+      if (idleId != null) (ric && cic ? cic : window.clearTimeout)(idleId);
+    };
   }, [refresh]);
 
   // 읽음 상태 — 이 Provider는 루트 레이아웃에서 한 번만 마운트되므로,
