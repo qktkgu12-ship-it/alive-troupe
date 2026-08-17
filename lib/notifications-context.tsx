@@ -2,6 +2,8 @@
 
 // 알림을 앱 전체에서 '한 번만' 불러와 공유한다.
 // (알림벨 + 내비 NEW 배지가 각자 조회하면 중복이라, 상위에서 한 번 조회해 공유)
+// 읽음 상태(reads)도 여기서 함께 관리 — 페이지마다 새로 마운트되는 NotificationBell에
+// 로컬로 두면, 다른 페이지로 이동했을 때 '모두 읽음'이 초기화되어 다시 뜨는 문제가 있었음.
 
 import {
   createContext,
@@ -21,6 +23,9 @@ interface NotifState {
   items: AppNotification[];
   loading: boolean;
   refresh: (force?: boolean) => void;
+  reads: Record<string, number>;
+  markRead: (id: string) => void;
+  markAll: () => void;
 }
 
 const Ctx = createContext<NotifState | undefined>(undefined);
@@ -66,7 +71,39 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [refresh]);
 
-  return <Ctx.Provider value={{ items, loading, refresh }}>{children}</Ctx.Provider>;
+  // 읽음 상태 — 이 Provider는 루트 레이아웃에서 한 번만 마운트되므로,
+  // 페이지를 이동해도 초기화되지 않고 계속 유지됨
+  const [reads, setReads] = useState<Record<string, number>>({});
+  const initedReads = useRef(false);
+  useEffect(() => {
+    if (profile && !initedReads.current) {
+      setReads(profile.notifReads ?? {});
+      initedReads.current = true;
+    }
+  }, [profile]);
+
+  function persistReads(next: Record<string, number>) {
+    setReads(next); // 낙관적 갱신
+    // 가지치기 없이 전체 저장 — ID 기준 필터 시 items가 비어있으면 reads가 날아가는 버그 방지
+    if (user) updateDoc(doc(db, "users", user.uid), { notifReads: next }).catch(() => {});
+  }
+
+  function markRead(id: string) {
+    if (reads[id]) return;
+    persistReads({ ...reads, [id]: Date.now() });
+  }
+
+  function markAll() {
+    const next = { ...reads };
+    for (const n of items) next[n.id] = Date.now();
+    persistReads(next);
+  }
+
+  return (
+    <Ctx.Provider value={{ items, loading, refresh, reads, markRead, markAll }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useNotifications() {

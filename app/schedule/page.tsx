@@ -823,6 +823,7 @@ function CoordCreateForm({
 }) {
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("스튜디오 얼라이브");
+  const locationRef = useRef<HTMLInputElement>(null);
   const [audienceMode, setAudienceMode] = useState<"team" | "individual">("team");
   const [team, setTeam] = useState(myTeam);
   const [members, setMembers] = useState<{ uid: string; name: string; avatar?: string; team?: string }[]>([]);
@@ -944,6 +945,7 @@ function CoordCreateForm({
         <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 이름" />
         <div className="flex items-center">
           <input
+            ref={locationRef}
             className="field flex-1 !border-0 !shadow-none"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
@@ -952,7 +954,7 @@ function CoordCreateForm({
           {location && (
             <button
               type="button"
-              onClick={() => setLocation("")}
+              onClick={() => { setLocation(""); locationRef.current?.focus(); }}
               aria-label="장소 지우기"
               className="mr-3 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300"
             >
@@ -1067,6 +1069,14 @@ function CoordCreateForm({
             const ds = toDateStr(d);
             const on = dates.includes(ds);
             const hasConflict = (eventsByDate[ds] ?? []).length > 0;
+            const isPast = ds < todayStr;
+            if (isPast) {
+              return (
+                <div className="flex h-full w-full items-center justify-center rounded-lg text-sm text-slate-300">
+                  {d.getDate()}
+                </div>
+              );
+            }
             return (
               <button
                 onClick={() => toggleDate(ds)}

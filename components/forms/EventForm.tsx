@@ -2,7 +2,7 @@
 
 // 확정 일정 등록 폼 (일정 페이지 + 조율 확정 + 전역 바텀시트 공용)
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useTheme } from "@/lib/theme-context";
@@ -28,7 +28,8 @@ export default function EventForm({
   const [date, setDate] = useState(initial.date);
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
-  const [location, setLocation] = useState(initial.location ?? "");
+  const [location, setLocation] = useState(initial.location ?? "스튜디오 얼라이브");
+  const locationRef = useRef<HTMLInputElement>(null);
   const [memo, setMemo] = useState(initial.memo ?? "");
   const [team, setTeam] = useState(initial.team ?? "");
   const [more, setMore] = useState(false);
@@ -101,12 +102,27 @@ export default function EventForm({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
         />
-        <input
-          className="field"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="장소"
-        />
+        <div className="flex items-center">
+          <input
+            ref={locationRef}
+            className="field flex-1 !border-0 !shadow-none"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="장소"
+          />
+          {location && (
+            <button
+              type="button"
+              onClick={() => { setLocation(""); locationRef.current?.focus(); }}
+              aria-label="장소 지우기"
+              className="mr-3 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="h-3 w-3">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 날짜·시간 (한 카드, 줄마다 구분선) */}

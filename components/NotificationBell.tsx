@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import Spinner from "@/components/Spinner";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
@@ -37,26 +35,16 @@ const ICON: Record<NotifType, React.FC<{ className?: string }>> = {
  * (예전에는 화면 우하단 플로팅 버튼이었음)
  */
 export default function NotificationBell() {
-  const { user, profile, role } = useAuth();
-  const { items, loading, refresh } = useNotifications();
+  const { user, role } = useAuth();
+  const { items, loading, refresh, reads, markRead, markAll } = useNotifications();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [reads, setReads] = useState<Record<string, number>>({});
-  const initedReads = useRef(false);
   // 헤더에 backdrop-blur가 있어 fixed 자식이 헤더 안에 갇혀 잘림 → body로 포털
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const isMember = role === "member" || role === "admin";
-
-  // 읽음 상태 초기화 (프로필 로드 시 한 번)
-  useEffect(() => {
-    if (profile && !initedReads.current) {
-      setReads(profile.notifReads ?? {});
-      initedReads.current = true;
-    }
-  }, [profile]);
 
   // 패널 열려 있을 때 배경 스크롤 잠금
   useEffect(() => {
@@ -69,25 +57,9 @@ export default function NotificationBell() {
   if (!user || !isMember) return null;
 
   // 클릭(읽음)한 알림은 목록에서 사라짐 → 안 읽은 것만 표시
+  // (읽음 상태는 NotificationsProvider가 페이지 이동과 무관하게 계속 들고 있음)
   const visibleItems = items.filter((n) => !reads[n.id]);
   const unreadCount = visibleItems.length;
-
-  function persistReads(next: Record<string, number>) {
-    setReads(next); // 낙관적 갱신
-    // 가지치기 없이 전체 저장 — ID 기준 필터 시 items가 비어있으면 reads가 날아가는 버그 방지
-    if (user) updateDoc(doc(db, "users", user.uid), { notifReads: next }).catch(() => {});
-  }
-
-  function markRead(id: string) {
-    if (reads[id]) return;
-    persistReads({ ...reads, [id]: Date.now() });
-  }
-
-  function markAll() {
-    const next = { ...reads };
-    for (const n of items) next[n.id] = Date.now();
-    persistReads(next);
-  }
 
   function openItem(n: AppNotification) {
     markRead(n.id);
