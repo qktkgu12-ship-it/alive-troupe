@@ -66,9 +66,21 @@ export default function PushOnboard() {
 
   async function allow() {
     if (busy) return;
+
+    // 사파리는 '사용자가 누른 그 순간'에만 권한창을 띄워준다.
+    // enablePush 안에서 부르면 그 전의 await 때문에 클릭과의 연결이 끊겨
+    // 시스템 창이 아예 안 뜨므로, 여기서 가장 먼저 호출한다.
+    let perm: NotificationPermission = "denied";
+    try {
+      perm = await Notification.requestPermission();
+    } catch {
+      /* 무시 */
+    }
+
     setBusy(true);
     try {
-      if (user) await enablePush(user.uid);
+      // 허용했을 때만 토큰 등록까지 진행한다
+      if (perm === "granted" && user) await enablePush(user.uid);
     } catch {
       /* 무시 */
     } finally {
@@ -83,10 +95,7 @@ export default function PushOnboard() {
     <div className="fixed inset-0 z-[100] flex flex-col bg-canvas px-7 pt-[env(safe-area-inset-top)] pb-[calc(2rem+env(safe-area-inset-bottom))]">
       {/* 가운데 — 아이콘 + 문구 */}
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div
-          className="grid h-[88px] w-[88px] place-items-center rounded-full bg-accent"
-          style={{ boxShadow: "0 18px 40px -14px rgb(var(--accent) / 0.55)" }}
-        >
+        <div className="grid h-[88px] w-[88px] place-items-center rounded-full bg-accent">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" className="text-accent-fg">
             <path
               d="M18 8A6 6 0 1 0 6 8c0 6-2.5 7-2.5 7h17S18 14 18 8Z"
@@ -131,7 +140,7 @@ export default function PushOnboard() {
 
         <button
           onClick={dismiss}
-          className="mx-auto mt-4 block py-1 text-[13px] text-slate-400 underline underline-offset-[3px] transition active:text-slate-500"
+          className="mx-auto mt-2 block py-1 text-[13px] text-slate-400 underline underline-offset-[3px] transition active:text-slate-500"
         >
           나중에 받을게요.
         </button>

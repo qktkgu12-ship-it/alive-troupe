@@ -59,31 +59,78 @@ function Plate({ children, className = "" }: { children: React.ReactNode; classN
   );
 }
 
-/** iOS 사파리 하단 툴바 — 공유 버튼 강조 */
+/** iOS 사파리 하단 툴바 (최신 UI) — 뒤로 · 주소 알약 · ⋯ 버튼 강조 */
 function IosToolbar() {
   return (
     <Plate>
-      <div className="flex items-center justify-around px-3 py-3 text-slate-400">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="opacity-40">
-          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {/* 공유 버튼 — 흰 배경 + 강조색으로 도드라지게 */}
-        <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-accent shadow-[0_2px_8px_rgba(16,24,40,0.12)]">
-          <svg width="20" height="22" viewBox="0 0 14 18" fill="none">
-            <path d="M7 1.5v10M7 1.5L4 4.5M7 1.5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M2.5 8H1.5v8.5h11V8h-1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <div className="flex items-center gap-2 px-3 py-3">
+        {/* 뒤로 */}
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-slate-800">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M5 4h5v16H5zM14 4h5v16h-5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-        </svg>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.6" />
-          <rect x="7.5" y="1.5" width="13" height="13" rx="3" stroke="currentColor" strokeWidth="1.6" />
-        </svg>
+
+        {/* 주소 알약 */}
+        <span className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 text-slate-800">
+            <rect x="4" y="4" width="16" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+            <path d="M4 17h16M4 20.5h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-800">alive-troupe.vercel.app</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 text-slate-800">
+            <path d="M20 12a8 8 0 1 1-2.5-5.8M20 4v4h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+
+        {/* ⋯ 메뉴 — 강조 */}
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-accent shadow-[0_2px_8px_rgba(16,24,40,0.14)]">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.9" />
+            <circle cx="12" cy="12" r="1.9" />
+            <circle cx="19" cy="12" r="1.9" />
+          </svg>
+        </span>
+      </div>
+    </Plate>
+  );
+}
+
+/** ⋯ 메뉴가 열린 모습 — 맨 위 '공유' 강조 */
+function IosShareMenu() {
+  const rows: [string, React.ReactNode][] = [
+    [
+      "북마크에 추가",
+      <svg key="b" width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <path d="M6 3.5h12v17l-6-4.5-6 4.5v-17Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      </svg>,
+    ],
+    [
+      "새로운 탭",
+      <svg key="t" width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>,
+    ],
+  ];
+  return (
+    <Plate>
+      <div className="divide-y divide-slate-200/70 bg-white/70">
+        {/* 공유 — 맨 위, 강조 */}
+        <div className="flex items-center gap-3 bg-accent-soft px-4 py-3">
+          <span className="text-accent">
+            <svg width="17" height="19" viewBox="0 0 14 18" fill="none">
+              <path d="M7 1.5v10M7 1.5L4 4.5M7 1.5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2.5 8H1.5v8.5h11V8h-1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className="text-[14px] font-bold text-accent">공유</span>
+        </div>
+        {rows.map(([label, icon]) => (
+          <div key={label} className="flex items-center gap-3 px-4 py-3 opacity-45">
+            <span className="text-slate-500">{icon}</span>
+            <span className="text-[14px] text-slate-600">{label}</span>
+          </div>
+        ))}
       </div>
     </Plate>
   );
@@ -186,7 +233,8 @@ function HomeIcon() {
 function steps(guide: Guide) {
   if (guide === "ios") {
     return [
-      { title: "브라우저 하단 공유 버튼 탭", art: <IosToolbar /> },
+      { title: "브라우저 하단 ⋯ 버튼 탭", art: <IosToolbar /> },
+      { title: "맨 위 '공유' 선택", art: <IosShareMenu /> },
       { title: "'홈 화면에 추가' 선택", art: <MenuRow label="홈 화면에 추가" icon={PlusBox} /> },
       { title: "추가된 앱 실행", art: <HomeIcon /> },
     ];
@@ -272,15 +320,15 @@ export default function PwaSetup() {
     };
   }, []);
 
-  // 가이드가 열려 있는 동안 뒤쪽 스크롤 잠금
+  // 배너·가이드가 떠 있는 동안 뒤쪽 스크롤 잠금
   useEffect(() => {
-    if (!guideOpen) return;
+    if (!show && !guideOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [guideOpen]);
+  }, [show, guideOpen]);
 
   function dismiss() {
     setShow(false);
@@ -309,6 +357,12 @@ export default function PwaSetup() {
   return (
     <>
       {/* ── 하단 배너 ── */}
+      {/* 뒤쪽을 어둡게 깔아 바텀시트와 같은 느낌을 준다 */}
+      <div
+        onClick={dismiss}
+        className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
+        aria-hidden
+      />
       <div className="fixed inset-x-0 bottom-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="relative mx-auto max-w-sm rounded-3xl bg-white px-6 pb-6 pt-7 shadow-[0_20px_60px_-16px_rgba(16,24,40,0.35)]">
           {/* 닫기 */}
@@ -327,8 +381,8 @@ export default function PwaSetup() {
             <img src="/icon-192.png" alt="" className="h-14 w-14 rounded-2xl shadow-[0_6px_18px_-6px_rgba(16,24,40,0.35)]" />
           </div>
 
-          <p className="mt-5 text-center text-[15px] leading-relaxed text-slate-700">
-            홈 화면에 <strong className="font-bold text-slate-900">ALIVE 앱</strong> 추가하고
+          <p className="mt-5 text-center text-[18px] font-medium leading-[1.5] tracking-[-0.035em] text-slate-700">
+            홈 화면에 <strong className="font-extrabold text-slate-900">ALIVE 앱</strong> 추가하고
             <br />
             소식을 더 빠르게 받아보세요.
           </p>
