@@ -1,6 +1,5 @@
 // 서비스 워커를 '파일'이 아니라 '주소'로 서빙한다.
-// public/sw.js 로 두면 Firebase 설정값을 소스에 직접 박아야 하는데,
-// 이렇게 하면 환경변수(.env / Vercel)에 있는 값을 그대로 끌어다 쓸 수 있다.
+// 버전(VERSION)을 코드에서 관리하고, 캐시 헤더를 직접 지정하기 위해서다.
 //
 // 서비스 워커는 하나만 둔다. FCM 전용 워커(firebase-messaging-sw.js)를 따로 등록하면
 // 같은 범위(/)를 두고 서로 덮어써서 캐싱이나 푸시 중 하나가 죽는다.
@@ -8,17 +7,8 @@
 // 서비스 워커는 항상 최신 내용이 내려가야 업데이트가 제때 반영된다
 export const dynamic = "force-dynamic";
 
-const CONFIG = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
 // 캐시 이름에 붙는 판. 서비스 워커 내용을 바꿀 때 올리면 옛 캐시가 정리된다.
-const VERSION = "v2";
+const VERSION = "v3";
 
 function sw(): string {
   return `
@@ -27,40 +17,41 @@ const VERSION = ${JSON.stringify(VERSION)};
 const SHELL = 'alive-shell-' + VERSION;
 const OFFLINE_URL = '/offline';
 
-// ---------- 푸시 알림 (Firebase Cloud Messaging) ----------
-// gstatic에서 받아오므로 오프라인 설치 시 실패할 수 있다. 실패해도 캐싱은 계속 동작해야 하므로 감싼다.
-// 초기화 결과를 남겨 두었다가, 앱이 물어보면 알려준다 (설정 진단용).
-let messagingReady = false;
-let messagingError = '';
-try {
-  importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-  importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
-  firebase.initializeApp(${JSON.stringify(CONFIG)});
-  const messaging = firebase.messaging();
+// ---------- 푸시 알림 ----------
+// FCM도 결국 표준 Web Push로 배달된다. firebase SDK를 gstatic에서 importScripts로
+// 불러오던 방식은 그 요청이 실패하면 알림이 통째로 조용히 죽는다.
+// push 이벤트를 직접 처리하면 외부 의존성이 사라지고 실패 지점도 없다.
+self.addEventListener('push', function (e) {
+  let p = {};
+  try {
+    p = e.data ? e.data.json() : {};
+  } catch (err) {
+    // JSON이 아니면 본문만이라도 살린다
+    try { p = { notification: { body: e.data.text() } }; } catch (e2) { p = {}; }
+  }
 
-  // 앱이 꺼져 있거나 백그라운드일 때 도착한 알림
-  messaging.onBackgroundMessage(function (payload) {
-    const d = payload.data || {};
-    const n = payload.notification || {};
-    self.registration.showNotification(n.title || d.title || 'ALIVE', {
-      body: n.body || d.body || '',
+  const n = p.notification || {};
+  const d = p.data || {};
+  const title = n.title || d.title || 'ALIVE';
+  const body = n.body || d.body || '';
+  const href = d.href || (p.fcmOptions && p.fcmOptions.link) || (n.click_action) || '/';
+
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       // 같은 tag끼리는 덮어써서, 알림이 수십 개 쌓이지 않게 한다
-      tag: d.tag || 'alive',
-      data: { href: d.href || '/' },
-    });
-  });
-  messagingReady = true;
-} catch (e) {
-  // 푸시는 못 쓰지만 오프라인 캐싱은 그대로 동작
-  messagingError = String((e && e.message) || e).slice(0, 200);
-}
+      tag: d.tag || n.tag || 'alive',
+      data: { href: href },
+    })
+  );
+});
 
-// 앱이 '너 푸시 준비됐니?' 하고 물어보면 답한다
+// 앱이 '너 푸시 준비됐니?' 하고 물어보면 답한다 (설정 진단용)
 self.addEventListener('message', function (e) {
   if (!e.data || e.data.type !== 'alive-ping') return;
-  const reply = { type: 'alive-pong', ready: messagingReady, error: messagingError };
+  const reply = { type: 'alive-pong', ready: true, error: '' };
   if (e.ports && e.ports[0]) e.ports[0].postMessage(reply);
   else if (e.source) e.source.postMessage(reply);
 });

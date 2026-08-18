@@ -1,15 +1,13 @@
 "use client";
 
-// PWA 담당 컴포넌트 — 하는 일 세 가지
+// PWA 담당 컴포넌트 — 하는 일 두 가지
 //  1) 서비스 워커 등록 (오프라인 캐싱 + 푸시 수신의 토대)
 //  2) '앱으로 설치' 하단 배너 노출
-//  3) 앱을 보고 있는 동안 도착한 푸시를 알림으로 띄우기
 //
 // 안드로이드/데스크톱 크롬은 beforeinstallprompt 이벤트로 설치창을 띄울 수 있지만,
 // iOS 사파리는 그 이벤트가 없어서 '공유 → 홈 화면에 추가'를 직접 안내해야 한다.
 
 import { useEffect, useState } from "react";
-import { onForegroundPush, pushEnabledHere } from "@/lib/push";
 
 const DISMISS_KEY = "alive-install-dismissed";
 const DISMISS_DAYS = 30; // 배너를 닫으면 이 기간 동안 다시 띄우지 않는다
@@ -61,37 +59,9 @@ export default function PwaSetup() {
     else window.addEventListener("load", go, { once: true });
   }, []);
 
-  // ---- 앱을 보고 있는 동안 도착한 푸시 ----
-  // 화면이 켜져 있으면 서비스 워커의 onBackgroundMessage가 호출되지 않고
-  // 페이지로 바로 전달된다. 여기서 받아 직접 알림을 띄우지 않으면 그냥 사라진다.
-  useEffect(() => {
-    if (!pushEnabledHere()) return;
-    let unsub: (() => void) | undefined;
-    let dead = false;
-
-    (async () => {
-      const off = await onForegroundPush(async (n) => {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          await reg.showNotification(n.title, {
-            body: n.body,
-            icon: "/icon-192.png",
-            badge: "/icon-192.png",
-            data: { href: n.href },
-          });
-        } catch {
-          /* 알림을 못 띄우는 환경이면 조용히 넘어간다 */
-        }
-      });
-      if (dead) off();
-      else unsub = off;
-    })();
-
-    return () => {
-      dead = true;
-      unsub?.();
-    };
-  }, []);
+  // 앱을 보고 있을 때 도착한 알림은 따로 처리하지 않는다.
+  // 서비스 워커가 push 이벤트를 직접 받아 어느 상황에서든 알림을 띄우므로,
+  // 여기서 또 띄우면 같은 알림이 두 번 뜬다.
 
   // ---- 설치 배너 ----
   useEffect(() => {
