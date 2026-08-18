@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   collection,
   deleteDoc,
@@ -98,6 +99,31 @@ function AudioInner() {
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowAdd(true);
   }, []);
+
+  // 홈 카드에서 넘어온 딥링크 — 그 자료가 든 작품으로 옮겨 가 잠깐 강조한다.
+  // 자료실은 작품별로 나뉘어 있어서 자료 id만으로는 어느 탭인지 알 수 없다.
+  // 그래서 홈에서 pid를 함께 넘겨 준다.
+  const searchParams = useSearchParams();
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  useEffect(() => {
+    const it = searchParams.get("item");
+    if (!it) return;
+    const pid = searchParams.get("pid");
+    // 작품 목록을 받아오기 전에 정해 두면 loadProductions가 이 값을 지켜 준다
+    if (pid) setActiveId(pid);
+    // 걸려 있던 검색·종류 필터에 가려 안 보일 수 있으니 풀어 준다
+    setSearch("");
+    setActiveCat("");
+    setHighlightId(it);
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [searchParams]);
+
+  // 목록이 그려지면 지목된 자료까지 스크롤
+  useEffect(() => {
+    if (!highlightId) return;
+    document.getElementById(`au-${highlightId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightId, items]);
 
   const loadProductions = useCallback(async () => {
     const q = isAdmin
@@ -350,11 +376,12 @@ function AudioInner() {
               {catItems.map((t) => (
                 <div
                   key={t.id}
+                  id={`au-${t.id}`}
                   role="link"
                   tabIndex={0}
                   onClick={() => openLink(t.url)}
                   onKeyDown={(e) => { if (e.key === "Enter") openLink(t.url); }}
-                  className="card flex cursor-pointer items-center gap-3 !p-3 transition hover:ring-1 hover:ring-accent/30"
+                  className={`card flex cursor-pointer items-center gap-3 !p-3 transition hover:ring-1 hover:ring-accent/30 ${highlightId === t.id ? "ring-2 ring-accent" : ""}`}
                 >
                   <span className="text-2xl">{getEmoji(itemCategory(t))}</span>
                   <div className="min-w-0 flex-1">
@@ -428,7 +455,10 @@ function AudioInner() {
 export default function AudioPage() {
   return (
     <Guard>
-      <AudioInner />
+      {/* useSearchParams는 Suspense 경계가 필요 */}
+      <Suspense fallback={<SkeletonList />}>
+        <AudioInner />
+      </Suspense>
     </Guard>
   );
 }

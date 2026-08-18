@@ -323,7 +323,7 @@ function HomeInner() {
               {recentArchives.map((a) => (
                 <MediaRow
                   key={a.id}
-                  href="/archive"
+                  href={`/archive?item=${a.id}`}
                   title={a.title}
                   author={a.createdByName}
                   createdAt={a.createdAt}
@@ -346,7 +346,8 @@ function HomeInner() {
               {recentAudio.map((t) => (
                 <MediaRow
                   key={t.id}
-                  href="/audio"
+                  // 자료실은 작품별로 나뉘어 있어 어느 탭인지도 함께 알려 준다
+                  href={`/audio?item=${t.id}&pid=${t.productionId}`}
                   title={t.title || t.song || "제목 없음"}
                   author={t.addedByName}
                   createdAt={t.createdAt}

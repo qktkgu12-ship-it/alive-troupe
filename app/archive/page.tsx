@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   collection,
   deleteDoc,
@@ -116,6 +117,22 @@ function ArchiveInner() {
     if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
   }, []);
 
+  // 홈 카드에서 넘어온 딥링크 — 그 자료를 찾아가 잠깐 강조한다.
+  // 이미 /archive에 있을 때 눌러도 반응해야 하므로 useSearchParams로 본다.
+  const searchParams = useSearchParams();
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  useEffect(() => {
+    const it = searchParams.get("item");
+    if (!it) return;
+    // 걸려 있던 필터에 가려 안 보일 수 있으니 풀어 준다
+    setSearch("");
+    setKindFilter("all");
+    setProdFilter("all");
+    setHighlightId(it);
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [searchParams]);
+
   const [view, setViewState] = useState<ViewMode>("list");
   useEffect(() => {
     if (!user) return;
@@ -201,6 +218,19 @@ function ArchiveInner() {
   }, [filtered, sortOrder]);
 
   useEffect(() => { setVisible(PAGE); }, [search, kindFilter, prodFilter, sortOrder]);
+
+  // 딥링크로 지목된 자료까지 스크롤. 목록 뒤쪽에 있으면 그만큼 더 펼친다.
+  useEffect(() => {
+    if (!highlightId) return;
+    const idx = sorted.findIndex((it) => it.id === highlightId);
+    if (idx < 0) return;
+    if (idx >= visible) {
+      setVisible(Math.ceil((idx + 1) / PAGE) * PAGE);
+      return; // 다시 그려진 뒤에 스크롤한다
+    }
+    const el = document.getElementById(`ar-${highlightId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightId, sorted, visible]);
 
   async function removeItem(it: ArchiveItem) {
     if (!confirm("이 자료를 삭제할까요?")) return;
@@ -330,11 +360,12 @@ function ArchiveInner() {
               return (
                 <div
                   key={it.id}
+                  id={`ar-${it.id}`}
                   role={multi ? undefined : "link"}
                   tabIndex={multi ? undefined : 0}
                   onClick={() => { if (!multi && clips[0]) openLink(clips[0].url); }}
                   onKeyDown={(e) => { if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url); }}
-                  className={`card flex flex-col !p-4 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
+                  className={`card flex flex-col !p-4 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(16,24,40,0.18)] ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"} ${highlightId === it.id ? "ring-2 ring-accent" : ""}`}
                 >
                   {/* 헤더 행: 이모지 + 날짜 + ⋮ */}
                   <div className="mb-2 flex items-center gap-2">
@@ -393,11 +424,12 @@ function ArchiveInner() {
             return (
               <div
                 key={it.id}
+                id={`ar-${it.id}`}
                 role={multi ? undefined : "link"}
                 tabIndex={multi ? undefined : 0}
                 onClick={() => { if (!multi && clips[0]) openLink(clips[0].url); }}
                 onKeyDown={(e) => { if (!multi && clips[0] && e.key === "Enter") openLink(clips[0].url); }}
-                className={`card !p-3 transition ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"}`}
+                className={`card !p-3 transition ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"} ${highlightId === it.id ? "ring-2 ring-accent" : ""}`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
@@ -533,7 +565,10 @@ function ArchiveInner() {
 export default function ArchivePage() {
   return (
     <Guard>
-      <ArchiveInner />
+      {/* useSearchParams는 Suspense 경계가 필요 */}
+      <Suspense fallback={<SkeletonCards />}>
+        <ArchiveInner />
+      </Suspense>
     </Guard>
   );
 }
