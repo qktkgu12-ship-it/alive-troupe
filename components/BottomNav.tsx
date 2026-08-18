@@ -66,7 +66,7 @@ export default function BottomNav() {
     >
       {/* 떠 있는 알약 모양 바 — 뒤가 비쳐 보이도록 반투명 + 강한 블러 */}
       <div
-        className="pointer-events-auto relative mx-auto flex h-[60px] max-w-md items-center rounded-full border border-white/70 px-1"
+        className="pointer-events-auto relative mx-auto flex h-[66px] max-w-md items-center rounded-full border border-white/70 px-1"
         style={{
           background: "rgb(255 255 255 / 0.62)",
           backdropFilter: "blur(20px) saturate(180%)",
@@ -77,7 +77,7 @@ export default function BottomNav() {
         {/* 미끄러지는 회색 알약 — 칸 하나 너비만큼 이동한다 */}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-1 top-1/2 h-[46px] rounded-full bg-slate-900/[0.07]"
+          className="pointer-events-none absolute left-1 top-1/2 h-[54px] rounded-full bg-slate-900/[0.07]"
           style={{
             width: `calc((100% - 0.5rem) / ${n})`,
             transform: `translate(${idx * 100}%, -50%)`,
@@ -97,15 +97,21 @@ export default function BottomNav() {
               href={href}
               aria-label={label}
               aria-current={on ? "page" : undefined}
-              className="relative z-10 grid flex-1 place-items-center py-2"
+              className="relative z-10 flex flex-1 flex-col items-center justify-center gap-[3px] py-2"
             >
-              {/* 우리 글리프는 24 틀 안에서 3~21만 쓰므로,
-                  인스타그램과 같은 광학 크기(약 21)를 내려면 28로 그려야 한다 */}
               <Glyph
-                className={`h-7 w-7 transition-colors duration-200 ${
+                className={`h-6 w-6 transition-colors duration-200 ${
                   on ? "text-slate-900" : "text-slate-400"
                 }`}
               />
+              {/* 아이콘 아래 이름 — 글자가 줄바꿈되지 않도록 자간을 살짝 좁힌다 */}
+              <span
+                className={`text-[10px] leading-none tracking-[-0.02em] transition-colors duration-200 ${
+                  on ? "font-bold text-slate-900" : "font-semibold text-slate-400"
+                }`}
+              >
+                {label}
+              </span>
             </Link>
           );
         })}

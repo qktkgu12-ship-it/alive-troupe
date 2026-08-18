@@ -22,23 +22,29 @@ function makeIcon(children: ReactNode): FC<IconProps> {
   };
 }
 
-// 지붕과 벽이 한 획으로 이어진 집 모양 — 처마가 밖으로 삐져나오지 않는다
+// 박공지붕 집 + 아치형 문 (아이콘 시안 A)
 export const HomeIcon = makeIcon(
-  <path d="M3.6 10.4 12 3.6l8.4 6.8V19a1.5 1.5 0 0 1-1.5 1.5H5.1A1.5 1.5 0 0 1 3.6 19v-8.6Z" />
-);
-
-export const CalendarIcon = makeIcon(
   <>
-    <rect x="3.5" y="4.8" width="17" height="16" rx="4" />
-    <path d="M3.5 9.6h17M8.2 3.2v3.2M15.8 3.2v3.2" />
+    <path d="M3 10.2 12 3l9 7.2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8.8Z" />
+    <path d="M9.6 21v-4.9a2.4 2.4 0 0 1 4.8 0V21" />
   </>
 );
 
-// 둥근 사각형 안의 재생 삼각형 — 다른 아이콘과 같은 정사각 틀에 맞춘 영상 표시
+// 달력 — 시안 A와 같은 모서리 반경·굵기로 맞춘 우리 달력
+export const CalendarIcon = makeIcon(
+  <>
+    <rect x="3" y="5" width="18" height="16" rx="3" />
+    <path d="M3 9.8h18M8 2.8v4M16 2.8v4" />
+  </>
+);
+
+// 슬레이트(클래퍼보드) + 재생 삼각형 (아이콘 시안 A)
 export const ArchiveIcon = makeIcon(
   <>
-    <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-    <path d="M10.4 9.1v5.8l5-2.9-5-2.9Z" />
+    <rect x="3" y="4" width="18" height="16" rx="2.4" />
+    <path d="M3 8.6h18" />
+    <path d="m7.4 4 2.6 4.6M12.6 4l2.6 4.6" />
+    <path d="M10.2 11.6v5l4.4-2.5-4.4-2.5Z" />
   </>
 );
 
@@ -88,10 +94,11 @@ export const EyeOffIcon = makeIcon(
   </>
 );
 
+// 말풍선 + 글줄 (아이콘 시안 A)
 export const BoardIcon = makeIcon(
   <>
-    <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
-    <path d="M8 8.6h8M8 12h8M8 15.4h5" />
+    <path d="M6 4h12a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-8L6 19.6V16a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z" />
+    <path d="M7.6 8.8h8.8M7.6 12.2h5.4" />
   </>
 );
 
@@ -186,8 +193,9 @@ export const PencilIcon = makeIcon(
   </>
 );
 
+// 폴더 — 시안 A와 같은 폭·모서리로 맞춘 우리 폴더
 export const FolderIcon = makeIcon(
-  <path d="M3.5 6.6a2.4 2.4 0 0 1 2.4-2.4h3.2l2.2 2.6h6.4a2.4 2.4 0 0 1 2.4 2.4v8.2a2.4 2.4 0 0 1-2.4 2.4H5.9a2.4 2.4 0 0 1-2.4-2.4V6.6Z" />
+  <path d="M3 7a2.5 2.5 0 0 1 2.5-2.5h3.3l2.3 2.6h7.4A2.5 2.5 0 0 1 21 9.6V18a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18V7Z" />
 );
 
 export const MegaphoneIcon = makeIcon(
@@ -227,34 +235,48 @@ function makeSolidIcon(children: ReactNode): FC<IconProps> {
   };
 }
 
+// 집 — 문을 도려낸 한 덩어리 (evenodd)
 export const HomeIconSolid = makeSolidIcon(
-  <path d="M3.6 10.4 12 3.6l8.4 6.8V19a1.5 1.5 0 0 1-1.5 1.5H5.1A1.5 1.5 0 0 1 3.6 19v-8.6Z" />
+  <path
+    fillRule="evenodd"
+    clipRule="evenodd"
+    d="M12 2.8a1 1 0 0 1 .62.22l9 7.2A1 1 0 0 1 22 11v8a3 3 0 0 1-3 3h-4.2v-5.9a2.8 2.8 0 0 0-5.6 0V22H5a3 3 0 0 1-3-3v-8a1 1 0 0 1 .38-.78l9-7.2A1 1 0 0 1 12 2.8Z"
+  />
 );
 
 export const CalendarIconSolid = makeSolidIcon(
   <>
-    <path d="M8.2 2.2a.9.9 0 0 1 .9.9v.8h5.8v-.8a.9.9 0 0 1 1.8 0v.8A4 4 0 0 1 20.5 8v.6h-17V8a4 4 0 0 1 3.8-4v-.9a.9.9 0 0 1 .9-.9Z" />
-    <path d="M3.5 10.6h17v6.2a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-6.2Z" />
+    <path d="M8 1.9a.9.9 0 0 1 .9.9v1.3h6.2V2.8a.9.9 0 0 1 1.8 0v1.4A3.6 3.6 0 0 1 21 7.7v1.2H3V7.7a3.6 3.6 0 0 1 4.1-3.5V2.8a.9.9 0 0 1 .9-.9Z" />
+    <path d="M3 10.7h18V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-7.3Z" />
   </>
 );
 
+// 슬레이트 — 재생 삼각형과 윗줄 사선을 도려낸다
 export const ArchiveIconSolid = makeSolidIcon(
-  <path
-    fillRule="evenodd"
-    clipRule="evenodd"
-    d="M8.5 3h7A5.5 5.5 0 0 1 21 8.5v7a5.5 5.5 0 0 1-5.5 5.5h-7A5.5 5.5 0 0 1 3 15.5v-7A5.5 5.5 0 0 1 8.5 3Zm2.4 5.7v6.6l5.7-3.3-5.7-3.3Z"
-  />
+  <>
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M5.4 3h13.2A2.4 2.4 0 0 1 21 5.4v3.9H3V5.4A2.4 2.4 0 0 1 5.4 3Zm3.1 6.3L6.1 5h2.3l2.4 4.3H8.5Zm5.2 0L11.3 5h2.3L16 9.3h-2.3Z"
+    />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M3 10.7h18v7.9A2.4 2.4 0 0 1 18.6 21H5.4A2.4 2.4 0 0 1 3 18.6v-7.9Zm7.2 1.1v5.4l4.7-2.7-4.7-2.7Z"
+    />
+  </>
 );
 
 export const FolderIconSolid = makeSolidIcon(
-  <path d="M3.5 6.6a2.4 2.4 0 0 1 2.4-2.4h3.2l2.2 2.6h6.4a2.4 2.4 0 0 1 2.4 2.4v8.2a2.4 2.4 0 0 1-2.4 2.4H5.9a2.4 2.4 0 0 1-2.4-2.4V6.6Z" />
+  <path d="M3 7a2.5 2.5 0 0 1 2.5-2.5h3.3l2.3 2.6h7.4A2.5 2.5 0 0 1 21 9.6V18a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18V7Z" />
 );
 
+// 말풍선 — 글줄을 도려낸다
 export const BoardIconSolid = makeSolidIcon(
   <path
     fillRule="evenodd"
     clipRule="evenodd"
-    d="M8 3h8a5 5 0 0 1 5 5v8a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5Zm0 5.6a.9.9 0 0 0 0 1.8h8a.9.9 0 0 0 0-1.8H8Zm0 3.4a.9.9 0 0 0 0 1.8h8a.9.9 0 0 0 0-1.8H8Zm0 3.4a.9.9 0 0 0 0 1.8h5a.9.9 0 0 0 0-1.8H8Z"
+    d="M6 3.5h12a3.5 3.5 0 0 1 3.5 3.5v6a3.5 3.5 0 0 1-3.5 3.5h-7.8l-4.4 3.9a.8.8 0 0 1-1.3-.6v-3.6A3.5 3.5 0 0 1 2.5 13V7A3.5 3.5 0 0 1 6 3.5Zm1.6 4.4a.9.9 0 0 0 0 1.8h8.8a.9.9 0 0 0 0-1.8H7.6Zm0 3.4a.9.9 0 0 0 0 1.8H13a.9.9 0 0 0 0-1.8H7.6Z"
   />
 );
 

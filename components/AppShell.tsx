@@ -5,11 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { AdminIcon, ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, MembersIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
+import { AdminIcon, MembersIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
-import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
 import PushOnboard from "@/components/PushOnboard";
 
 const NAV = [
@@ -31,22 +30,6 @@ function sectionOf(path: string): string | null {
   return null;
 }
 
-// '+' 등록 메뉴 — 게시판만 글쓰기 페이지로 이동하고, 나머지는 그 자리에서 바텀시트로 열림
-const CREATE_MENU: {
-  sheet: CreateKind | null; // null = href로 이동
-  href?: string;
-  label: string;
-  desc: string;
-  icon: React.FC<{ className?: string }>;
-  admin: boolean;
-}[] = [
-  { sheet: null, href: "/board/write", label: "글쓰기", desc: "게시판에 새 글 올리기", icon: BoardIcon, admin: false },
-  { sheet: null, href: "/schedule?tab=coord&new=1", label: "일정방 만들기", desc: "가능한 날짜를 모아 일정 잡기", icon: CalendarIcon, admin: false },
-  { sheet: "event", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
-  { sheet: "archive", label: "영상 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
-  { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: false },
-];
-
 const SEEN_KEY = "alive-nav-seen";
 
 function NewBadge() {
@@ -66,7 +49,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [term, setTerm] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
@@ -75,8 +57,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/members", label: "멤버", icon: MembersIcon, admin: false },
     { href: "/admin", label: "관리", icon: AdminIcon, admin: true },
   ].filter((m) => !m.admin || role === "admin");
-  const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
-  const { openCreate } = useCreateSheet();
 
   // 검색 모드로 들어가면 입력창에 포커스
   useEffect(() => {
@@ -134,7 +114,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMenuOpen(false);
-    setCreateOpen(false);
     setSearchOpen(false);
   }, [pathname]);
 
@@ -193,14 +172,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ) : (
             /* ===== 기본 모드 ===== */
             <>
-              {/* 모바일: 등록(+)이 맨 왼쪽 / PC: 로고가 맨 왼쪽 */}
+              {/* 모바일: 프로필이 맨 왼쪽 / PC: 로고가 맨 왼쪽
+                  (등록은 하단 플로팅 버튼으로 옮겼다) */}
               <button
-                onClick={() => setCreateOpen(true)}
-                aria-label="등록"
-                aria-expanded={createOpen}
-                className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-800 transition hover:bg-slate-100 md:hidden"
+                onClick={() => setMenuOpen(true)}
+                aria-label="내 메뉴"
+                aria-expanded={menuOpen}
+                className="-ml-0.5 grid h-10 w-10 shrink-0 place-items-center md:hidden"
               >
-                <PlusIcon className="h-[26px] w-[26px]" />
+                <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
               </button>
 
               <Link href="/" className="hidden shrink-0 items-center md:flex">
@@ -237,7 +217,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <Wordmark className="h-[22px]" />
               </Link>
 
-              {/* 오른쪽 아이콘들: 검색 · (PC:등록) · 알림 · 프로필 */}
+              {/* 오른쪽 아이콘들: 검색 · 알림 · (PC:프로필) */}
               <div className="ml-auto flex items-center gap-0.5 md:gap-1">
                 <button
                   onClick={() => setSearchOpen(true)}
@@ -247,25 +227,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <SearchIcon className="h-[22px] w-[22px]" />
                 </button>
 
-                {/* PC에서는 등록 버튼이 오른쪽에 남는다 */}
-                <button
-                  onClick={() => setCreateOpen(true)}
-                  aria-label="등록"
-                  aria-expanded={createOpen}
-                  className="hidden h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100 md:grid"
-                >
-                  <PlusIcon className="h-[22px] w-[22px]" />
-                </button>
-
                 {/* 알림 (오른쪽 슬라이드 패널) */}
                 <NotificationBell />
 
-                {/* 프로필 — 누르면 메뉴가 열린다 (멤버·관리는 여기로 들어간다) */}
+                {/* 프로필 — PC에서만 오른쪽에 남는다 (모바일은 왼쪽 상단) */}
                 <button
                   onClick={() => setMenuOpen(true)}
                   aria-label="내 메뉴"
                   aria-expanded={menuOpen}
-                  className="ml-0.5 grid h-10 w-10 place-items-center"
+                  className="ml-0.5 hidden h-10 w-10 place-items-center md:grid"
                 >
                   <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
                 </button>
@@ -274,42 +244,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </header>
-
-      {/* 등록 바텀시트 — 헤더 바깥에 배치해야 PC 중앙 모달이 정상 동작 */}
-      <BottomSheet
-        open={createOpen}
-        title="등록"
-        onClose={() => setCreateOpen(false)}
-      >
-        <div className="divide-y divide-slate-100">
-          {createItems.map((c) => {
-            const Icon = c.icon;
-            const inner = (
-              <>
-                <Icon className="h-6 w-6 shrink-0 text-[#1a2744]" />
-                <span className="min-w-0 text-left">
-                  <span className="block text-[15px] font-semibold text-slate-800">{c.label}</span>
-                  <span className="block truncate text-sm text-slate-400">{c.desc}</span>
-                </span>
-              </>
-            );
-            const cls = "flex w-full items-center gap-4 py-4 transition hover:bg-slate-50 active:bg-slate-100 rounded-xl px-1";
-            return c.sheet ? (
-              <button
-                key={c.label}
-                onClick={() => { setCreateOpen(false); openCreate(c.sheet!); }}
-                className={cls}
-              >
-                {inner}
-              </button>
-            ) : (
-              <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
-                {inner}
-              </Link>
-            );
-          })}
-        </div>
-      </BottomSheet>
 
       {/* 프로필 메뉴 — 내 프로필 · 멤버 · 관리 · 로그아웃 */}
       <BottomSheet open={menuOpen} title="메뉴" onClose={() => setMenuOpen(false)}>
