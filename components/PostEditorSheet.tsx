@@ -85,6 +85,7 @@ export default function PostEditorSheet({
   const vh = useViewportHeight(open);
 
   const bodyRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const sizeBtnRef = useRef<HTMLButtonElement>(null);
@@ -244,6 +245,39 @@ export default function PostEditorSheet({
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(r);
+  }, []);
+
+  // 커서가 보이는 영역 밖으로 나가면 스크롤을 따라간다
+  const scrollToCaret = useCallback(() => {
+    const sc = scrollRef.current;
+    if (!sc) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    // 빈 줄이면 임시 span을 넣어 좌표를 잡는다
+    let rect = range.getBoundingClientRect();
+    if (rect.height === 0) {
+      const marker = document.createElement("span");
+      marker.textContent = "​";
+      range.insertNode(marker);
+      rect = marker.getBoundingClientRect();
+      marker.remove();
+      // 커서를 원래 자리로 복구
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    const scRect = sc.getBoundingClientRect();
+    // 커서 아래쪽이 스크롤 영역 아래 40px 여유 밖이면 내린다
+    const bottom = rect.bottom - scRect.top + sc.scrollTop;
+    const visibleBottom = sc.scrollTop + sc.clientHeight;
+    if (bottom + 40 > visibleBottom) {
+      sc.scrollTo({ top: bottom - sc.clientHeight + 40, behavior: "smooth" });
+    }
+    // 커서 위쪽이 스크롤 영역 위로 올라갔으면 올린다
+    const top = rect.top - scRect.top + sc.scrollTop;
+    if (top - 20 < sc.scrollTop) {
+      sc.scrollTo({ top: Math.max(0, top - 20), behavior: "smooth" });
+    }
   }, []);
 
   const cmd = useCallback(
@@ -692,18 +726,19 @@ export default function PostEditorSheet({
 
         {/* ── 본문 ──
              남은 자리를 전부 차지해서, 키보드가 올라와도 뒤가 비치지 않는다 */}
-        <div className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4">
+        <div ref={scrollRef} className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4">
           <div
             ref={bodyRef}
             contentEditable
             suppressContentEditableWarning
-            onKeyUp={rememberCaret}
+            onKeyUp={() => { rememberCaret(); scrollToCaret(); }}
             onMouseUp={rememberCaret}
             onClick={handleBodyClick}
             onInput={() => {
               rememberCaret();
               setSizeOpen(false);
               setSelectedImg(null);
+              scrollToCaret();
             }}
             data-placeholder="내용을 입력하세요"
             style={{ textAlign: align }}
