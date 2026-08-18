@@ -12,6 +12,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   ArchiveIcon,
@@ -49,6 +50,45 @@ function activeIndex(pathname: string): number {
 export default function BottomNav() {
   const pathname = usePathname();
   const { user, role, loading } = useAuth();
+  const navRef = useRef<HTMLElement>(null);
+
+  // 화면 아래 끝의 위치. 사파리 하단 툴바가 펴졌다 접혔다 하면 이 값이 바뀐다.
+  const [bottomY, setBottomY] = useState<number | null>(null);
+
+  // 'bottom: 0'으로 두면 사파리가 툴바를 여닫을 때 바를 제멋대로 다시 붙여서
+  // 탭을 누를 때마다 바가 위로 튀었다 내려온다.
+  // 그래서 위에서부터의 좌표를 직접 계산해 붙인다 —
+  // visualViewport는 툴바가 움직이는 매 프레임 알려주므로 튐 없이 따라간다.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = navRef.current;
+    if (!vv || !el) return;
+
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setBottomY(vv.offsetTop + vv.height - el.offsetHeight));
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    // 바 높이(안전영역 포함)가 바뀌면 다시 잰다
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      ro.disconnect();
+    };
+    // 로그인·경로에 따라 다시 마운트되므로 의존성은 없어도 된다
+  }, [loading, user, role, pathname]);
 
   // 로그인 전·승인 대기 중에는 띄우지 않는다
   if (loading || !user || role === "guest") return null;
@@ -59,10 +99,17 @@ export default function BottomNav() {
 
   return (
     <nav
+      ref={navRef}
       // 아래 수치는 인스타그램 하단 바를 같은 기기 스크린샷으로 재서 맞춘 값이다.
-      //   좌우 여백 28 · 바 높이 52 · 아이콘 중심 간격 65 · 바닥에서 30
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-7 md:hidden"
-      style={{ paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
+      //   좌우 여백 28 · 바 높이 66 · 바닥에서 24
+      className="pointer-events-none fixed inset-x-0 z-30 px-7 md:hidden"
+      style={{
+        paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
+        // 아직 재기 전(첫 프레임·visualViewport 미지원)에는 평범하게 바닥에 붙인다
+        ...(bottomY === null
+          ? { bottom: 0 }
+          : { top: 0, transform: `translate3d(0, ${bottomY}px, 0)`, willChange: "transform" }),
+      }}
     >
       {/* 떠 있는 알약 모양 바 — 뒤가 비쳐 보이도록 반투명 + 강한 블러 */}
       <div

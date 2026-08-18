@@ -149,7 +149,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-[100svh] bg-canvas">
       {/* 헤더 */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 md:gap-4">
