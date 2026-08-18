@@ -10,8 +10,15 @@ import Guard from "@/components/Guard";
 import EventMeta from "@/components/EventMeta";
 import { ProfileName } from "@/components/ProfileViewer";
 import { ArchiveIcon, FolderIcon } from "@/components/Icons";
-import { boardCategoryLabel, type Post, type ScheduleEvent } from "@/lib/types";
-import { relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
+import {
+  boardCategoryLabel,
+  type ArchiveItem,
+  type AudioTrack,
+  type Post,
+  type Production,
+  type ScheduleEvent,
+} from "@/lib/types";
+import { chunk, relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
 
 // 팀 순서 기반 색상 팔레트 (schedule·members·admin 동일)
 const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
@@ -59,19 +66,62 @@ function eventPassed(e: ScheduleEvent, nowMs: number) {
   return dt.getTime() < nowMs;
 }
 
-const FEATURES = [
-  { href: "/archive", title: "아카이브", desc: "공연 · 연습 기록", Icon: ArchiveIcon },
-  { href: "/audio", title: "자료실", desc: "음원 · 악보 · 문서", Icon: FolderIcon },
-];
+// 카드 머리 — 제목과 '전체 보기' 화살표를 카드 안에 넣는다
+function CardHead({ title, href, label }: { title: string; href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className="flex items-center justify-between px-4 pb-1 pt-4 transition hover:bg-slate-50"
+    >
+      <h2 className="text-[17px] font-bold text-slate-900">{title}</h2>
+      <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </span>
+    </Link>
+  );
+}
+
+// 아카이브·자료실 카드 안의 한 줄 (아이콘 · 제목 · 작성자 · 날짜)
+function MediaRow({
+  href,
+  title,
+  author,
+  createdAt,
+  Icon,
+}: {
+  href: string;
+  title: string;
+  author: string;
+  createdAt: number;
+  Icon: typeof ArchiveIcon;
+}) {
+  return (
+    <Link href={href} className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-slate-900">{title}</span>
+        <span className="block truncate text-xs text-slate-400">
+          {author || "－"} · {relativeTime(createdAt)}
+        </span>
+      </span>
+    </Link>
+  );
+}
 
 function HomeInner() {
-  const { profile, role } = useAuth();
+  const { user, profile, role } = useAuth();
+  const isAdmin = role === "admin";
   const { settings } = useTheme();
   const teams = settings.teams ?? [];
   const now = new Date();
   const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
+  const [recentArchives, setRecentArchives] = useState<ArchiveItem[]>([]);
+  const [recentAudio, setRecentAudio] = useState<AudioTrack[]>([]);
 
   useEffect(() => {
     const today = toDateStr(new Date());
@@ -99,6 +149,58 @@ function HomeInner() {
       .catch(() => setRecentPosts([]));
   }, []);
 
+  // 아카이브 · 자료실 최신 3개
+  //
+  // 보안 규칙이 '참여 중인 작품의 자료'만 읽게 막아 두어서, 전체를 훑는 질의는
+  // 통째로 거부된다. 먼저 내 작품 목록을 받아 그 안에서만 찾는다.
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+
+    (async () => {
+      try {
+        const pq = isAdmin
+          ? query(collection(db, "productions"), orderBy("order", "asc"))
+          : query(collection(db, "productions"), where("participants", "array-contains", user.uid));
+        const psnap = await getDocs(pq);
+        const prodIds = psnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Production, "id">) })).map((p) => p.id);
+
+        // 최신 3개만 쓰므로 넉넉히 받아 등록순으로 자른다
+        const pick = <T extends { createdAt: number }>(rows: T[]) =>
+          rows.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)).slice(0, 3);
+
+        const fetchScoped = async <T,>(name: "archives" | "audio"): Promise<T[]> => {
+          if (isAdmin) {
+            const snap = await getDocs(query(collection(db, name), orderBy("createdAt", "desc"), limit(3)));
+            return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T);
+          }
+          if (prodIds.length === 0) return [];
+          // Firestore 'in'은 최대 30개 → 나눠 던지고 합친다
+          const snaps = await Promise.all(
+            chunk(prodIds, 30).map((ids) => getDocs(query(collection(db, name), where("productionId", "in", ids))))
+          );
+          return snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() }) as T));
+        };
+
+        const [arch, aud] = await Promise.all([
+          fetchScoped<ArchiveItem>("archives"),
+          fetchScoped<AudioTrack>("audio"),
+        ]);
+        if (!alive) return;
+        setRecentArchives(pick(arch));
+        setRecentAudio(pick(aud));
+      } catch {
+        if (!alive) return;
+        setRecentArchives([]);
+        setRecentAudio([]);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [user, isAdmin]);
+
   // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이거나 관리자면 전체 (네이버 예약 일정도 포함)
   const myTeam = role === "admin" ? "" : (profile?.team ?? "");
   const shownEvents = upcoming
@@ -123,12 +225,6 @@ function HomeInner() {
 
       {/* 다가오는 확정 일정 */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">다가오는 일정</h2>
-          <Link href="/schedule" aria-label="전체 보기" className="grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-accent">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-          </Link>
-        </div>
         {shownEvents.length === 0 ? (
           <div className="card py-10 text-center text-sm text-slate-400">예정된 확정 일정이 없습니다.</div>
         ) : (
@@ -216,42 +312,63 @@ function HomeInner() {
         )}
       </section>
 
-      {/* 바로가기 */}
+      {/* 아카이브 — 최신 3개 */}
       <section>
-        <h2 className="mb-3 text-lg font-bold text-slate-900">바로가기</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {FEATURES.map(({ href, title, desc, Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="group flex items-center gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-10px_rgba(16,24,40,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(16,24,40,0.18)]"
-            >
-              <Icon className="h-6 w-6 shrink-0 text-accent" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
-                <p className="truncate text-xs text-slate-400">{desc}</p>
-              </div>
-            </Link>
-          ))}
+        <div className="card overflow-hidden !p-0">
+          <CardHead title="아카이브" href="/archive" label="아카이브 전체 보기" />
+          {recentArchives.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-slate-400">아직 등록된 자료가 없습니다.</p>
+          ) : (
+            <div className="pb-2">
+              {recentArchives.map((a) => (
+                <MediaRow
+                  key={a.id}
+                  href="/archive"
+                  title={a.title}
+                  author={a.createdByName}
+                  createdAt={a.createdAt}
+                  Icon={ArchiveIcon}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 자료실 — 최신 3개 */}
+      <section>
+        <div className="card overflow-hidden !p-0">
+          <CardHead title="자료실" href="/audio" label="자료실 전체 보기" />
+          {recentAudio.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-slate-400">아직 등록된 자료가 없습니다.</p>
+          ) : (
+            <div className="pb-2">
+              {recentAudio.map((t) => (
+                <MediaRow
+                  key={t.id}
+                  href="/audio"
+                  title={t.title || t.song || "제목 없음"}
+                  author={t.addedByName}
+                  createdAt={t.createdAt}
+                  Icon={FolderIcon}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
       {/* 전체글 (모든 게시판 최신글) */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">전체글</h2>
-          <Link href="/board" aria-label="게시판" className="grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-accent">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-          </Link>
-        </div>
-        <div className="card !p-0">
+        <div className="card overflow-hidden !p-0">
+          <CardHead title="전체글" href="/board" label="게시판 전체 보기" />
           {recentPosts.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">아직 작성된 글이 없습니다.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="pb-2">
               {recentPosts.map((p) => (
                 <li key={p.id}>
-                  <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-3 transition hover:bg-slate-50">
+                  <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-2.5 transition hover:bg-slate-50">
                     {p.isNotice ? (
                       <span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">공지</span>
                     ) : (
