@@ -18,7 +18,7 @@ const CONFIG = {
 };
 
 // 캐시 이름에 붙는 판. 서비스 워커 내용을 바꿀 때 올리면 옛 캐시가 정리된다.
-const VERSION = "v1";
+const VERSION = "v2";
 
 function sw(): string {
   return `

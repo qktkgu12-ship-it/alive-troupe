@@ -244,17 +244,23 @@ export async function pushTest(): Promise<{ ok: boolean; message: string }> {
           : "보낼 기기를 찾지 못했어요. 스위치를 껐다 켜 보세요.",
       };
     }
-    // 여기까지 오면 FCM은 받아갔다. 이제 문제는 '띄우는 쪽'뿐이다.
+    // 여기까지 오면 FCM은 받아갔다. 이제 문제는 '띄우는 쪽'뿐이므로 상태를 모두 보여준다.
     const sw = await swMessagingReady();
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+    const diag = [
+      `발송 ${data.sent}건`,
+      `워커 ${sw === null ? "무응답(구버전)" : sw.ready ? "정상" : "실패"}`,
+      `설치앱 ${standalone ? "예" : "아니오"}`,
+      `권한 ${Notification.permission}`,
+    ].join(" · ");
+
     if (sw && !sw.ready) {
-      return {
-        ok: false,
-        message: `발송은 됐지만 앱을 닫았을 때는 알림이 안 옵니다.\n서비스 워커가 푸시 준비에 실패했어요.${
-          sw.error ? `\n${sw.error}` : ""
-        }`,
-      };
+      return { ok: false, message: `서비스 워커가 푸시 준비에 실패했어요.\n${diag}${sw.error ? `\n${sw.error}` : ""}` };
     }
-    return { ok: true, message: "보냈어요! 잠시 뒤 알림이 뜹니다." };
+    return { ok: true, message: `보냈어요! 잠시 뒤 알림이 뜹니다.\n${diag}` };
   } catch {
     return { ok: false, message: "서버에 연결하지 못했어요." };
   }

@@ -51,7 +51,12 @@ export default function PwaSetup() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     // 첫 화면 렌더를 방해하지 않도록 로드가 끝난 뒤에 등록
-    const go = () => navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // register만으로는 브라우저가 옛 워커를 계속 쓸 수 있어, 매번 갱신을 확인시킨다
+    const go = () =>
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => reg.update().catch(() => {}))
+        .catch(() => {});
     if (document.readyState === "complete") go();
     else window.addEventListener("load", go, { once: true });
   }, []);

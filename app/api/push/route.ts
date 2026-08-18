@@ -179,6 +179,17 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
       data: { title, body, href, tag },
       webpush: {
         headers: { Urgency: "high", TTL: "86400" },
+        // notification 블록을 함께 실어야 우리 서비스 워커의 핸들러가 어떤 이유로
+        // 살아 있지 않아도 FCM SDK가 알림을 대신 띄워 준다.
+        // (data만 보내면 핸들러가 죽은 순간 알림이 조용히 사라진다. iOS는 특히
+        //  보이지 않는 푸시를 허용하지 않는다.)
+        notification: {
+          title,
+          body,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          tag,
+        },
         fcmOptions: { link: href },
       },
     });
