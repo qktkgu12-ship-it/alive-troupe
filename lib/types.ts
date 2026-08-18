@@ -161,6 +161,7 @@ export interface AudioTrack {
   memo?: string; // 메모(선택)
   url: string; // 구글 드라이브 등 외부 링크
   addedByName: string;
+  createdBy?: string; // 올린 사람 uid. 이걸로 수정·삭제 권한을 가른다 (구버전 자료엔 없음)
   createdAt: number;
   // ----- 구버전 호환 -----
   song?: string;

@@ -139,10 +139,18 @@ service cloud.firestore {
         && (isAdmin() || request.auth.uid in resource.data.participants);
       allow create, update, delete: if isAdmin();
     }
+    // 자료실 — 아카이브와 같은 규칙 (참여 단원이 올리고, 올린 사람이 고치고 지운다)
     match /audio/{id} {
       allow read: if isAdmin() || (isMember() && canAccessProduction(resource.data.productionId));
-      // 업로드·수정·삭제는 관리자만
-      allow create, update, delete: if isAdmin();
+      allow create: if isMember() && request.resource.data.createdBy == request.auth.uid
+        && (isAdmin() || canAccessProduction(request.resource.data.productionId));
+      // 수정: 관리자 전체 / 올린 본인은 (올린이 변경 불가 + 참여 작품 내에서만)
+      allow update: if isAdmin()
+        || (isMember() && resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdBy == resource.data.createdBy
+            && canAccessProduction(request.resource.data.productionId));
+      // 삭제: 관리자 또는 올린 본인
+      allow delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
     }
 
     // ---------- 게시판 ----------

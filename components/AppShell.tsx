@@ -43,7 +43,7 @@ const CREATE_MENU: {
   { sheet: null, href: "/schedule?tab=coord&new=1", label: "일정방 만들기", desc: "가능한 날짜를 모아 일정 잡기", icon: CalendarIcon, admin: false },
   { sheet: "event", label: "확정 일정 등록", desc: "확정된 일정 올리기", icon: CalendarIcon, admin: true },
   { sheet: "archive", label: "영상 등록", desc: "아카이브에 영상·링크 추가", icon: ArchiveIcon, admin: false },
-  { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: true },
+  { sheet: "audio", label: "자료실 등록", desc: "음원·자료 링크 추가", icon: FolderIcon, admin: false },
 ];
 
 const SEEN_KEY = "alive-nav-seen";

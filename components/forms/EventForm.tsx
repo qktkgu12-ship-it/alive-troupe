@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { pushToAll } from "@/lib/push";
+import { shortDateKo, shortTimeKo } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
@@ -64,10 +65,16 @@ export default function EventForm({
       } else {
         await setDoc(doc(db, "events", crypto.randomUUID()), { ...data, createdAt: Date.now() });
         // 새 일정만 알린다 (수정할 때마다 울리면 피곤하다)
-        const when = [date, startTime].filter(Boolean).join(" ");
+        // 내용은 "일정 이름 / 8월 20일 19시 ~ 21시" 두 줄
+        const when = [
+          shortDateKo(date),
+          [shortTimeKo(startTime), endTime ? shortTimeKo(endTime) : ""].filter(Boolean).join(" ~ "),
+        ]
+          .filter(Boolean)
+          .join(" ");
         void pushToAll({
           title: "새 일정이 등록됐어요",
-          body: [when, data.title].filter(Boolean).join(" · "),
+          body: [data.title, when].filter(Boolean).join("\n"),
           href: `/schedule?tab=events&date=${date}`,
           tag: "event",
         });

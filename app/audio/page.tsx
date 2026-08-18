@@ -399,7 +399,7 @@ function AudioInner() {
               <span className="text-[15px] text-slate-800">공유</span>
             </button>
 
-            {isAdmin && (
+            {(isAdmin || actionItem.createdBy === user?.uid) && (
               <>
                 <div className="my-1 border-t border-slate-100" />
                 <button

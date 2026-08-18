@@ -108,7 +108,7 @@ export default function ArchiveForm({
         if (prod?.participants?.length) {
           void pushToUsers(prod.participants, {
             title: "새 영상이 올라왔어요",
-            body: [prod.name, fields.title].filter(Boolean).join(" · "),
+            body: fields.title,
             href: "/archive",
             tag: "archive",
           });

@@ -628,8 +628,8 @@ function CoordSection({
     // 가능한 날짜를 받아야 하므로, 대상자에게 바로 알린다.
     // 대상을 지정했으면 그 사람들에게만, 아니면 단원 전체에게.
     const msg = {
-      title: "새 일정방이 열렸어요",
-      body: `${fields.title} — 가능한 날짜를 알려주세요`,
+      title: `${myName || "누군가"}님이 새 일정방을 만들었어요.`,
+      body: `${fields.title}\n가능한 날짜를 알려주세요`,
       href: `/schedule?tab=coord&coord=${id}`,
       tag: "coord",
     };

@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import { pushToUsers } from "@/lib/push";
 import Select from "@/components/Select";
 import type { AudioTrack, Production } from "@/lib/types";
@@ -31,6 +32,7 @@ export default function AudioForm({
   submitRef?: React.MutableRefObject<(() => void) | null>;
   edit?: AudioTrack;
 }) {
+  const { user } = useAuth();
   const fixed = !!productionId;
   const [pid, setPid] = useState(edit?.productionId ?? productionId ?? productions?.[0]?.id ?? "");
   const [cat, setCat] = useState(edit?.category ?? defaultCat);
@@ -56,18 +58,15 @@ export default function AudioForm({
   async function notifyParticipants(targetPid: string, trackTitle: string) {
     try {
       const known = productions?.find((p) => p.id === targetPid);
-      let name = known?.name ?? "";
       let people = known?.participants ?? [];
       if (people.length === 0) {
         const snap = await getDoc(doc(db, "productions", targetPid));
-        const data = snap.data() as Production | undefined;
-        name = data?.name ?? name;
-        people = data?.participants ?? [];
+        people = (snap.data() as Production | undefined)?.participants ?? [];
       }
       if (people.length === 0) return;
       await pushToUsers(people, {
         title: "새 자료가 올라왔어요",
-        body: [name, trackTitle].filter(Boolean).join(" · "),
+        body: trackTitle,
         href: "/audio",
         tag: "audio",
       });
@@ -91,12 +90,21 @@ export default function AudioForm({
         await setDoc(doc(db, "audio", crypto.randomUUID()), {
           productionId: targetPid, category: cat,
           title: title.trim(), memo: memo.trim(), url: cleanUrl,
-          addedByName, createdAt: Date.now(),
+          // createdBy가 있어야 올린 본인이 나중에 고치고 지울 수 있다
+          addedByName, createdBy: user?.uid ?? "", createdAt: Date.now(),
         });
         notifyParticipants(targetPid, title.trim());
         setTitle(""); setUrl(""); setMemo("");
       }
       onAdded();
+    } catch (e) {
+      // 여태 실패해도 아무 표시가 없어서, 권한 때문에 막힌 걸 아무도 몰랐다
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(
+        msg.includes("permission") || msg.includes("insufficient")
+          ? "등록 권한이 없어요. 이 작품의 참여 명단에 있는지 확인해 주세요."
+          : "등록에 실패했어요. 잠시 뒤 다시 시도해 주세요."
+      );
     } finally {
       setBusy(false);
     }

@@ -137,6 +137,21 @@ export function slotEnd(slot: string): string {
 }
 
 // 상대 시간 표기 (방금 전 / N분 전 / N시간 전 / N일 전 / 날짜)
+/** "2026-08-20" → "8월 20일" (푸시 알림처럼 짧게 보여줘야 할 때) */
+export function shortDateKo(date: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
+  if (!m) return date ?? "";
+  return `${Number(m[2])}월 ${Number(m[3])}일`;
+}
+
+/** "19:00" → "19시", "21:30" → "21시 30분" */
+export function shortTimeKo(time: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time ?? "");
+  if (!m) return time ?? "";
+  const min = Number(m[2]);
+  return min === 0 ? `${Number(m[1])}시` : `${Number(m[1])}시 ${min}분`;
+}
+
 export function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const min = Math.floor(diff / 60000);
