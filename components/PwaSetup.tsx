@@ -415,7 +415,7 @@ export default function PwaSetup() {
           {/* 툴바가 겹쳐도 마지막 카드가 보이도록 넉넉히 띄운다 */}
           <div className="mx-auto max-w-md px-6 pb-[calc(7rem+env(safe-area-inset-bottom))]">
             <span className="inline-block rounded-full bg-slate-800 px-3 py-1.5 text-[12px] font-semibold text-white">
-              앱스토어 다운로드 없이
+              {guide === "ios" ? "앱스토어 다운로드 없이" : "구글플레이 다운로드 없이"}
             </span>
             <h1 className="mt-3 text-[24px] font-extrabold tracking-tight text-slate-900">
               홈화면에 앱을 추가하세요!
