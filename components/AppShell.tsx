@@ -5,10 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { AdminIcon, MembersIcon, SearchIcon, XIcon } from "@/components/Icons";
+import { AdminIcon, ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, MembersIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
+import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
 import PushOnboard from "@/components/PushOnboard";
 
 const NAV = [
@@ -30,6 +31,22 @@ function sectionOf(path: string): string | null {
   return null;
 }
 
+// 헤더 '+' 등록 메뉴 — 게시판·일정방은 페이지로 이동, 나머지는 그 자리에서 시트로 열림
+const CREATE_MENU: {
+  sheet: CreateKind | null; // null = href로 이동
+  href?: string;
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  tint: string; // 아이콘 원 배경색
+  admin: boolean;
+}[] = [
+  { sheet: null, href: "/board/write", label: "글쓰기", icon: BoardIcon, tint: "bg-sky-100 text-sky-600", admin: false },
+  { sheet: null, href: "/schedule?tab=coord&new=1", label: "일정방 만들기", icon: CalendarIcon, tint: "bg-violet-100 text-violet-600", admin: false },
+  { sheet: "event", label: "확정 일정 등록", icon: CalendarIcon, tint: "bg-emerald-100 text-emerald-600", admin: true },
+  { sheet: "archive", label: "영상 등록", icon: ArchiveIcon, tint: "bg-rose-100 text-rose-600", admin: false },
+  { sheet: "audio", label: "자료실 등록", icon: FolderIcon, tint: "bg-amber-100 text-amber-600", admin: false },
+];
+
 const SEEN_KEY = "alive-nav-seen";
 
 function NewBadge() {
@@ -48,6 +65,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // 헤더: 검색 모드 / '+' 등록 메뉴 / 프로필 메뉴
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [term, setTerm] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +75,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/members", label: "멤버", icon: MembersIcon, admin: false },
     { href: "/admin", label: "관리", icon: AdminIcon, admin: true },
   ].filter((m) => !m.admin || role === "admin");
+  const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
+  const { openCreate } = useCreateSheet();
 
   // 검색 모드로 들어가면 입력창에 포커스
   useEffect(() => {
@@ -115,6 +135,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
+    setCreateOpen(false);
   }, [pathname]);
 
   async function handleSignOut() {
@@ -173,7 +194,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             /* ===== 기본 모드 ===== */
             <>
               {/* 모바일: 프로필이 맨 왼쪽 / PC: 로고가 맨 왼쪽
-                  (등록은 하단 플로팅 버튼으로 옮겼다) */}
+                  (등록은 오른쪽 알림 옆 + 버튼) */}
               <button
                 onClick={() => setMenuOpen(true)}
                 aria-label="내 메뉴"
@@ -230,6 +251,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* 알림 (오른쪽 슬라이드 패널) */}
                 <NotificationBell />
 
+                {/* 등록(+) — 누르면 아래로 등록 메뉴 창이 열린다 */}
+                <button
+                  onClick={() => setCreateOpen((v) => !v)}
+                  aria-label="등록"
+                  aria-expanded={createOpen}
+                  className="grid h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100"
+                >
+                  <PlusIcon
+                    className={`h-[24px] w-[24px] transition-transform duration-300 ${
+                      createOpen ? "rotate-[135deg]" : ""
+                    }`}
+                  />
+                </button>
+
                 {/* 프로필 — PC에서만 오른쪽에 남는다 (모바일은 왼쪽 상단) */}
                 <button
                   onClick={() => setMenuOpen(true)}
@@ -240,10 +275,56 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
                 </button>
               </div>
+
+              {/* 등록 메뉴 — 헤더 오른쪽 아래로 펼쳐지는 창 하나 */}
+              <div
+                className={`absolute right-3 top-[calc(100%+6px)] w-60 origin-top-right transition-all duration-200 ${
+                  createOpen
+                    ? "pointer-events-auto scale-100 opacity-100"
+                    : "pointer-events-none scale-95 opacity-0"
+                }`}
+              >
+                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-[0_16px_40px_-10px_rgba(16,24,40,0.28)] backdrop-blur-xl">
+                  {createItems.map((c) => {
+                    const Icon = c.icon;
+                    const inner = (
+                      <>
+                        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${c.tint}`}>
+                          <Icon className="h-[17px] w-[17px]" />
+                        </span>
+                        <span className="text-[14.5px] font-semibold text-slate-800">{c.label}</span>
+                      </>
+                    );
+                    const cls =
+                      "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-slate-100 active:bg-slate-200";
+                    return c.sheet ? (
+                      <button
+                        key={c.label}
+                        onClick={() => {
+                          setCreateOpen(false);
+                          openCreate(c.sheet!);
+                        }}
+                        className={cls}
+                      >
+                        {inner}
+                      </button>
+                    ) : (
+                      <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
+                        {inner}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </>
           )}
         </div>
       </header>
+
+      {/* 등록 메뉴 바깥을 누르면 닫힌다 */}
+      {createOpen && (
+        <div className="fixed inset-0 z-20" onClick={() => setCreateOpen(false)} aria-hidden />
+      )}
 
       {/* 프로필 메뉴 — 내 프로필 · 멤버 · 관리 · 로그아웃 */}
       <BottomSheet open={menuOpen} title="메뉴" onClose={() => setMenuOpen(false)}>
