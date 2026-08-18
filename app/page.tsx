@@ -9,9 +9,12 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import EventMeta from "@/components/EventMeta";
 import { ProfileName } from "@/components/ProfileViewer";
-import { ArchiveIcon, FolderIcon } from "@/components/Icons";
 import {
+  ARCHIVE_KIND_EMOJI,
+  DEFAULT_RESOURCE_EMOJIS,
+  FALLBACK_RESOURCE_EMOJI,
   boardCategoryLabel,
+  resourceCategory,
   type ArchiveItem,
   type AudioTrack,
   type Post,
@@ -82,24 +85,25 @@ function CardHead({ title, href, label }: { title: string; href: string; label: 
   );
 }
 
-// 아카이브·자료실 카드 안의 한 줄 (아이콘 · 제목 · 작성자 · 날짜)
+// 아카이브·자료실 카드 안의 한 줄 (이모지 · 제목 · 작성자 · 날짜)
+// 이모지는 목록 페이지에서 그 자료에 붙는 것과 같은 걸 쓴다
 function MediaRow({
   href,
   title,
   author,
   createdAt,
-  Icon,
+  emoji,
 }: {
   href: string;
   title: string;
   author: string;
   createdAt: number;
-  Icon: typeof ArchiveIcon;
+  emoji: string;
 }) {
   return (
     <Link href={href} className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
-        <Icon className="h-[18px] w-[18px]" />
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface text-xl leading-none">
+        {emoji}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-slate-900">{title}</span>
@@ -116,6 +120,10 @@ function HomeInner() {
   const isAdmin = role === "admin";
   const { settings } = useTheme();
   const teams = settings.teams ?? [];
+  // 자료실 이모지는 극단 설정을 먼저 따른다 (자료실 페이지와 동일)
+  const catEmojis = settings.resourceCategoryEmojis ?? {};
+  const resourceEmoji = (cat: string) =>
+    catEmojis[cat] ?? DEFAULT_RESOURCE_EMOJIS[cat] ?? FALLBACK_RESOURCE_EMOJI;
   const now = new Date();
   const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
@@ -213,9 +221,10 @@ function HomeInner() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* 인사 — 담백하게 */}
-      <header className="pt-1">
+      {/* 인사말만 카드보다 살짝 넉넉하게 띄운다 */}
+      <header className="pt-1 pb-1">
         <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
         <h1 className="mt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
           안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
@@ -327,7 +336,7 @@ function HomeInner() {
                   title={a.title}
                   author={a.createdByName}
                   createdAt={a.createdAt}
-                  Icon={ArchiveIcon}
+                  emoji={ARCHIVE_KIND_EMOJI[a.kind] ?? ARCHIVE_KIND_EMOJI.etc}
                 />
               ))}
             </div>
@@ -351,7 +360,7 @@ function HomeInner() {
                   title={t.title || t.song || "제목 없음"}
                   author={t.addedByName}
                   createdAt={t.createdAt}
-                  Icon={FolderIcon}
+                  emoji={resourceEmoji(resourceCategory(t))}
                 />
               ))}
             </div>

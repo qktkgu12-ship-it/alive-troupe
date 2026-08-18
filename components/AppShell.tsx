@@ -195,8 +195,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ) : (
             /* ===== 기본 모드 ===== */
             <>
-              {/* 모바일: 프로필이 맨 왼쪽 / PC: 로고가 맨 왼쪽
-                  (등록은 오른쪽 알림 옆 + 버튼) */}
+              {/* 모바일: 프로필 + 로고가 나란히 왼쪽 / PC: 로고가 맨 왼쪽
+                  (등록은 오른쪽 알림 옆 + 버튼)
+                  로고를 가운데 고정하면 오른쪽 아이콘 3개와 자리를 다퉈
+                  상단이 좁아 보여서, 프로필 옆으로 붙였다. */}
               <button
                 onClick={() => setMenuOpen(true)}
                 aria-label="내 메뉴"
@@ -206,8 +208,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
               </button>
 
-              <Link href="/" className="hidden shrink-0 items-center md:flex">
-                <Wordmark className="h-5" />
+              <Link href="/" aria-label="홈" className="flex shrink-0 items-center">
+                <Wordmark className="h-[22px] md:h-5" />
               </Link>
 
               {/* PC: 가로 메뉴 */}
@@ -230,17 +232,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 })}
               </nav>
 
-              {/* 모바일: 로고를 화면 정중앙에 고정
-                  (양옆 버튼 개수가 달라도 흔들리지 않도록 absolute로 못 박는다) */}
-              <Link
-                href="/"
-                aria-label="홈"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden"
-              >
-                <Wordmark className="h-[22px]" />
-              </Link>
-
-              {/* 오른쪽 아이콘들: 검색 · 알림 · (PC:프로필) */}
+              {/* 오른쪽 아이콘들: 검색 · 알림 · 등록 · (PC:프로필) */}
               <div className="ml-auto flex items-center gap-0.5 md:gap-1">
                 <button
                   onClick={() => setSearchOpen(true)}

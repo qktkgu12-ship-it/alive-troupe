@@ -42,6 +42,13 @@ export const ARCHIVE_KIND_LABEL: Record<ArchiveKind, string> = {
   etc: "기타",
 };
 
+// 종류별 이모지 — 아카이브 목록과 홈 카드가 같은 걸 쓴다
+export const ARCHIVE_KIND_EMOJI: Record<ArchiveKind, string> = {
+  rehearsal: "🎬",
+  performance: "🎪",
+  etc: "📁",
+};
+
 // 한 자료 안의 개별 영상/링크 (라벨로 구분해 골라봄)
 export interface ArchiveClip {
   label: string; // 예: 1차, 2차, 정면캠
@@ -151,6 +158,16 @@ export const AUDIO_KIND_LABEL: Record<AudioKind, string> = {
   guide: "가이드",
   etc: "기타",
 };
+
+// 자료실 종류별 기본 이모지 (극단 설정에 없을 때 쓰는 값)
+export const DEFAULT_RESOURCE_CATEGORIES = ["음원", "기타"];
+export const DEFAULT_RESOURCE_EMOJIS: Record<string, string> = { "음원": "🎵", "기타": "📁" };
+export const FALLBACK_RESOURCE_EMOJI = "📄";
+
+// 자료실 한 항목의 종류·제목 (구버전 필드 호환)
+export function resourceCategory(t: { category?: string }) {
+  return t.category || "음원";
+}
 
 // 자료실 항목 (구글 드라이브 등 외부 링크 연동). 컬렉션명은 호환을 위해 'audio' 유지.
 export interface AudioTrack {

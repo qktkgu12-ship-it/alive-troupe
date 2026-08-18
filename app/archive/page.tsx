@@ -35,15 +35,15 @@ import {
   TrashIcon,
   XIcon,
 } from "@/components/Icons";
-import { ARCHIVE_KIND_LABEL, type ArchiveClip, type ArchiveItem, type ArchiveKind, type Production } from "@/lib/types";
+import {
+  ARCHIVE_KIND_EMOJI,
+  ARCHIVE_KIND_LABEL,
+  type ArchiveClip,
+  type ArchiveItem,
+  type ArchiveKind,
+  type Production,
+} from "@/lib/types";
 import { chunk, safeExternalUrl } from "@/lib/utils";
-
-// 종류별 이모지
-const ARCHIVE_KIND_EMOJI: Record<ArchiveKind, string> = {
-  rehearsal: "🎬",
-  performance: "🎪",
-  etc: "📁",
-};
 
 function openLink(url: string) {
   const safe = safeExternalUrl(url);

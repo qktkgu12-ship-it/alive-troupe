@@ -24,10 +24,13 @@ import Select from "@/components/Select";
 import BottomSheet from "@/components/BottomSheet";
 import AudioForm from "@/components/forms/AudioForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
-import type { AudioTrack, Production } from "@/lib/types";
-
-const DEFAULT_CATEGORIES = ["음원", "기타"];
-const DEFAULT_CAT_EMOJIS: Record<string, string> = { "음원": "🎵", "기타": "📁" };
+import {
+  DEFAULT_RESOURCE_CATEGORIES as DEFAULT_CATEGORIES,
+  DEFAULT_RESOURCE_EMOJIS as DEFAULT_CAT_EMOJIS,
+  FALLBACK_RESOURCE_EMOJI,
+  type AudioTrack,
+  type Production,
+} from "@/lib/types";
 const DAY = 86_400_000;
 const isRecent = (t: AudioTrack) => (t.createdAt ?? 0) > Date.now() - 7 * DAY;
 
@@ -76,7 +79,7 @@ function AudioInner() {
       : DEFAULT_CATEGORIES;
 
   const catEmojis = settings.resourceCategoryEmojis ?? {};
-  const getEmoji = (cat: string) => catEmojis[cat] ?? DEFAULT_CAT_EMOJIS[cat] ?? "📄";
+  const getEmoji = (cat: string) => catEmojis[cat] ?? DEFAULT_CAT_EMOJIS[cat] ?? FALLBACK_RESOURCE_EMOJI;
 
   const [productions, setProductions] = useState<Production[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
