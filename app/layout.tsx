@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { CreateSheetProvider } from "@/lib/create-sheet-context";
 import { ProfileViewerProvider } from "@/components/ProfileViewer";
+import PwaSetup from "@/components/PwaSetup";
 
 export const metadata: Metadata = {
   title: "ALIVE 얼라이브",
@@ -89,7 +90,11 @@ export default function RootLayout({
             <ProfileViewerProvider>
               {/* 알림 버튼은 AppShell 헤더 안에, 등록 바텀시트는 전역으로 */}
               <NotificationsProvider>
-                <CreateSheetProvider>{children}</CreateSheetProvider>
+                <CreateSheetProvider>
+                  {children}
+                  {/* 서비스 워커 등록 + '앱으로 설치' 배너 */}
+                  <PwaSetup />
+                </CreateSheetProvider>
               </NotificationsProvider>
             </ProfileViewerProvider>
           </ThemeProvider>
