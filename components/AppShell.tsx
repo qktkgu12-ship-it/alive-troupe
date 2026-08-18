@@ -5,12 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, NAV_ICON, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
+import { AdminIcon, ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, MembersIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
 import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
 import PushOnboard from "@/components/PushOnboard";
+import BottomNav from "@/components/BottomNav";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -62,14 +63,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { items } = useNotifications();
   const pathname = usePathname();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  // 헤더: 검색 모드 / '+' 등록 메뉴
+  // 헤더: 검색 모드 / '+' 등록 메뉴 / 프로필 메뉴
+  const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [term, setTerm] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
+  // 하단 바에 자리가 없는 메뉴들 — 프로필 시트로 들어간다
+  const menuLinks = [
+    { href: "/members", label: "멤버", icon: MembersIcon, admin: false },
+    { href: "/admin", label: "관리", icon: AdminIcon, admin: true },
+  ].filter((m) => !m.admin || role === "admin");
   const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
   const { openCreate } = useCreateSheet();
 
@@ -128,17 +134,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    setOpen(false);
+    setMenuOpen(false);
     setCreateOpen(false);
     setSearchOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
 
   async function handleSignOut() {
     await signOut();
@@ -154,7 +153,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-canvas">
       {/* 헤더 */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 md:gap-4">
+        <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 md:gap-4">
           {searchOpen ? (
             /* ===== 검색 모드: 로고 + 검색창 + 닫기 ===== */
             <>
@@ -195,19 +194,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ) : (
             /* ===== 기본 모드 ===== */
             <>
-              {/* 모바일: 햄버거 */}
+              {/* 모바일: 등록(+)이 맨 왼쪽 / PC: 로고가 맨 왼쪽 */}
               <button
-                onClick={() => setOpen(true)}
-                aria-label="메뉴 열기"
-                className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100 md:hidden"
+                onClick={() => setCreateOpen(true)}
+                aria-label="등록"
+                aria-expanded={createOpen}
+                className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-800 transition hover:bg-slate-100 md:hidden"
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <PlusIcon className="h-[26px] w-[26px]" />
               </button>
 
-              {/* 로고 */}
-              <Link href="/" className="flex shrink-0 items-center">
+              <Link href="/" className="hidden shrink-0 items-center md:flex">
                 <Wordmark className="h-5" />
               </Link>
 
@@ -231,7 +228,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 })}
               </nav>
 
-              {/* 오른쪽 아이콘들: 검색 · + · 알림 · 프로필 */}
+              {/* 모바일: 로고를 화면 정중앙에 고정
+                  (양옆 버튼 개수가 달라도 흔들리지 않도록 absolute로 못 박는다) */}
+              <Link
+                href="/"
+                aria-label="홈"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden"
+              >
+                <Wordmark className="h-[22px]" />
+              </Link>
+
+              {/* 오른쪽 아이콘들: 검색 · (PC:등록) · 알림 · 프로필 */}
               <div className="ml-auto flex items-center gap-0.5 md:gap-1">
                 <button
                   onClick={() => setSearchOpen(true)}
@@ -241,12 +248,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <SearchIcon className="h-[22px] w-[22px]" />
                 </button>
 
-                {/* + 등록 메뉴 */}
+                {/* PC에서는 등록 버튼이 오른쪽에 남는다 */}
                 <button
                   onClick={() => setCreateOpen(true)}
                   aria-label="등록"
                   aria-expanded={createOpen}
-                  className="grid h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100"
+                  className="hidden h-10 w-10 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100 md:grid"
                 >
                   <PlusIcon className="h-[22px] w-[22px]" />
                 </button>
@@ -254,17 +261,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* 알림 (오른쪽 슬라이드 패널) */}
                 <NotificationBell />
 
-                {/* 프로필 */}
-                <Link href="/profile" aria-label="내 프로필" className="ml-0.5 grid h-10 w-10 place-items-center">
-                  <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
-                </Link>
-
-                {/* PC: 로그아웃 */}
+                {/* 프로필 — 누르면 메뉴가 열린다 (멤버·관리는 여기로 들어간다) */}
                 <button
-                  onClick={handleSignOut}
-                  className="ml-2 hidden rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 md:block"
+                  onClick={() => setMenuOpen(true)}
+                  aria-label="내 메뉴"
+                  aria-expanded={menuOpen}
+                  className="ml-0.5 grid h-10 w-10 place-items-center"
                 >
-                  로그아웃
+                  <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
                 </button>
               </div>
             </>
@@ -308,70 +312,60 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </BottomSheet>
 
-      {/* 모바일 사이드바 오버레이 */}
-      <div
-        onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      />
+      {/* 프로필 메뉴 — 내 프로필 · 멤버 · 관리 · 로그아웃 */}
+      <BottomSheet open={menuOpen} title="메뉴" onClose={() => setMenuOpen(false)}>
+        <Link
+          href="/profile"
+          onClick={() => setMenuOpen(false)}
+          className="flex items-center gap-3.5 rounded-xl px-1 py-3 transition hover:bg-slate-50"
+        >
+          <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-12 w-12 text-lg" />
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-bold text-slate-900">
+              {profile?.name || profile?.displayName}
+            </span>
+            <span className="block text-sm text-slate-400">내 프로필 설정</span>
+          </span>
+        </Link>
 
-      {/* 모바일 슬라이드 사이드바 */}
-      <aside
-        className={`fixed left-0 top-0 z-50 flex h-full w-[80%] max-w-[320px] flex-col bg-white shadow-2xl transition-transform duration-300 md:hidden ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <Wordmark />
+        <div className="mt-1 border-t border-slate-100 pt-1">
+          {menuLinks.map((m) => (
+            <Link
+              key={m.href}
+              href={m.href}
+              onClick={() => setMenuOpen(false)}
+              className="flex w-full items-center gap-4 rounded-xl px-1 py-3.5 transition hover:bg-slate-50"
+            >
+              <m.icon className="h-[22px] w-[22px] shrink-0 text-[#1a2744]" />
+              <span className="text-[15px] font-semibold text-slate-800">{m.label}</span>
+              {isNew(m.href) && <NewBadge />}
+            </Link>
+          ))}
+
           <button
-            onClick={() => setOpen(false)}
-            aria-label="메뉴 닫기"
-            className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-4 rounded-xl px-1 py-3.5 transition hover:bg-slate-50"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="shrink-0 text-slate-400">
+              <path
+                d="M15 17l5-5-5-5M20 12H9M12 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h6"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
+            <span className="text-[15px] font-semibold text-slate-500">로그아웃</span>
           </button>
         </div>
+      </BottomSheet>
 
-        <nav className="flex-1 overflow-y-auto p-3">
-          {links.map((n) => {
-            const active = pathname === n.href;
-            const Icon = NAV_ICON[n.href];
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={`mb-0.5 flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition ${
-                  active ? "bg-accent-soft text-accent" : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {Icon && <Icon className={`h-5 w-5 ${active ? "text-accent" : "text-slate-400"}`} />}
-                {n.label}
-                {isNew(n.href) && <NewBadge />}
-              </Link>
-            );
-          })}
-        </nav>
+      <main className="mx-auto max-w-5xl px-4 py-8 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-8">
+        {children}
+      </main>
 
-        <div className="border-t border-slate-100 p-4">
-          <Link href="/profile" className="mb-3 flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-50">
-            <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-10 w-10 text-base" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">
-                {profile?.name || profile?.displayName}
-              </p>
-              <p className="text-xs text-slate-400">내 프로필 설정</p>
-            </div>
-          </Link>
-          <button onClick={handleSignOut} className="btn-ghost w-full">
-            로그아웃
-          </button>
-        </div>
-      </aside>
-
-      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+      {/* 모바일 하단 내비게이션 */}
+      <BottomNav />
 
       {/* 첫 실행 시 푸시 알림 안내 모달 */}
       <PushOnboard />
