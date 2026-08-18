@@ -29,16 +29,16 @@ export const HomeIcon = makeIcon(
 
 export const CalendarIcon = makeIcon(
   <>
-    <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-    <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" />
+    <rect x="3.5" y="4.8" width="17" height="16" rx="4" />
+    <path d="M3.5 9.6h17M8.2 3.2v3.2M15.8 3.2v3.2" />
   </>
 );
 
+// 둥근 사각형 안의 재생 삼각형 — 다른 아이콘과 같은 정사각 틀에 맞춘 영상 표시
 export const ArchiveIcon = makeIcon(
   <>
-    {/* 비디오 카메라 */}
-    <rect x="2" y="7" width="13" height="10" rx="2" />
-    <path d="m22 8-5 4 5 4V8Z" />
+    <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+    <path d="M10.4 9.1v5.8l5-2.9-5-2.9Z" />
   </>
 );
 
@@ -90,8 +90,8 @@ export const EyeOffIcon = makeIcon(
 
 export const BoardIcon = makeIcon(
   <>
-    <rect x="4" y="3.5" width="16" height="17" rx="2.5" />
-    <path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" />
+    <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+    <path d="M8 8.6h8M8 12h8M8 15.4h5" />
   </>
 );
 
@@ -187,7 +187,7 @@ export const PencilIcon = makeIcon(
 );
 
 export const FolderIcon = makeIcon(
-  <path d="M3.5 7.5a2 2 0 0 1 2-2h3l2 2.2h6a2 2 0 0 1 2 2v6.3a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z" />
+  <path d="M3.5 6.6a2.4 2.4 0 0 1 2.4-2.4h3.2l2.2 2.6h6.4a2.4 2.4 0 0 1 2.4 2.4v8.2a2.4 2.4 0 0 1-2.4 2.4H5.9a2.4 2.4 0 0 1-2.4-2.4V6.6Z" />
 );
 
 export const MegaphoneIcon = makeIcon(
@@ -215,6 +215,49 @@ export const DotsVerticalIcon: FC<IconProps> = ({ className }) => (
 );
 
 // 경로(href) → 아이콘 매핑 (헤더/사이드바 공용)
+// 하단 내비게이션에서 '선택된 칸'에 쓰는 꽉 찬 아이콘.
+// 외곽선 버전과 같은 자리·같은 크기로 그려서 전환할 때 흔들리지 않는다.
+function makeSolidIcon(children: ReactNode): FC<IconProps> {
+  return function Icon({ className }: IconProps) {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+        {children}
+      </svg>
+    );
+  };
+}
+
+export const HomeIconSolid = makeSolidIcon(
+  <path d="M3.6 10.4 12 3.6l8.4 6.8V19a1.5 1.5 0 0 1-1.5 1.5H5.1A1.5 1.5 0 0 1 3.6 19v-8.6Z" />
+);
+
+export const CalendarIconSolid = makeSolidIcon(
+  <>
+    <path d="M8.2 2.2a.9.9 0 0 1 .9.9v.8h5.8v-.8a.9.9 0 0 1 1.8 0v.8A4 4 0 0 1 20.5 8v.6h-17V8a4 4 0 0 1 3.8-4v-.9a.9.9 0 0 1 .9-.9Z" />
+    <path d="M3.5 10.6h17v6.2a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-6.2Z" />
+  </>
+);
+
+export const ArchiveIconSolid = makeSolidIcon(
+  <path
+    fillRule="evenodd"
+    clipRule="evenodd"
+    d="M8.5 3h7A5.5 5.5 0 0 1 21 8.5v7a5.5 5.5 0 0 1-5.5 5.5h-7A5.5 5.5 0 0 1 3 15.5v-7A5.5 5.5 0 0 1 8.5 3Zm2.4 5.7v6.6l5.7-3.3-5.7-3.3Z"
+  />
+);
+
+export const FolderIconSolid = makeSolidIcon(
+  <path d="M3.5 6.6a2.4 2.4 0 0 1 2.4-2.4h3.2l2.2 2.6h6.4a2.4 2.4 0 0 1 2.4 2.4v8.2a2.4 2.4 0 0 1-2.4 2.4H5.9a2.4 2.4 0 0 1-2.4-2.4V6.6Z" />
+);
+
+export const BoardIconSolid = makeSolidIcon(
+  <path
+    fillRule="evenodd"
+    clipRule="evenodd"
+    d="M8 3h8a5 5 0 0 1 5 5v8a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5Zm0 5.6a.9.9 0 0 0 0 1.8h8a.9.9 0 0 0 0-1.8H8Zm0 3.4a.9.9 0 0 0 0 1.8h8a.9.9 0 0 0 0-1.8H8Zm0 3.4a.9.9 0 0 0 0 1.8h5a.9.9 0 0 0 0-1.8H8Z"
+  />
+);
+
 export const NAV_ICON: Record<string, FC<IconProps>> = {
   "/": HomeIcon,
   "/schedule": CalendarIcon,

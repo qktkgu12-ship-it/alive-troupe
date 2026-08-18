@@ -5,38 +5,64 @@
 // 선택된 칸 뒤로 회색 알약이 깔리고, 다른 칸을 누르면 그 알약이 미끄러지듯 옮겨간다.
 // 알약은 칸마다 하나씩 두는 게 아니라 '하나짜리 알약'을 translateX로 옮기는 방식이라
 // 이동이 끊기지 않고 이어진다.
+//
+// 이 컴포넌트는 반드시 루트 레이아웃에 두어야 한다.
+// 페이지 안(AppShell 아래)에 두면 화면을 옮길 때마다 다시 만들어져서
+// 알약이 미끄러지지 않고 새 위치에 툭 나타난다.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, HomeIcon } from "@/components/Icons";
+import { useAuth } from "@/lib/auth-context";
+import {
+  ArchiveIcon,
+  ArchiveIconSolid,
+  BoardIcon,
+  BoardIconSolid,
+  CalendarIcon,
+  CalendarIconSolid,
+  FolderIcon,
+  FolderIconSolid,
+  HomeIcon,
+  HomeIconSolid,
+} from "@/components/Icons";
 
 const TABS = [
-  { href: "/", label: "홈", Icon: HomeIcon },
-  { href: "/schedule", label: "일정", Icon: CalendarIcon },
-  { href: "/archive", label: "아카이브", Icon: ArchiveIcon },
-  { href: "/audio", label: "자료실", Icon: FolderIcon },
-  { href: "/board", label: "게시판", Icon: BoardIcon },
+  { href: "/", label: "홈", Icon: HomeIcon, Solid: HomeIconSolid },
+  { href: "/schedule", label: "일정", Icon: CalendarIcon, Solid: CalendarIconSolid },
+  { href: "/archive", label: "아카이브", Icon: ArchiveIcon, Solid: ArchiveIconSolid },
+  { href: "/audio", label: "자료실", Icon: FolderIcon, Solid: FolderIconSolid },
+  { href: "/board", label: "게시판", Icon: BoardIcon, Solid: BoardIconSolid },
 ];
+
+// 내비게이션을 감출 화면 (로그인·승인 대기 등)
+const HIDDEN = ["/login", "/pending"];
 
 /** 현재 경로가 어느 탭에 속하는가 (하위 경로도 그 탭으로 친다) */
 function activeIndex(pathname: string): number {
   // 홈은 정확히 일치할 때만 (모든 경로가 '/'로 시작하므로)
   if (pathname === "/") return 0;
-  const i = TABS.findIndex(
+  return TABS.findIndex(
     (t) => t.href !== "/" && (pathname === t.href || pathname.startsWith(t.href + "/"))
-  );
-  return i; // 어디에도 없으면 -1 → 알약을 숨긴다
+  ); // 어디에도 없으면 -1 → 알약을 숨긴다
 }
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user, role, loading } = useAuth();
+
+  // 로그인 전·승인 대기 중에는 띄우지 않는다
+  if (loading || !user || role === "guest") return null;
+  if (HIDDEN.some((h) => pathname === h || pathname.startsWith(h + "/"))) return null;
+
   const idx = activeIndex(pathname);
   const n = TABS.length;
 
   return (
     <nav
       className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 md:hidden"
-      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      // 화면 끝~바 간격과 바~홈 인디케이터 간격을 같게 맞춘다.
+      // 세이프 영역(34px)을 그대로 쓰면 너무 뜨므로 좌우 여백만큼 덜어낸다.
+      style={{ paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom) - 0.5rem))" }}
     >
       {/* 떠 있는 알약 모양 바 — 뒤가 비쳐 보이도록 반투명 + 강한 블러 */}
       <div
@@ -62,8 +88,9 @@ export default function BottomNav() {
           }}
         />
 
-        {TABS.map(({ href, label, Icon }, i) => {
+        {TABS.map(({ href, label, Icon, Solid }, i) => {
           const on = i === idx;
+          const Glyph = on ? Solid : Icon;
           return (
             <Link
               key={href}
@@ -72,8 +99,8 @@ export default function BottomNav() {
               aria-current={on ? "page" : undefined}
               className="relative z-10 grid flex-1 place-items-center py-2"
             >
-              <Icon
-                className={`h-[26px] w-[26px] transition-colors duration-200 ${
+              <Glyph
+                className={`h-[25px] w-[25px] transition-colors duration-200 ${
                   on ? "text-slate-900" : "text-slate-400"
                 }`}
               />

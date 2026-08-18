@@ -6,6 +6,7 @@ import { NotificationsProvider } from "@/lib/notifications-context";
 import { CreateSheetProvider } from "@/lib/create-sheet-context";
 import { ProfileViewerProvider } from "@/components/ProfileViewer";
 import PwaSetup from "@/components/PwaSetup";
+import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "ALIVE 얼라이브",
@@ -92,6 +93,9 @@ export default function RootLayout({
               <NotificationsProvider>
                 <CreateSheetProvider>
                   {children}
+                  {/* 하단 내비게이션 — 화면을 옮겨도 다시 만들어지지 않도록
+                      페이지 안이 아니라 레이아웃에 둔다 (선택 알약이 미끄러지려면 필요) */}
+                  <BottomNav />
                   {/* 서비스 워커 등록 + '앱으로 설치' 배너 */}
                   <PwaSetup />
                 </CreateSheetProvider>

@@ -11,7 +11,6 @@ import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
 import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
 import PushOnboard from "@/components/PushOnboard";
-import BottomNav from "@/components/BottomNav";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -363,9 +362,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-5xl px-4 py-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
         {children}
       </main>
-
-      {/* 모바일 하단 내비게이션 */}
-      <BottomNav />
 
       {/* 첫 실행 시 푸시 알림 안내 모달 */}
       <PushOnboard />
