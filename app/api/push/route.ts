@@ -57,6 +57,18 @@ export async function POST(req: Request) {
 }
 
 async function handle(req: Request, step: { at: string; test: boolean }) {
+  // ---- 0. 내용 먼저 읽기 ----
+  // 뒤쪽에서 읽으면, 그 전에 터진 예외는 '테스트 발송인지' 모르는 채로 잡혀서
+  // 진단 정보를 붙일 수 없다. 그래서 무엇보다 먼저 읽는다.
+  let payload: Body;
+  try {
+    payload = (await req.json()) as Body;
+  } catch {
+    return NextResponse.json({ error: "bad-request" }, { status: 400 });
+  }
+  const audience: Audience = payload.audience ?? "all";
+  step.test = audience === "self";
+
   const auth = adminAuth();
   const db = adminDb();
   const messaging = adminMessaging();
@@ -90,15 +102,6 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
   const isMember = isAdmin || role === "member";
 
   // ---- 3. 내용 확인 ----
-  let payload: Body;
-  try {
-    payload = (await req.json()) as Body;
-  } catch {
-    return NextResponse.json({ error: "bad-request" }, { status: 400 });
-  }
-
-  const audience: Audience = payload.audience ?? "all";
-  step.test = audience === "self";
   let title = clip(payload.title, MAX_TITLE);
   let body = clip(payload.body, MAX_BODY);
   let href = clip(payload.href, 300) || "/";
