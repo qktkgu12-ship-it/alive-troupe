@@ -11,6 +11,9 @@ import Spinner from "@/components/Spinner";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
 import PostContent from "@/components/PostContent";
+import { usePostEditor } from "@/lib/post-editor-context";
+import { loadPostMedia, type MediaMap } from "@/lib/post-media";
+import { isMobileDevice } from "@/lib/utils";
 import RichEditor from "@/components/RichEditor";
 import { ProfileAvatar, ProfileName } from "@/components/ProfileViewer";
 import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/components/Icons";
@@ -38,6 +41,9 @@ function PostDetailInner() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  // 본문 안에 글자처럼 들어간 사진 (사진id → 실제 이미지)
+  const [media, setMedia] = useState<MediaMap>({});
+  const { openEdit } = usePostEditor();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -77,12 +83,14 @@ function PostDetailInner() {
         setAsNotice(p.isNotice);
         setLikeCount(p.likeCount ?? 0);
         setViews(p.viewCount ?? 0);
-        // 사진: 구버전은 글 문서 안(images), 신버전은 postMedia 문서에서
+        // 사진: 아주 예전 글은 글 문서 안(images),
+        // 그 다음은 postMedia 문서, 지금은 본문 안에 글자처럼 들어간다
         if (p.images && p.images.length > 0) {
           setImages(p.images);
         } else if (p.hasImages) {
-          const m = await getDoc(doc(db, "postMedia", id));
-          setImages(m.exists() ? (m.data() as PostMedia).images ?? [] : []);
+          const { media: mm, legacy } = await loadPostMedia(id);
+          setMedia(mm);
+          setImages(legacy); // 본문 밖 갤러리로 붙던 구버전 사진
         }
         // 좋아요 상태
         if (user) {
@@ -333,7 +341,7 @@ function PostDetailInner() {
               <p className="text-xs text-slate-400">{fmtDateTime(post.createdAt)}</p>
             </div>
           </div>
-          <PostContent content={post.content} className="mt-5 text-[15px] text-slate-700" />
+          <PostContent content={post.content} media={media} onImageClick={setZoom} className="mt-5 text-[15px] text-slate-700" />
 
           {post.tags && post.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -375,7 +383,13 @@ function PostDetailInner() {
 
           {canEdit && (
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setEditing(true)} aria-label="수정" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50">
+              <button
+                onClick={() => {
+                  // 모바일은 글쓰기와 같은 전체화면 시트로 연다
+                  if (isMobileDevice()) openEdit(post, (p) => setPost(p));
+                  else setEditing(true);
+                }}
+                aria-label="수정" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50">
                 <PencilIcon className="h-4 w-4" />
               </button>
               <button onClick={remove} aria-label="삭제" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-red-50 hover:text-red-500">

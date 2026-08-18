@@ -34,7 +34,7 @@ export async function compressImage(file: File, maxDim = 1024, quality = 0.6): P
 export default function ImagePicker({
   images,
   onChange,
-  max = 4,
+  max = 10,
 }: {
   images: string[];
   onChange: (imgs: string[]) => void;

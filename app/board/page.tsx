@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon } from "@/components/Icons";
+import { usePostEditor } from "@/lib/post-editor-context";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import Select from "@/components/Select";
@@ -37,6 +38,7 @@ function BoardInner() {
       ? settings.boardCategories
       : DEFAULT_BOARD_CATEGORIES;
 
+  const { openWrite } = usePostEditor();
   const [tab, setTab] = useState<string>("all"); // "all" 또는 카테고리 이름
   const [posts, setPosts] = useState<Post[]>([]);
   const [notices, setNotices] = useState<Post[]>([]);
@@ -180,14 +182,14 @@ function BoardInner() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">게시판</h1>
-        <Link
-          href={tab !== "all" ? `/board/write?cat=${encodeURIComponent(tab)}` : "/board/write"}
+        <button
+          onClick={() => openWrite(tab !== "all" ? tab : undefined)}
           aria-label="글쓰기"
           title="글쓰기"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110"
         >
           <PencilIcon className="h-5 w-5" />
-        </Link>
+        </button>
       </div>
 
       {/* 탭 → 칩 */}

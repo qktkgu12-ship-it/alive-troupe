@@ -5,6 +5,9 @@ const ALLOWED = new Set([
   "B", "STRONG", "I", "EM", "U", "S", "STRIKE", "A",
   "UL", "OL", "LI", "BLOCKQUOTE", "BR", "P", "DIV", "SPAN", "H1", "H2", "H3",
   "FONT",
+  // 본문 중간에 끼워 넣는 사진. 실제 이미지는 postMedia 하위 문서에 있고
+  // 본문에는 data-mid(=사진 id)만 남는다. 글 문서가 1MB를 넘지 않도록.
+  "IMG",
 ]);
 
 export function sanitizeRichHtml(html: string): string {
@@ -34,10 +37,17 @@ export function sanitizeRichHtml(html: string): string {
         const n = a.name.toLowerCase();
         if (el.tagName === "A" && n === "href" && /^https?:\/\//i.test(a.value)) return;
         if (el.tagName === "FONT" && n === "size") return; // 글자 크기
+        // 본문 사진: 자리표시자 id만 남기고 src(=수십 KB의 base64)는 떼어낸다
+        if (el.tagName === "IMG" && n === "data-mid" && /^[a-z0-9-]{1,40}$/i.test(a.value)) return;
         // text-align만 허용 (정렬)
         if (n === "style" && /^text-align:\s*(left|center|right);?$/i.test(a.value.trim())) return;
         el.removeAttribute(a.name);
       });
+      // data-mid 없는 사진(외부에서 붙여넣은 것 등)은 통째로 버린다
+      if (el.tagName === "IMG" && !el.getAttribute("data-mid")) {
+        parent.removeChild(el);
+        return;
+      }
       if (el.tagName === "A") {
         el.setAttribute("target", "_blank");
         el.setAttribute("rel", "noreferrer noopener");

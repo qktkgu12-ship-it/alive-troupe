@@ -10,6 +10,7 @@ import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
 import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
+import { usePostEditor } from "@/lib/post-editor-context";
 import PushOnboard from "@/components/PushOnboard";
 
 const NAV = [
@@ -33,14 +34,14 @@ function sectionOf(path: string): string | null {
 
 // 헤더 '+' 등록 메뉴 — 게시판·일정방은 페이지로 이동, 나머지는 그 자리에서 시트로 열림
 const CREATE_MENU: {
-  sheet: CreateKind | null; // null = href로 이동
+  sheet: CreateKind | "write" | null; // "write" = 글쓰기 시트, null = href로 이동
   href?: string;
   label: string;
   icon: React.FC<{ className?: string }>;
   tint: string; // 아이콘 원 배경색
   admin: boolean;
 }[] = [
-  { sheet: null, href: "/board/write", label: "글쓰기", icon: BoardIcon, tint: "bg-sky-100 text-sky-600", admin: false },
+  { sheet: "write", label: "글쓰기", icon: BoardIcon, tint: "bg-sky-100 text-sky-600", admin: false },
   { sheet: null, href: "/schedule?tab=coord&new=1", label: "일정방 만들기", icon: CalendarIcon, tint: "bg-violet-100 text-violet-600", admin: false },
   { sheet: "event", label: "확정 일정 등록", icon: CalendarIcon, tint: "bg-emerald-100 text-emerald-600", admin: true },
   { sheet: "archive", label: "영상 등록", icon: ArchiveIcon, tint: "bg-rose-100 text-rose-600", admin: false },
@@ -77,6 +78,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   ].filter((m) => !m.admin || role === "admin");
   const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
   const { openCreate } = useCreateSheet();
+  const { openWrite } = usePostEditor();
 
   // 검색 모드로 들어가면 입력창에 포커스
   useEffect(() => {
@@ -302,7 +304,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         key={c.label}
                         onClick={() => {
                           setCreateOpen(false);
-                          openCreate(c.sheet!);
+                          if (c.sheet === "write") openWrite();
+                          else openCreate(c.sheet as CreateKind);
                         }}
                         className={cls}
                       >

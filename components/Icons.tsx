@@ -213,6 +213,55 @@ export const UserPlusIcon = makeIcon(
   </>
 );
 
+// ── 글쓰기 툴바 ──────────────────────────────────────────
+export const CameraIcon = makeIcon(
+  <>
+    <path d="M3 8.8a2 2 0 0 1 2-2h1.9l1.3-2.1h7.6l1.3 2.1H19a2 2 0 0 1 2 2v8.4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.8Z" />
+    <circle cx="12" cy="12.8" r="3.6" />
+  </>
+);
+
+// 글자 서식 (T)
+export const TextIcon = makeIcon(<path d="M5 5.5h14M12 5.5V19" />);
+
+// 정렬 — 지금 정렬 상태에 맞춰 줄 길이가 바뀐다
+export const AlignIcon = ({ align = "left", className }: { align?: "left" | "center" | "right"; className?: string }) => {
+  // 짧은 줄 두 개의 좌우 위치만 바꿔 정렬을 나타낸다
+  const short = { left: [3, 14], center: [6, 18], right: [10, 21] }[align];
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" className={className} aria-hidden="true">
+      <path d="M3 5.5h18" />
+      <path d={`M${short[0]} 12h${short[1] - short[0]}`} />
+      <path d="M3 18.5h18" />
+    </svg>
+  );
+};
+
+// 가로 점 세 개 (더보기)
+export const DotsIcon: FC<IconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <circle cx="5" cy="12" r="1.7" />
+    <circle cx="12" cy="12" r="1.7" />
+    <circle cx="19" cy="12" r="1.7" />
+  </svg>
+);
+
+// 투표
+export const PollIcon = makeIcon(
+  <>
+    <path d="M4.5 19.5V13M12 19.5V5.5M19.5 19.5v-9" />
+  </>
+);
+
+// 키보드 내리기
+export const KeyboardDownIcon = makeIcon(
+  <>
+    <rect x="2.5" y="3.5" width="19" height="11" rx="2.4" />
+    <path d="M6.5 7.2h.01M10 7.2h.01M13.5 7.2h.01M17 7.2h.01M8 11h8" />
+    <path d="m9 18 3 3 3-3" />
+  </>
+);
+
 // 세로 점 세 개 (더보기 메뉴)
 export const DotsVerticalIcon: FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>

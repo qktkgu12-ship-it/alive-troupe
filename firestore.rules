@@ -205,6 +205,19 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/posts/$(id)).data.authorUid == request.auth.uid);
       allow delete: if isAdmin()
         || (isMember() && resource.data.authorUid == request.auth.uid);
+
+      // 본문 중간에 들어가는 사진 — 한 장에 문서 하나.
+      // (한 문서에 몰아 담으면 서너 장에서 1MB 한도에 걸린다)
+      // 글이 아직 없는 동안(작성 중 임시 저장)에도 올릴 수 있어야 하므로
+      // 글 문서 대신 사진에 적힌 작성자로 판별한다.
+      match /items/{mid} {
+        allow read: if isMember();
+        allow create: if isMember() && request.resource.data.authorUid == request.auth.uid;
+        allow update: if isAdmin()
+          || (isMember() && resource.data.authorUid == request.auth.uid
+              && request.resource.data.authorUid == resource.data.authorUid);
+        allow delete: if isAdmin() || (isMember() && resource.data.authorUid == request.auth.uid);
+      }
     }
 
     // ---------- 푸시 알림 토큰 (문서 ID = FCM 토큰) ----------
