@@ -33,23 +33,26 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 const SPLASH_START = Date.now();
 const MIN_SPLASH_MS = 600; // ms — 너무 빨리 사라지면 깜빡임처럼 보임
 
-/** 스플래시를 페이드아웃하고 DOM에서 제거 */
+/**
+ * 스플래시를 페이드아웃하고 숨긴다.
+ * 주의: el.remove()로 DOM에서 빼면 안 된다. 이 노드는 RootLayout이 렌더한
+ * React 트리의 일부라, 삭제해도 fiber에는 참조가 남는다. 이후 페이지 이동에서
+ * React가 그 노드 기준으로 insertBefore를 호출하다 NotFoundError로 앱이 죽는다.
+ * display:none으로 숨기기만 하면 트리는 그대로라 안전하다.
+ */
 function removeSplash() {
   if (typeof document === "undefined") return;
   const el = document.getElementById("alive-splash");
   if (!el) return;
   const elapsed = Date.now() - SPLASH_START;
   const delay = Math.max(0, MIN_SPLASH_MS - elapsed);
-  const t1 = window.setTimeout(() => {
+  window.setTimeout(() => {
     el.style.transition = "opacity 0.45s ease";
     el.style.opacity = "0";
-    const t2 = window.setTimeout(() => {
-      try { el.remove(); } catch { /* 이미 없으면 무시 */ }
+    window.setTimeout(() => {
+      el.style.display = "none";
     }, 470);
-    // t2 클린업은 따로 필요 없음(컴포넌트 수명과 무관)
-    void t2;
   }, delay);
-  void t1;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

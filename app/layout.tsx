@@ -27,13 +27,13 @@ const FONT_CSS =
 
 // 스타일시트가 오기 전에도 배경이 흰색으로 칠해지도록 최소한의 색만 인라인으로.
 // (globals.css는 별도 파일이라 로드 전 한 프레임 동안 기기 기본색 = 다크모드면 검정)
-// alive-dot: 스플래시 로딩 인디케이터 점 애니메이션
 const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{background:#f7f8fa;color:#0f172a;margin:0;padding:0}`;
 
 // (1) 마지막으로 본 강조색을 즉시 칠해 깜빡임 방지
 // (2) 폰트 <link>를 media="print"로 받아 렌더를 막지 않다가, 다 받으면 media="all"로 전환.
 //     React는 서버 HTML에 onLoad 문자열을 넣어주지 않으므로 이 스크립트가 직접 처리한다.
-const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.getElementById('alive-font');if(l){var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);}}catch(e){}})();`;
+// (3) 안전장치: 인증이 실패해 auth-context가 스플래시를 못 내려도 8초 뒤엔 무조건 걷어낸다.
+const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.getElementById('alive-font');if(l){var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);}}catch(e){}setTimeout(function(){try{var p=document.getElementById('alive-splash');if(p)p.style.display='none';}catch(e){}},8000);})();`;
 
 export default function RootLayout({
   children,
