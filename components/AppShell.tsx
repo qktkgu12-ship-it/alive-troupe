@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useNotifications } from "@/lib/notifications-context";
 import { AdminIcon, ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, MembersIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
 import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
+import { markSeen, sectionOf, useNavNew } from "@/lib/nav-new";
 import { usePostEditor } from "@/lib/post-editor-context";
 import PushOnboard from "@/components/PushOnboard";
 
@@ -22,15 +22,6 @@ const NAV = [
   { href: "/members", label: "멤버", admin: false },
   { href: "/admin", label: "관리", admin: true },
 ];
-
-const SECTIONS = ["/schedule", "/archive", "/audio", "/board", "/members", "/admin"];
-// 경로/알림 href → 내비 섹션
-function sectionOf(path: string): string | null {
-  for (const base of SECTIONS) {
-    if (path === base || path.startsWith(base + "/") || path.startsWith(base + "?")) return base;
-  }
-  return null;
-}
 
 // 헤더 '+' 등록 메뉴 — 게시판·일정방은 페이지로 이동, 나머지는 그 자리에서 시트로 열림
 const CREATE_MENU: {
@@ -48,8 +39,6 @@ const CREATE_MENU: {
   { sheet: "audio", label: "자료실 등록", icon: FolderIcon, tint: "bg-amber-100 text-amber-600", admin: false },
 ];
 
-const SEEN_KEY = "alive-nav-seen";
-
 function NewBadge() {
   return (
     <span className="ml-1.5 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none tracking-wide text-accent-fg">
@@ -60,7 +49,6 @@ function NewBadge() {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, role, signOut } = useAuth();
-  const { items } = useNotifications();
   const pathname = usePathname();
   const router = useRouter();
   // 헤더: 검색 모드 / '+' 등록 메뉴 / 프로필 메뉴
@@ -94,45 +82,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.push(`/search?q=${encodeURIComponent(t)}`);
   }
 
-  // 섹션별 '가장 최근 새 항목' 시각 (알림 데이터 재사용)
-  const latestBySection = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const n of items) {
-      const sec = sectionOf(n.href);
-      if (sec) m[sec] = Math.max(m[sec] ?? 0, n.time);
-    }
-    return m;
-  }, [items]);
+  // NEW 판단은 하단 바 빨간점과 같은 저장소를 쓴다
+  const isNew = useNavNew();
 
-  // 섹션별 '마지막으로 본 시각' (방문하면 갱신, localStorage 저장)
-  const [seen, setSeen] = useState<Record<string, number>>({});
-  useEffect(() => {
-    try {
-      setSeen(JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"));
-    } catch {
-      /* 무시 */
-    }
-  }, []);
-
-  // 현재 페이지 섹션은 '봤음'으로 기록 → NEW 사라짐
+  // 현재 페이지 섹션은 '봤음'으로 기록 → NEW·빨간점 사라짐
   useEffect(() => {
     const sec = sectionOf(pathname);
-    if (!sec) return;
-    setSeen((prev) => {
-      const next = { ...prev, [sec]: Date.now() };
-      try {
-        localStorage.setItem(SEEN_KEY, JSON.stringify(next));
-      } catch {
-        /* 무시 */
-      }
-      return next;
-    });
+    if (sec) markSeen(sec);
   }, [pathname]);
-
-  const isNew = (href: string) => {
-    const t = latestBySection[href];
-    return !!t && t > (seen[href] ?? 0);
-  };
 
   useEffect(() => {
     setMenuOpen(false);

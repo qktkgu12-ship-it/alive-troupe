@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useNavNew } from "@/lib/nav-new";
 import {
   ArchiveIcon,
   ArchiveIconSolid,
@@ -51,6 +52,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user, role, loading } = useAuth();
   const navRef = useRef<HTMLElement>(null);
+  // 새 글이 올라온 탭에 빨간점 (헤더 NEW 배지와 같은 기준)
+  const isNew = useNavNew();
 
   // 화면 아래 끝의 위치. 사파리 하단 툴바가 펴졌다 접혔다 하면 이 값이 바뀐다.
   const [bottomY, setBottomY] = useState<number | null>(null);
@@ -157,11 +160,20 @@ export default function BottomNav() {
               aria-current={on ? "page" : undefined}
               className="relative z-10 flex flex-1 flex-col items-center justify-center gap-[3px] py-2"
             >
-              <Glyph
-                className={`h-6 w-6 transition-colors duration-200 ${
-                  on ? "text-slate-900" : "text-slate-400"
-                }`}
-              />
+              {/* 아이콘 + 빨간점 — 점이 아이콘 우상단에 살짝 겹쳐 앉는다 */}
+              <span className="relative">
+                <Glyph
+                  className={`h-6 w-6 transition-colors duration-200 ${
+                    on ? "text-slate-900" : "text-slate-400"
+                  }`}
+                />
+                {isNew(href) && !on && (
+                  <span
+                    aria-label="새 글"
+                    className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"
+                  />
+                )}
+              </span>
               {/* 아이콘 아래 이름 — 글자가 줄바꿈되지 않도록 자간을 살짝 좁힌다 */}
               <span
                 className={`text-[10px] leading-none tracking-[-0.02em] transition-colors duration-200 ${

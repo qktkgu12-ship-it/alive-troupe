@@ -68,6 +68,10 @@ body {
   }
 }
 
+/* 캐러셀 등 — 스크롤바를 감춘다 (손으로 미는 영역) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* 게시글 에디터 스크롤바 — 얇고 둥근 인디케이터 */
 .editor-scroll::-webkit-scrollbar {
   width: 4px;
