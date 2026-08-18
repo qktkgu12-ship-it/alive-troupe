@@ -176,3 +176,13 @@ export function chunk<T>(arr: T[], size: number): T[][] {
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
+
+// 휴대폰·태블릿인가 (PC 제외)
+// 설치·알림 안내는 홈 화면에 앱을 추가할 수 있는 기기에서만 의미가 있다.
+export function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (/iphone|ipad|ipod|android/i.test(ua)) return true;
+  // iPadOS는 사파리에서 자신을 맥으로 소개하므로 터치 지원 여부로 가린다
+  return /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+}

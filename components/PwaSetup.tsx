@@ -8,6 +8,7 @@
 // iOS 사파리와 삼성 인터넷은 그 이벤트가 없어서 메뉴 위치를 직접 안내해야 한다.
 
 import { useEffect, useState } from "react";
+import { isMobileDevice } from "@/lib/utils";
 
 const DISMISS_KEY = "alive-install-dismissed";
 const DISMISS_DAYS = 30; // 배너를 닫으면 이 기간 동안 다시 띄우지 않는다
@@ -283,16 +284,8 @@ export default function PwaSetup() {
   useEffect(() => {
     setGuide(detectGuide());
 
-    // 미리보기용 — 주소 뒤에 ?install=1
-    try {
-      if (new URLSearchParams(window.location.search).get("install") === "1") {
-        setShow(true);
-        return;
-      }
-    } catch {
-      /* 무시 */
-    }
-
+    // PC에서는 설치 배너를 띄우지 않는다
+    if (!isMobileDevice()) return;
     if (isInstalled() || recentlyDismissed()) return;
 
     // 안드로이드·데스크톱 크롬

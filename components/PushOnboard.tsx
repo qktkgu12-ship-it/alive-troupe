@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { enablePush, pushPermission, pushSupported } from "@/lib/push";
 import { useAuth } from "@/lib/auth-context";
+import { isMobileDevice } from "@/lib/utils";
 
 const ONBOARD_KEY = "alive-push-onboard";
 
@@ -17,15 +18,8 @@ export default function PushOnboard() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // 미리보기용 — 주소 뒤에 ?onboard=1 을 붙이면 조건 무시하고 무조건 표시
-    try {
-      if (new URLSearchParams(window.location.search).get("onboard") === "1") {
-        setShow(true);
-        return;
-      }
-    } catch {
-      /* 무시 */
-    }
+    // PC에서는 안내하지 않는다 (홈 화면 앱 개념이 없다)
+    if (!isMobileDevice()) return;
 
     if (!user) return;
     if (role === "guest" || role === null) return;
