@@ -59,15 +59,26 @@ export default function BottomNav() {
   // 탭을 누를 때마다 바가 위로 튀었다 내려온다.
   // 그래서 위에서부터의 좌표를 직접 계산해 붙인다 —
   // visualViewport는 툴바가 움직이는 매 프레임 알려주므로 튐 없이 따라간다.
+  //
+  // 홈화면에 추가해 앱으로 실행하면 애초에 툴바가 없다.
+  // 그때는 이 계산을 아예 하지 않고 평범하게 바닥에 붙인다.
   useEffect(() => {
     const vv = window.visualViewport;
     const el = navRef.current;
     if (!vv || !el) return;
+    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    if ((window.navigator as { standalone?: boolean }).standalone) return;
 
     let raf = 0;
     const update = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setBottomY(vv.offsetTop + vv.height - el.offsetHeight));
+      raf = requestAnimationFrame(() => {
+        // 키보드가 올라오면 보이는 영역이 크게 줄어든다.
+        // 이때까지 따라가면 바가 키보드 위로 딸려 올라가므로,
+        // 툴바 정도(150px)를 넘게 줄면 계산을 포기하고 바닥에 붙인다.
+        const shrink = window.innerHeight - (vv.offsetTop + vv.height);
+        setBottomY(shrink > 150 ? null : vv.offsetTop + vv.height - el.offsetHeight);
+      });
     };
 
     update();
