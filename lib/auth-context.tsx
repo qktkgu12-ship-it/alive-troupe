@@ -29,6 +29,29 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+// 스플래시 화면 최소 표시 시간 기준점. 모듈이 로드되는 순간을 시작으로 본다.
+const SPLASH_START = Date.now();
+const MIN_SPLASH_MS = 600; // ms — 너무 빨리 사라지면 깜빡임처럼 보임
+
+/** 스플래시를 페이드아웃하고 DOM에서 제거 */
+function removeSplash() {
+  if (typeof document === "undefined") return;
+  const el = document.getElementById("alive-splash");
+  if (!el) return;
+  const elapsed = Date.now() - SPLASH_START;
+  const delay = Math.max(0, MIN_SPLASH_MS - elapsed);
+  const t1 = window.setTimeout(() => {
+    el.style.transition = "opacity 0.45s ease";
+    el.style.opacity = "0";
+    const t2 = window.setTimeout(() => {
+      try { el.remove(); } catch { /* 이미 없으면 무시 */ }
+    }, 470);
+    // t2 클린업은 따로 필요 없음(컴포넌트 수명과 무관)
+    void t2;
+  }, delay);
+  void t1;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -98,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
       }
       setLoading(false);
+      // 인증 상태 확정 → 스플래시 화면 제거
+      removeSplash();
     });
     return () => unsub();
   }, []);
