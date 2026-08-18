@@ -6,7 +6,6 @@ import { NotificationsProvider } from "@/lib/notifications-context";
 import { CreateSheetProvider } from "@/lib/create-sheet-context";
 import { ProfileViewerProvider } from "@/components/ProfileViewer";
 import PwaSetup from "@/components/PwaSetup";
-import PushOnboard from "@/components/PushOnboard";
 
 export const metadata: Metadata = {
   title: "ALIVE 얼라이브",
@@ -95,8 +94,6 @@ export default function RootLayout({
                   {children}
                   {/* 서비스 워커 등록 + '앱으로 설치' 배너 */}
                   <PwaSetup />
-                  {/* 처음 들어온 단원에게 알림 켜기 권유 */}
-                  <PushOnboard />
                 </CreateSheetProvider>
               </NotificationsProvider>
             </ProfileViewerProvider>

@@ -66,7 +66,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [term, setTerm] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false); // 헤더 아바타 메뉴
   const searchRef = useRef<HTMLInputElement>(null);
 
   const links = NAV.filter((n) => !n.admin || role === "admin");
@@ -139,11 +138,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       document.body.style.overflow = "";
     };
   }, [open]);
-
-  // 페이지를 옮기면 아바타 메뉴는 닫는다
-  useEffect(() => {
-    setProfileOpen(false);
-  }, [pathname]);
 
   async function handleSignOut() {
     await signOut();
@@ -259,59 +253,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* 알림 (오른쪽 슬라이드 패널) */}
                 <NotificationBell />
 
-                {/* 프로필 — 바로 이동하지 않고 메뉴를 연다 */}
-                <div className="relative ml-0.5">
-                  <button
-                    onClick={() => setProfileOpen((v) => !v)}
-                    aria-label="내 계정"
-                    aria-expanded={profileOpen}
-                    className="grid h-10 w-10 place-items-center"
-                  >
-                    <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
-                  </button>
+                {/* 프로필 */}
+                <Link href="/profile" aria-label="내 프로필" className="ml-0.5 grid h-10 w-10 place-items-center">
+                  <Avatar src={profile?.avatar} name={profile?.name || profile?.displayName} className="h-8 w-8 text-sm" />
+                </Link>
 
-                  {profileOpen && (
-                    <>
-                      {/* 바깥을 누르면 닫히도록 */}
-                      <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                      <div className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_44px_-12px_rgba(16,24,40,0.28)]">
-                        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
-                          <Avatar
-                            src={profile?.avatar}
-                            name={profile?.name || profile?.displayName}
-                            className="h-10 w-10 text-base"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {profile?.name || profile?.displayName}
-                            </p>
-                            <p className="truncate text-xs text-slate-400">{profile?.email}</p>
-                          </div>
-                        </div>
-                        <Link
-                          href="/profile"
-                          onClick={() => setProfileOpen(false)}
-                          className="block px-4 py-3.5 text-[15px] text-slate-800 transition hover:bg-slate-50"
-                        >
-                          내 프로필
-                        </Link>
-                        <Link
-                          href="/settings"
-                          onClick={() => setProfileOpen(false)}
-                          className="block border-t border-slate-100 px-4 py-3.5 text-[15px] text-slate-800 transition hover:bg-slate-50"
-                        >
-                          설정
-                        </Link>
-                        <button
-                          onClick={handleSignOut}
-                          className="block w-full border-t border-slate-100 px-4 py-3.5 text-left text-[15px] text-slate-500 transition hover:bg-slate-50"
-                        >
-                          로그아웃
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {/* PC: 로그아웃 */}
+                <button
+                  onClick={handleSignOut}
+                  className="ml-2 hidden rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 md:block"
+                >
+                  로그아웃
+                </button>
               </div>
             </>
           )}
@@ -408,11 +361,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <p className="truncate text-sm font-semibold text-slate-900">
                 {profile?.name || profile?.displayName}
               </p>
-              <p className="text-xs text-slate-400">내 프로필</p>
+              <p className="text-xs text-slate-400">내 프로필 설정</p>
             </div>
-          </Link>
-          <Link href="/settings" className="btn-ghost mb-2 block w-full text-center">
-            설정
           </Link>
           <button onClick={handleSignOut} className="btn-ghost w-full">
             로그아웃
