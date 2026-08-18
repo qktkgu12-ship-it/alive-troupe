@@ -17,6 +17,16 @@ export default function PushOnboard() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // 미리보기용 — 주소 뒤에 ?onboard=1 을 붙이면 조건 무시하고 무조건 표시
+    try {
+      if (new URLSearchParams(window.location.search).get("onboard") === "1") {
+        setShow(true);
+        return;
+      }
+    } catch {
+      /* 무시 */
+    }
+
     if (!user) return;
     // 게스트는 표시 안 함
     if (role === "guest" || role === null) return;
