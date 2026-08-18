@@ -170,6 +170,29 @@ export async function pushSignupRequest(): Promise<void> {
 }
 
 /**
+ * 서비스 워커에게 푸시 준비 상태를 물어본다.
+ * gstatic에서 firebase 스크립트를 못 받아오면 백그라운드 알림이 조용히 죽으므로,
+ * 그 경우를 구분하기 위해 필요하다.
+ */
+async function swMessagingReady(): Promise<{ ready: boolean; error: string } | null> {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg.active) return null;
+    return await new Promise((resolve) => {
+      const ch = new MessageChannel();
+      const timer = setTimeout(() => resolve(null), 2000); // 옛 워커는 응답하지 않는다
+      ch.port1.onmessage = (e) => {
+        clearTimeout(timer);
+        resolve({ ready: !!e.data?.ready, error: String(e.data?.error ?? "") });
+      };
+      reg.active!.postMessage({ type: "alive-ping" }, [ch.port2]);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 나에게 테스트 알림을 보낸다. 설정이 어디서 막혔는지 알아야 하므로
  * 다른 함수와 달리 결과·오류를 그대로 돌려준다.
  */
@@ -219,6 +242,16 @@ export async function pushTest(): Promise<{ ok: boolean; message: string }> {
         message: data.detail
           ? `발송은 됐지만 전달에 실패했어요.\n${data.detail}`
           : "보낼 기기를 찾지 못했어요. 스위치를 껐다 켜 보세요.",
+      };
+    }
+    // 여기까지 오면 FCM은 받아갔다. 이제 문제는 '띄우는 쪽'뿐이다.
+    const sw = await swMessagingReady();
+    if (sw && !sw.ready) {
+      return {
+        ok: false,
+        message: `발송은 됐지만 앱을 닫았을 때는 알림이 안 옵니다.\n서비스 워커가 푸시 준비에 실패했어요.${
+          sw.error ? `\n${sw.error}` : ""
+        }`,
       };
     }
     return { ok: true, message: "보냈어요! 잠시 뒤 알림이 뜹니다." };

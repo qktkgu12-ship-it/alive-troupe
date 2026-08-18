@@ -29,6 +29,9 @@ const OFFLINE_URL = '/offline';
 
 // ---------- 푸시 알림 (Firebase Cloud Messaging) ----------
 // gstatic에서 받아오므로 오프라인 설치 시 실패할 수 있다. 실패해도 캐싱은 계속 동작해야 하므로 감싼다.
+// 초기화 결과를 남겨 두었다가, 앱이 물어보면 알려준다 (설정 진단용).
+let messagingReady = false;
+let messagingError = '';
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
   importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
@@ -48,9 +51,19 @@ try {
       data: { href: d.href || '/' },
     });
   });
+  messagingReady = true;
 } catch (e) {
   // 푸시는 못 쓰지만 오프라인 캐싱은 그대로 동작
+  messagingError = String((e && e.message) || e).slice(0, 200);
 }
+
+// 앱이 '너 푸시 준비됐니?' 하고 물어보면 답한다
+self.addEventListener('message', function (e) {
+  if (!e.data || e.data.type !== 'alive-ping') return;
+  const reply = { type: 'alive-pong', ready: messagingReady, error: messagingError };
+  if (e.ports && e.ports[0]) e.ports[0].postMessage(reply);
+  else if (e.source) e.source.postMessage(reply);
+});
 
 // 알림을 누르면 이미 열린 탭이 있으면 그쪽으로, 없으면 새로 연다
 self.addEventListener('notificationclick', function (e) {
