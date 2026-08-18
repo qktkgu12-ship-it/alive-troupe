@@ -11,7 +11,7 @@
 // 키보드가 올라오면 visualViewport 높이가 줄어드는데, 시트 높이를 그 값에 맞춰
 // 두면 툴바가 늘 키보드 바로 위에 붙는다.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -118,6 +118,10 @@ export default function PostEditorSheet({
   const [pollAnonymous, setPollAnonymous] = useState(false);
   const [pollDeadline, setPollDeadline] = useState("");
 
+  // 사진 삭제 오버레이
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [imgOverlayPos, setImgOverlayPos] = useState<CSSProperties>({});
+
   const draftKey = `board-draft-${user?.uid ?? "x"}`;
 
   // 키보드가 올라왔는지 — 보이는 높이가 크게 줄면 올라온 것으로 본다
@@ -207,6 +211,7 @@ export default function PostEditorSheet({
       setPollOpen(false);
       setSizeOpen(false);
       setEnter(false);
+      setSelectedImg(null);
     }
   }, [open]);
 
@@ -250,7 +255,46 @@ export default function PostEditorSheet({
     [restoreCaret, rememberCaret]
   );
 
-  /* ── 사진 ───────────────────────────────────────── */
+  /* ── 사진 삭제 ───────────────────────────────────── */
+  const handleBodyClick = useCallback((e: React.MouseEvent) => {
+    const el = e.target as HTMLElement;
+    if (el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid) {
+      e.preventDefault();
+      e.stopPropagation();
+      const img = el as HTMLImageElement;
+      const scrollEl = img.closest(".overflow-y-auto");
+      const scrollRect = scrollEl?.getBoundingClientRect();
+      const rect = img.getBoundingClientRect();
+      if (scrollRect) {
+        setImgOverlayPos({
+          top: rect.top - scrollRect.top + (scrollEl?.scrollTop ?? 0),
+          left: rect.left - scrollRect.left,
+          width: rect.width,
+          height: rect.height,
+        });
+      }
+      setSelectedImg(img);
+    } else {
+      setSelectedImg(null);
+    }
+  }, []);
+
+  function deleteSelectedImg() {
+    if (!selectedImg) return;
+    const mid = selectedImg.dataset.mid;
+    // 이미지를 감싸는 div까지 지운다
+    const parent = selectedImg.parentElement;
+    if (parent && parent !== bodyRef.current && parent.tagName === "DIV") {
+      parent.remove();
+    } else {
+      selectedImg.remove();
+    }
+    if (mid) setMedia((prev) => { const n = { ...prev }; delete n[mid]; return n; });
+    setSelectedImg(null);
+    rememberCaret();
+  }
+
+  /* ── 사진 추가 ─────────────────────────────────── */
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const current = usedMediaIds(bodyRef.current?.innerHTML || "").length;
@@ -505,7 +549,7 @@ export default function PostEditorSheet({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
-          className="w-full shrink-0 border-b border-slate-100 bg-transparent px-4 py-4 text-[22px] font-bold outline-none placeholder:text-slate-300"
+          className="w-full shrink-0 border-b border-slate-100 bg-white px-4 py-4 text-[22px] font-bold outline-none placeholder:text-slate-300"
         />
 
         {/* ── 툴바 (제목 바로 아래) ── */}
@@ -550,7 +594,7 @@ export default function PostEditorSheet({
           className="relative shrink-0 overflow-visible bg-white transition-[height] duration-250 ease-out"
           style={{ height: panel ? 52 : 0 }}
         >
-          <div className="h-[52px] overflow-hidden border-b border-slate-100">
+          <div className={`h-[52px] overflow-hidden${panel ? " border-b border-slate-100" : ""}`}>
             {panel === "text" && (
               <div className="flex h-[52px] items-center gap-0.5 overflow-x-auto px-2">
                 <ToolBtn onClick={() => cmd("bold")} label="굵게"><span className="text-[16px] font-bold">B</span></ToolBtn>
@@ -648,21 +692,39 @@ export default function PostEditorSheet({
 
         {/* ── 본문 ──
              남은 자리를 전부 차지해서, 키보드가 올라와도 뒤가 비치지 않는다 */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-canvas px-4">
+        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4">
           <div
             ref={bodyRef}
             contentEditable
             suppressContentEditableWarning
             onKeyUp={rememberCaret}
             onMouseUp={rememberCaret}
+            onClick={handleBodyClick}
             onInput={() => {
               rememberCaret();
               setSizeOpen(false);
+              setSelectedImg(null);
             }}
             data-placeholder="내용을 입력하세요"
             style={{ textAlign: align }}
             className="rich min-h-[70vh] w-full py-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
           />
+          {/* 사진 삭제 오버레이 */}
+          {selectedImg && (
+            <div
+              className="pointer-events-none absolute z-10 flex items-center justify-center rounded-xl bg-black/40"
+              style={imgOverlayPos}
+            >
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); deleteSelectedImg(); }}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-4 py-2 text-[14px] font-semibold text-red-600 shadow-lg backdrop-blur active:bg-white"
+              >
+                <XIcon className="h-4 w-4" />
+                삭제
+              </button>
+            </div>
+          )}
           {/* 키보드가 내려가 있을 때도 아래가 흰 화면으로 이어지도록 */}
           <div className="h-[40vh]" />
         </div>
