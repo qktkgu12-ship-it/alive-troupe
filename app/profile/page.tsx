@@ -10,7 +10,7 @@ import PushToggle from "@/components/PushToggle";
 import { compressImage } from "@/components/ImagePicker";
 
 function ProfileInner() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, role, refreshProfile } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [avatar, setAvatar] = useState<string>("");
@@ -116,6 +116,19 @@ function ProfileInner() {
       <div className="card">
         <PushToggle />
       </div>
+
+      {/* 임시 테스트 버튼 — 관리자만 표시 */}
+      {role === "admin" && (
+        <button
+          onClick={() => {
+            localStorage.removeItem("alive-push-onboard");
+            alert("초기화 완료! 새로고침하면 모달이 떠요.");
+          }}
+          className="w-full rounded-xl border border-dashed border-slate-300 py-3 text-sm text-slate-400 transition hover:border-slate-400 hover:text-slate-500"
+        >
+          [테스트] 푸시 안내 모달 초기화
+        </button>
+      )}
     </div>
   );
 }
