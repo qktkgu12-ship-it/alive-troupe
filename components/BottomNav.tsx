@@ -35,16 +35,25 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/90 backdrop-blur-md md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 md:hidden"
+      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
     >
-      <div className="relative mx-auto flex h-14 max-w-md items-center px-1.5">
+      {/* 떠 있는 알약 모양 바 — 뒤가 비쳐 보이도록 반투명 + 강한 블러 */}
+      <div
+        className="pointer-events-auto relative mx-auto flex h-[60px] max-w-md items-center rounded-full border border-white/70 px-2"
+        style={{
+          background: "rgb(255 255 255 / 0.62)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          boxShadow: "0 8px 30px -6px rgba(16,24,40,0.18), 0 2px 8px -2px rgba(16,24,40,0.08)",
+        }}
+      >
         {/* 미끄러지는 회색 알약 — 칸 하나 너비만큼 이동한다 */}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-1.5 top-1/2 h-10 rounded-full bg-surface-strong/70"
+          className="pointer-events-none absolute left-2 top-1/2 h-[46px] rounded-full bg-slate-900/[0.07]"
           style={{
-            width: `calc((100% - 0.75rem) / ${n})`,
+            width: `calc((100% - 1rem) / ${n})`,
             transform: `translate(${idx * 100}%, -50%)`,
             opacity: idx < 0 ? 0 : 1,
             // 살짝 튕기는 느낌 — 끝에서 아주 조금 지나쳤다가 자리를 잡는다

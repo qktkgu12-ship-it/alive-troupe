@@ -22,11 +22,9 @@ function makeIcon(children: ReactNode): FC<IconProps> {
   };
 }
 
+// 지붕과 벽이 한 획으로 이어진 집 모양 — 처마가 밖으로 삐져나오지 않는다
 export const HomeIcon = makeIcon(
-  <>
-    <path d="M3 11.5 12 4l9 7.5" />
-    <path d="M5.5 10v9a1 1 0 0 0 1 1H9.5v-4.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V20h3a1 1 0 0 0 1-1v-9" />
-  </>
+  <path d="M3.6 10.4 12 3.6l8.4 6.8V19a1.5 1.5 0 0 1-1.5 1.5H5.1A1.5 1.5 0 0 1 3.6 19v-8.6Z" />
 );
 
 export const CalendarIcon = makeIcon(
