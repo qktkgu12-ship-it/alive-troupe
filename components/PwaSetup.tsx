@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { isMobileDevice } from "@/lib/utils";
 
 const DISMISS_KEY = "alive-install-dismissed";
-const DISMISS_DAYS = 30; // 배너를 닫으면 이 기간 동안 다시 띄우지 않는다
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -36,16 +35,16 @@ function detectGuide(): Guide {
   return "android";
 }
 
-function isIos(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+/** 오늘 날짜 (YYYY-M-D) — '오늘은 그냥 볼게요'의 기준 */
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
-/** 최근에 배너를 닫았는가 */
-function recentlyDismissed(): boolean {
+/** 오늘 이미 배너를 닫았는가 (버튼 문구대로 하루만 쉬고 다음 날 다시 뜬다) */
+function dismissedToday(): boolean {
   try {
-    const at = Number(localStorage.getItem(DISMISS_KEY) ?? 0);
-    return Date.now() - at < DISMISS_DAYS * 86_400_000;
+    return localStorage.getItem(DISMISS_KEY) === today();
   } catch {
     return false;
   }
@@ -286,7 +285,7 @@ export default function PwaSetup() {
 
     // PC에서는 설치 배너를 띄우지 않는다
     if (!isMobileDevice()) return;
-    if (isInstalled() || recentlyDismissed()) return;
+    if (isInstalled() || dismissedToday()) return;
 
     // 안드로이드·데스크톱 크롬
     const onPrompt = (e: Event) => {
@@ -300,16 +299,15 @@ export default function PwaSetup() {
     const onInstalled = () => setShow(false);
     window.addEventListener("appinstalled", onInstalled);
 
-    // iOS·삼성 인터넷은 이벤트가 없으므로 잠깐 뒤에 직접 띄운다
-    let t: number | undefined;
-    if (isIos() || /samsungbrowser/i.test(navigator.userAgent)) {
-      t = window.setTimeout(() => setShow(true), 2500);
-    }
+    // 설치 이벤트가 없는 브라우저(iOS 사파리·삼성 인터넷 등)도 있으므로,
+    // 이벤트를 기다리지 않고 모바일이면 잠깐 뒤에 무조건 띄운다.
+    // 이벤트가 먼저 오면 deferred가 채워져 네이티브 설치창으로 바로 이어진다.
+    const t = window.setTimeout(() => setShow(true), 2500);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
-      if (t) clearTimeout(t);
+      clearTimeout(t);
     };
   }, []);
 
@@ -327,7 +325,7 @@ export default function PwaSetup() {
     setShow(false);
     setGuideOpen(false);
     try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
+      localStorage.setItem(DISMISS_KEY, today());
     } catch {
       /* 무시 */
     }
