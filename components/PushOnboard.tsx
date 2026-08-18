@@ -92,7 +92,8 @@ export default function PushOnboard() {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-canvas px-7 pt-[env(safe-area-inset-top)] pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    // 높이를 100dvh로 잡아야 사파리 하단 툴바에 버튼이 가려지지 않는다
+    <div className="fixed inset-x-0 top-0 z-[100] flex h-[100dvh] flex-col bg-canvas px-7 pt-[env(safe-area-inset-top)] pb-[calc(2rem+env(safe-area-inset-bottom))]">
       {/* 가운데 — 아이콘 + 문구 */}
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <div className="grid h-[88px] w-[88px] place-items-center rounded-full bg-accent">

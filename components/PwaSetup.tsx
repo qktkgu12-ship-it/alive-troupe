@@ -405,7 +405,7 @@ export default function PwaSetup() {
 
       {/* ── 설치 가이드 (전체 화면) ── */}
       {guideOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-canvas pt-[env(safe-area-inset-top)]">
+        <div className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-canvas pt-[env(safe-area-inset-top)]">
           {/* 상단 뒤로가기 */}
           <div className="sticky top-0 z-10 bg-canvas/90 px-3 py-3 backdrop-blur">
             <button
@@ -419,7 +419,8 @@ export default function PwaSetup() {
             </button>
           </div>
 
-          <div className="mx-auto max-w-md px-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+          {/* 툴바가 겹쳐도 마지막 카드가 보이도록 넉넉히 띄운다 */}
+          <div className="mx-auto max-w-md px-6 pb-[calc(7rem+env(safe-area-inset-bottom))]">
             <span className="inline-block rounded-full bg-slate-800 px-3 py-1.5 text-[12px] font-semibold text-white">
               앱스토어 다운로드 없이
             </span>
