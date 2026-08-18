@@ -8,7 +8,7 @@
 // 토큰은 '사람'이 아니라 '기기+브라우저' 단위다. 한 단원이 폰과 PC를 쓰면 토큰이 둘이다.
 
 import { deleteDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { getMessaging, getToken, isSupported, onMessage, type Messaging } from "firebase/messaging";
+import { getMessaging, getToken, isSupported, type Messaging } from "firebase/messaging";
 import app, { auth, db } from "./firebase";
 
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? "";
@@ -110,27 +110,9 @@ export function pushEnabledHere(): boolean {
   }
 }
 
-/**
- * 앱을 보고 있는 동안 도착한 알림을 처리한다.
- * (백그라운드는 서비스 워커가 맡고, 이건 화면이 켜져 있을 때만)
- */
-export async function onForegroundPush(cb: (n: { title: string; body: string; href: string }) => void) {
-  const messaging = await messagingOrNull();
-  if (!messaging) return () => {};
-  try {
-    return onMessage(messaging, (payload) => {
-      const d = payload.data ?? {};
-      const n = payload.notification ?? {};
-      cb({
-        title: n.title ?? d.title ?? "ALIVE",
-        body: n.body ?? d.body ?? "",
-        href: d.href ?? "/",
-      });
-    });
-  } catch {
-    return () => {};
-  }
-}
+// 앱이 켜져 있을 때 오는 알림을 따로 받는 함수(onMessage)는 두지 않는다.
+// 서비스 워커가 push 이벤트를 직접 받아 어느 상황에서든 알림을 띄우므로,
+// 여기서 또 받으면 같은 알림이 두 번 뜬다.
 
 /**
  * 관리자용 — 단원 전체에게 푸시 발송.
