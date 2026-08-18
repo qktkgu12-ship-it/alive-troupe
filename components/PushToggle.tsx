@@ -146,7 +146,11 @@ export default function PushToggle({
             {testing ? "보내는 중…" : "테스트 알림 보내기"}
           </button>
           {testMsg && (
-            <p className={`mt-1.5 text-xs leading-relaxed ${testMsg.ok ? "text-slate-500" : "text-red-500"}`}>
+            <p
+              className={`mt-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed ${
+                testMsg.ok ? "text-slate-500" : "text-red-500"
+              }`}
+            >
               {testMsg.message}
             </p>
           )}

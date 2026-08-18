@@ -41,6 +41,22 @@ function clip(s: unknown, max: number): string {
 }
 
 export async function POST(req: Request) {
+  // 어느 단계에서 터졌는지 알기 위한 표식. 테스트 발송일 때만 응답에 실어 보낸다.
+  const step = { at: "start", test: false };
+  try {
+    return await handle(req, step);
+  } catch (e) {
+    console.error("[push] 실패", step.at, e);
+    const detail = `${step.at}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300);
+    return NextResponse.json(
+      // 진단 정보는 본인에게 보내는 테스트에서만 노출한다
+      step.test ? { error: "failed", detail } : { error: "failed" },
+      { status: 500 }
+    );
+  }
+}
+
+async function handle(req: Request, step: { at: string; test: boolean }) {
   const auth = adminAuth();
   const db = adminDb();
   const messaging = adminMessaging();
@@ -56,6 +72,7 @@ export async function POST(req: Request) {
 
   let uid: string;
   let email: string;
+  step.at = "verifyIdToken";
   try {
     const decoded = await auth.verifyIdToken(idToken);
     uid = decoded.uid;
@@ -65,6 +82,7 @@ export async function POST(req: Request) {
   }
 
   // ---- 2. 등급 확인 ----
+  step.at = "readUser";
   let role = "guest";
   const me = await db.collection("users").doc(uid).get();
   if (me.exists) role = (me.get("role") as string) ?? "guest";
@@ -80,6 +98,7 @@ export async function POST(req: Request) {
   }
 
   const audience: Audience = payload.audience ?? "all";
+  step.test = audience === "self";
   let title = clip(payload.title, MAX_TITLE);
   let body = clip(payload.body, MAX_BODY);
   let href = clip(payload.href, 300) || "/";
@@ -130,6 +149,7 @@ export async function POST(req: Request) {
   if (allowUids.size === 0) return NextResponse.json({ sent: 0 });
 
   // ---- 5. 토큰 모으기 ----
+  step.at = "readTokens";
   const tokenSnap = await db.collection("fcmTokens").get();
   const tokens: string[] = [];
   tokenSnap.forEach((d) => {
@@ -145,7 +165,10 @@ export async function POST(req: Request) {
   // 항상 호출돼서 아이콘·클릭 이동을 우리가 통제할 수 있다.
   let sent = 0;
   const dead: string[] = [];
+  // FCM은 개별 실패를 예외가 아니라 결과에 담아 돌려준다. 원인을 알려면 따로 챙겨야 한다.
+  let firstError = "";
 
+  step.at = "send";
   for (let i = 0; i < tokens.length; i += BATCH) {
     const part = tokens.slice(i, i + BATCH);
     const res = await messaging.sendEachForMulticast({
@@ -159,6 +182,7 @@ export async function POST(req: Request) {
     sent += res.successCount;
     res.responses.forEach((r, idx) => {
       const code = r.error?.code ?? "";
+      if (r.error && !firstError) firstError = `${code} ${r.error.message}`.slice(0, 200);
       // 기기를 바꿨거나 앱을 지운 경우 → 죽은 토큰이므로 정리
       if (code.includes("registration-token-not-registered") || code.includes("invalid-argument")) {
         dead.push(part[idx]);
@@ -174,5 +198,9 @@ export async function POST(req: Request) {
     await batch.commit().catch(() => {});
   }
 
+  if (sent === 0 && firstError) {
+    console.error("[push] 모두 실패", firstError);
+    return NextResponse.json(step.test ? { sent: 0, detail: firstError } : { sent: 0 });
+  }
   return NextResponse.json({ sent });
 }

@@ -202,11 +202,24 @@ export async function pushTest(): Promise<{ ok: boolean; message: string }> {
     }
     if (res.status === 401) return { ok: false, message: "로그인 정보가 만료됐어요. 새로고침 후 다시 시도해 주세요." };
     if (res.status === 403) return { ok: false, message: "발송 권한이 없어요." };
-    if (!res.ok) return { ok: false, message: `발송에 실패했어요. (오류 ${res.status})` };
 
-    const data = (await res.json()) as { sent?: number };
+    const data = (await res.json().catch(() => ({}))) as { sent?: number; detail?: string };
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        message: data.detail
+          ? `발송 실패 (${res.status})\n${data.detail}`
+          : `발송에 실패했어요. (오류 ${res.status})`,
+      };
+    }
     if (!data.sent) {
-      return { ok: false, message: "보낼 기기를 찾지 못했어요. 스위치를 껐다 켜 보세요." };
+      return {
+        ok: false,
+        message: data.detail
+          ? `발송은 됐지만 전달에 실패했어요.\n${data.detail}`
+          : "보낼 기기를 찾지 못했어요. 스위치를 껐다 켜 보세요.",
+      };
     }
     return { ok: true, message: "보냈어요! 잠시 뒤 알림이 뜹니다." };
   } catch {
