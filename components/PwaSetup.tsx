@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { isMobileDevice } from "@/lib/utils";
+import { useViewportHeight } from "@/lib/use-viewport-height";
 
 const DISMISS_KEY = "alive-install-dismissed";
 
@@ -260,6 +261,8 @@ export default function PwaSetup() {
   const [show, setShow] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guide, setGuide] = useState<Guide>("android");
+  // 사파리 툴바에 가려지지 않도록 실제로 보이는 높이를 잰다
+  const vh = useViewportHeight(show || guideOpen);
 
   // ---- 서비스 워커 등록 ----
   useEffect(() => {
@@ -354,8 +357,11 @@ export default function PwaSetup() {
         className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
         aria-hidden
       />
-      <div className="fixed inset-x-0 bottom-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <div className="relative mx-auto max-w-sm rounded-3xl bg-white px-6 pb-6 pt-7 shadow-[0_20px_60px_-16px_rgba(16,24,40,0.35)]">
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 z-40 flex h-[100dvh] flex-col justify-end p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+        style={vh ? { height: vh } : undefined}
+      >
+        <div className="pointer-events-auto relative mx-auto w-full max-w-sm rounded-3xl bg-white px-6 pb-6 pt-7 shadow-[0_20px_60px_-16px_rgba(16,24,40,0.35)]">
           {/* 닫기 */}
           <button
             onClick={dismiss}
@@ -396,7 +402,10 @@ export default function PwaSetup() {
 
       {/* ── 설치 가이드 (전체 화면) ── */}
       {guideOpen && (
-        <div className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-canvas pt-[env(safe-area-inset-top)]">
+        <div
+          className="fixed inset-x-0 top-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-canvas pt-[env(safe-area-inset-top)]"
+          style={vh ? { height: vh } : undefined}
+        >
           {/* 상단 뒤로가기 */}
           <div className="sticky top-0 z-10 bg-canvas/90 px-3 py-3 backdrop-blur">
             <button
