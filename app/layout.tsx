@@ -28,7 +28,7 @@ const FONT_CSS =
 // 스타일시트가 오기 전에도 배경이 흰색으로 칠해지도록 최소한의 색만 인라인으로.
 // (globals.css는 별도 파일이라 로드 전 한 프레임 동안 기기 기본색 = 다크모드면 검정)
 // alive-dot: 스플래시 로딩 인디케이터 점 애니메이션
-const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{background:#f7f8fa;color:#0f172a;margin:0;padding:0}@keyframes alive-dot{0%,80%,100%{transform:scale(.5);opacity:.2}40%{transform:scale(1);opacity:.75}}`;
+const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{background:#f7f8fa;color:#0f172a;margin:0;padding:0}`;
 
 // (1) 마지막으로 본 강조색을 즉시 칠해 깜빡임 방지
 // (2) 폰트 <link>를 media="print"로 받아 렌더를 막지 않다가, 다 받으면 media="all"로 전환.
@@ -78,25 +78,10 @@ export default function RootLayout({
             pointerEvents: "none",
           }}
         >
-          {/* 시각적 중심: 로고를 수학적 중심보다 ~6vh 위로 */}
-          <div style={{ transform: "translateY(-6vh)", display: "flex", flexDirection: "column", alignItems: "center", gap: "32px" }}>
+          {/* 시각적 중심: 로고를 수학적 중심보다 ~6vh 위, 1px 오른쪽 */}
+          <div style={{ transform: "translate(1px, -6vh)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/wordmark.png" alt="ALIVE" style={{ width: "min(180px, 48vw)", display: "block" }} />
-            {/* 로딩 인디케이터: 3개 점이 차례로 팝업 */}
-            <div style={{ display: "flex", gap: "9px" }}>
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: "50%",
-                    background: "rgb(var(--accent,124 58 237)/0.4)",
-                    animation: `alive-dot 1.3s ease-in-out ${i * 0.22}s infinite both`,
-                  }}
-                />
-              ))}
-            </div>
           </div>
         </div>
         <AuthProvider>
