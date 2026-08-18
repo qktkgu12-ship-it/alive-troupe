@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { disablePush, enablePush, pushEnabledHere, pushPermission, pushSupported } from "@/lib/push";
+import { disablePush, enablePush, pushEnabledHere, pushPermission, pushSupported, pushTest } from "@/lib/push";
 
 type State = "loading" | "unsupported" | "blocked" | "off" | "on";
 
@@ -32,6 +32,8 @@ export default function PushToggle({
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
   const [needsInstall, setNeedsInstall] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -90,8 +92,19 @@ export default function PushToggle({
     );
   }
 
+  async function runTest() {
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      setTestMsg(await pushTest());
+    } finally {
+      setTesting(false);
+    }
+  }
+
   const on = state === "on";
   return (
+    <div className="space-y-3">
     <Row
       title="푸시 알림"
       desc={
@@ -121,6 +134,25 @@ export default function PushToggle({
         />
       </button>
     </Row>
+
+      {/* 켜져 있을 때만 — 실제로 도착하는지 확인하는 용도 */}
+      {on && (
+        <div className="border-t border-slate-100 pt-3">
+          <button
+            onClick={runTest}
+            disabled={testing}
+            className="text-xs font-semibold text-accent hover:underline disabled:opacity-50"
+          >
+            {testing ? "보내는 중…" : "테스트 알림 보내기"}
+          </button>
+          {testMsg && (
+            <p className={`mt-1.5 text-xs leading-relaxed ${testMsg.ok ? "text-slate-500" : "text-red-500"}`}>
+              {testMsg.message}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

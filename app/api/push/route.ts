@@ -7,6 +7,7 @@
 //   all    — 알림 켠 단원 전체.        정단원 이상만 요청 가능
 //   uids   — 지정한 단원들에게만.       정단원 이상만 요청 가능 (최대 100명)
 //   admins — 관리자에게만.             누구나 가능하되 문구를 서버가 고정 (가입 신청용)
+//   self   — 나에게만.                  설정이 제대로 됐는지 확인하는 테스트용
 
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb, adminMessaging } from "@/lib/firebase-admin";
@@ -21,7 +22,7 @@ const MAX_TARGETS = 100; // 지정 발송 인원 상한
 const MAX_TITLE = 100;
 const MAX_BODY = 300;
 
-type Audience = "all" | "uids" | "admins";
+type Audience = "all" | "uids" | "admins" | "self";
 
 interface Body {
   audience?: Audience;
@@ -90,6 +91,10 @@ export async function POST(req: Request) {
     title = "새 가입 신청";
     body = "승인을 기다리는 단원이 있어요.";
     href = "/admin";
+  } else if (audience === "self") {
+    title = "테스트 알림";
+    body = "이 알림이 보이면 설정이 잘 된 거예요 🎉";
+    href = "/";
   } else if (!isMember) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -98,11 +103,14 @@ export async function POST(req: Request) {
 
   // ---- 4. 받을 사람 정하기 ----
   const exclude = new Set(payload.exclude ?? []);
-  exclude.add(uid); // 보낸 사람에게는 항상 안 보낸다
+  // 테스트는 나에게 보내는 것이 목적이므로 본인 제외를 적용하지 않는다
+  if (audience !== "self") exclude.add(uid);
 
   let allowUids: Set<string>;
 
-  if (audience === "uids") {
+  if (audience === "self") {
+    allowUids = new Set([uid]);
+  } else if (audience === "uids") {
     const to = (payload.to ?? []).filter((t) => typeof t === "string" && t);
     if (to.length === 0) return NextResponse.json({ sent: 0 });
     if (to.length > MAX_TARGETS) return NextResponse.json({ error: "too-many-targets" }, { status: 400 });

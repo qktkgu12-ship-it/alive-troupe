@@ -169,6 +169,51 @@ export async function pushSignupRequest(): Promise<void> {
   await send({ audience: "admins", title: "", body: "" });
 }
 
+/**
+ * 나에게 테스트 알림을 보낸다. 설정이 어디서 막혔는지 알아야 하므로
+ * 다른 함수와 달리 결과·오류를 그대로 돌려준다.
+ */
+export async function pushTest(): Promise<{ ok: boolean; message: string }> {
+  const u = auth.currentUser;
+  if (!u) return { ok: false, message: "로그인이 필요해요." };
+
+  if (!(await pushSupported())) {
+    return { ok: false, message: "이 브라우저에서는 알림을 쓸 수 없어요. (VAPID 키 미등록일 수도 있어요)" };
+  }
+  if (pushPermission() !== "granted") {
+    return { ok: false, message: "알림 권한이 없어요. 먼저 스위치를 켜 주세요." };
+  }
+  if (!pushEnabledHere()) {
+    return { ok: false, message: "이 기기가 등록되지 않았어요. 스위치를 껐다 켜 보세요." };
+  }
+
+  try {
+    const res = await fetch("/api/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${await u.getIdToken()}`,
+      },
+      body: JSON.stringify({ audience: "self", title: "", body: "" }),
+    });
+
+    if (res.status === 503) {
+      return { ok: false, message: "서버에 서비스 계정 키(FIREBASE_SERVICE_ACCOUNT)가 없어요. Vercel 환경변수를 확인해 주세요." };
+    }
+    if (res.status === 401) return { ok: false, message: "로그인 정보가 만료됐어요. 새로고침 후 다시 시도해 주세요." };
+    if (res.status === 403) return { ok: false, message: "발송 권한이 없어요." };
+    if (!res.ok) return { ok: false, message: `발송에 실패했어요. (오류 ${res.status})` };
+
+    const data = (await res.json()) as { sent?: number };
+    if (!data.sent) {
+      return { ok: false, message: "보낼 기기를 찾지 못했어요. 스위치를 껐다 켜 보세요." };
+    }
+    return { ok: true, message: "보냈어요! 잠시 뒤 알림이 뜹니다." };
+  } catch {
+    return { ok: false, message: "서버에 연결하지 못했어요." };
+  }
+}
+
 /** 실제 요청. 알림 발송 실패가 본래 작업(글 등록 등)을 막으면 안 되므로 절대 throw하지 않는다. */
 async function send(payload: Record<string, unknown>): Promise<void> {
   try {
