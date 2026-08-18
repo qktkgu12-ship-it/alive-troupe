@@ -10,6 +10,7 @@ import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
 import BottomSheet from "@/components/BottomSheet";
 import { useCreateSheet, type CreateKind } from "@/lib/create-sheet-context";
+import PushOnboard from "@/components/PushOnboard";
 
 const NAV = [
   { href: "/", label: "홈", admin: false },
@@ -371,6 +372,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+
+      {/* 첫 실행 시 푸시 알림 안내 모달 */}
+      <PushOnboard />
     </div>
   );
 }
