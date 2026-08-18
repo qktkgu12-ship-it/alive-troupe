@@ -86,6 +86,10 @@ export default function PostEditorSheet({
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const sizeBtnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [sizeLeft, setSizeLeft] = useState(0);
   const savedRange = useRef<Range | null>(null);
 
   const [board, setBoard] = useState("");
@@ -99,6 +103,11 @@ export default function PostEditorSheet({
 
   // 열려 있는 패널: 글자서식 / 더보기
   const [panel, setPanel] = useState<null | "text" | "more">(null);
+  // 지금 글자 크기 (버튼에는 이것만 보이고, 누르면 목록이 펼쳐진다)
+  const [fontSize, setFontSize] = useState("3");
+  const [sizeOpen, setSizeOpen] = useState(false);
+  // 아래에서 올라오는 애니메이션
+  const [enter, setEnter] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
 
@@ -196,7 +205,21 @@ export default function PostEditorSheet({
       setPanel(null);
       setOptionsOpen(false);
       setPollOpen(false);
+      setSizeOpen(false);
+      setEnter(false);
     }
+  }, [open]);
+
+  // 아래에서 미끄러져 올라온 뒤 곧바로 키보드를 띄운다
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => setEnter(true));
+    // 시트가 다 올라온 뒤 포커스를 줘야 키보드가 화면을 밀지 않는다
+    const t = setTimeout(() => titleRef.current?.focus(), 380);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
   }, [open]);
 
   /* ── 본문 편집 도구 ─────────────────────────────── */
@@ -338,7 +361,7 @@ export default function PostEditorSheet({
         clearSearchCache();
         const cb = (target as { onSaved?: (p: Post) => void }).onSaved;
         cb?.({ ...editing, ...update } as Post);
-        onClose();
+        close();
       } else {
         const id = crypto.randomUUID();
         const post: Omit<Post, "id"> = {
@@ -370,7 +393,7 @@ export default function PostEditorSheet({
         } catch {
           /* 무시 */
         }
-        onClose();
+        close();
         router.push(`/board/${id}`);
       }
     } catch {
@@ -388,7 +411,13 @@ export default function PostEditorSheet({
     }
     const dirty = title.trim() || htmlToText(bodyRef.current?.innerHTML || "").trim();
     if (dirty && !confirm("작성 중인 내용이 사라져요. 나갈까요?")) return;
-    onClose();
+    close();
+  }
+
+  // 아래로 미끄러져 내려간 다음 닫는다
+  function close() {
+    setEnter(false);
+    setTimeout(onClose, 260);
   }
 
   if (!open) return null;
@@ -417,165 +446,236 @@ export default function PostEditorSheet({
     </button>
   );
 
+  const sizeLabel = FONT_SIZES.find((f) => f.value === fontSize)?.label ?? "보통";
+
   return (
-    <div
-      className="fixed inset-x-0 top-0 z-[80] flex flex-col bg-canvas"
-      style={{ height: vh ?? "100dvh", paddingTop: "env(safe-area-inset-top)" }}
-    >
-      {/* ── 상단: 취소 · 게시판 · 등록 ── */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-2">
-        <button
-          onClick={handleCancel}
-          className="grid h-10 min-w-[52px] place-items-center rounded-xl px-2 text-[15px] font-semibold text-slate-600 active:bg-slate-100"
-          aria-label={kbOpen ? "키보드 내리기" : "취소"}
-        >
-          {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : "취소"}
-        </button>
+    <div className="fixed inset-0 z-[80]">
+      {/* 뒷배경 — 시트가 올라오면서 같이 어두워진다 */}
+      <div
+        className="absolute inset-0 bg-slate-900/30 transition-opacity duration-300"
+        style={{ opacity: enter ? 1 : 0 }}
+        aria-hidden
+      />
 
-        <button
-          onClick={() => {
-            (document.activeElement as HTMLElement | null)?.blur();
-            setOptionsOpen(true);
-          }}
-          className="flex min-w-0 items-center gap-1 rounded-xl px-2 py-1.5 active:bg-slate-100"
-        >
-          <span className="truncate text-[17px] font-bold text-slate-900">{board || "게시판"}</span>
-          <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-500" />
-        </button>
+      {/*
+       * 시트 본체 — 아래에서 위로 올라온다.
+       * 화면을 끝까지 덮으므로 키보드가 올라와도 뒤 페이지가 비치지 않는다.
+       */}
+      <div
+        className="absolute inset-0 flex flex-col bg-canvas"
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          transform: enter ? "translateY(0)" : "translateY(100%)",
+          transition: "transform 340ms cubic-bezier(0.32, 0.94, 0.28, 1)",
+        }}
+      >
+        {/* ── 상단: 취소 · 게시판 · 등록 ── */}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-2">
+          <button
+            onClick={handleCancel}
+            className="grid h-10 min-w-[52px] place-items-center rounded-xl px-2 text-[15px] font-semibold text-slate-600 active:bg-slate-100"
+            aria-label={kbOpen ? "키보드 내리기" : "취소"}
+          >
+            {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : "취소"}
+          </button>
 
-        <button
-          onClick={submit}
-          disabled={busy}
-          className="grid h-10 min-w-[52px] place-items-center rounded-xl px-2 text-[15px] font-bold text-accent active:bg-slate-100 disabled:text-slate-300"
-        >
-          {busy ? <Spinner className="h-5 w-5" /> : editing ? "수정" : "등록"}
-        </button>
-      </header>
+          <button
+            onClick={() => {
+              (document.activeElement as HTMLElement | null)?.blur();
+              setOptionsOpen(true);
+            }}
+            className="flex min-w-0 items-center gap-1 rounded-xl px-2 py-1.5 active:bg-slate-100"
+          >
+            <span className="truncate text-[17px] font-bold text-slate-900">{board || "게시판"}</span>
+            <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-500" />
+          </button>
 
-      {/* ── 본문 ── */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4" onClick={() => setPanel(null)}>
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="grid h-10 min-w-[52px] place-items-center rounded-xl px-2 text-[15px] font-bold text-accent active:bg-slate-100 disabled:text-slate-300"
+          >
+            {busy ? <Spinner className="h-5 w-5" /> : editing ? "수정" : "등록"}
+          </button>
+        </header>
+
+        {/* ── 제목 ── */}
         <input
+          ref={titleRef}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목"
-          className="w-full border-b border-slate-100 bg-transparent py-4 text-[22px] font-bold outline-none placeholder:text-slate-300"
+          className="w-full shrink-0 border-b border-slate-100 bg-transparent px-4 py-4 text-[22px] font-bold outline-none placeholder:text-slate-300"
         />
+
+        {/* ── 툴바 (제목 바로 아래) ── */}
+        <div className="relative z-10 flex h-[52px] shrink-0 items-center gap-0.5 border-b border-slate-200 bg-white px-2">
+          <ToolBtn onClick={() => fileRef.current?.click()} label="사진 추가">
+            {imgBusy ? <Spinner className="h-5 w-5" /> : <CameraIcon className="h-[22px] w-[22px]" />}
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => { setSizeOpen(false); setPanel((p) => (p === "text" ? null : "text")); }}
+            label="글자 서식"
+            active={panel === "text"}
+          >
+            <TextIcon className="h-[21px] w-[21px]" />
+          </ToolBtn>
+          {/* 정렬 — 누를 때마다 왼쪽→가운데→오른쪽, 글 전체가 바로 바뀐다 */}
+          <ToolBtn
+            onClick={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
+            label={`정렬 (지금 ${align === "left" ? "왼쪽" : align === "center" ? "가운데" : "오른쪽"})`}
+          >
+            <AlignIcon align={align} className="h-[21px] w-[21px]" />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => { setSizeOpen(false); setPanel((p) => (p === "more" ? null : "more")); }}
+            label="더보기"
+            active={panel === "more"}
+          >
+            <DotsIcon className="h-[21px] w-[21px]" />
+          </ToolBtn>
+
+          <button
+            onClick={saveDraft}
+            className="ml-auto rounded-xl px-3 py-2 text-[15px] font-semibold text-slate-500 active:bg-slate-100"
+          >
+            저장
+          </button>
+        </div>
+
+        {/* ── 툴바 아래로 미끄러져 내려오는 하위 툴바 ──
+             글을 쓰는 동안에도 닫히지 않고 그대로 남는다 */}
         <div
-          ref={bodyRef}
-          contentEditable
-          suppressContentEditableWarning
-          onKeyUp={rememberCaret}
-          onMouseUp={rememberCaret}
-          onInput={rememberCaret}
-          data-placeholder="내용을 입력하세요"
-          style={{ textAlign: align }}
-          className="rich min-h-[45vh] w-full py-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
+          ref={panelRef}
+          className="relative shrink-0 overflow-visible bg-white transition-[height] duration-250 ease-out"
+          style={{ height: panel ? 52 : 0 }}
+        >
+          <div className="h-[52px] overflow-hidden border-b border-slate-100">
+            {panel === "text" && (
+              <div className="flex h-[52px] items-center gap-0.5 overflow-x-auto px-2">
+                <ToolBtn onClick={() => cmd("bold")} label="굵게"><span className="text-[16px] font-bold">B</span></ToolBtn>
+                <ToolBtn onClick={() => cmd("italic")} label="기울임"><span className="font-serif text-[16px] italic">I</span></ToolBtn>
+                <ToolBtn onClick={() => cmd("underline")} label="밑줄"><span className="text-[16px] underline">U</span></ToolBtn>
+                <ToolBtn onClick={() => cmd("strikeThrough")} label="취소선"><span className="text-[16px] line-through">S</span></ToolBtn>
+                <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
+                {/* 글자 크기 — 지금 크기만 보이고, 누르면 목록이 펼쳐진다 */}
+                <button
+                  ref={sizeBtnRef}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    // 버튼이 지금 있는 자리 바로 아래에 목록을 편다
+                    const b = sizeBtnRef.current?.getBoundingClientRect();
+                    const p = panelRef.current?.getBoundingClientRect();
+                    if (b && p) setSizeLeft(Math.max(8, Math.min(b.left - p.left, p.width - 120)));
+                    setSizeOpen((v) => !v);
+                  }}
+                  className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition ${
+                    sizeOpen ? "bg-slate-900/[0.07] text-slate-900" : "text-slate-600 active:bg-slate-100"
+                  }`}
+                >
+                  {sizeLabel}
+                  <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${sizeOpen ? "rotate-180" : ""}`} />
+                </button>
+                <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
+                <ToolBtn onClick={() => cmd("insertUnorderedList")} label="목록"><ListBulletIcon className="h-[19px] w-[19px]" /></ToolBtn>
+                <ToolBtn onClick={() => cmd("insertOrderedList")} label="번호 목록"><ListOrderedIcon className="h-[19px] w-[19px]" /></ToolBtn>
+                <ToolBtn onClick={() => cmd("formatBlock", "blockquote")} label="인용"><QuoteIcon className="h-[19px] w-[19px]" /></ToolBtn>
+              </div>
+            )}
+
+            {panel === "more" && (
+              <div className="flex h-[52px] items-center gap-1 px-2">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const url = prompt("링크 주소(https://...)를 입력하세요");
+                    if (!url) return;
+                    if (!/^https?:\/\//i.test(url)) {
+                      alert("http(s) 주소만 넣을 수 있어요.");
+                      return;
+                    }
+                    cmd("createLink", url);
+                  }}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
+                >
+                  <LinkIcon className="h-[18px] w-[18px]" /> 링크
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    (document.activeElement as HTMLElement | null)?.blur();
+                    setPollOpen(true);
+                  }}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
+                >
+                  <PollIcon className="h-[18px] w-[18px]" /> 투표
+                  {pollOn && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-fg">켜짐</span>}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 글자 크기 드롭다운 */}
+          {panel === "text" && sizeOpen && (
+            <div
+              className="absolute top-[46px] z-20 min-w-[112px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              style={{ left: sizeLeft }}
+            >
+              {FONT_SIZES.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setFontSize(f.value);
+                    cmd("fontSize", f.value);
+                    setSizeOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] ${
+                    f.value === fontSize ? "font-bold text-accent" : "font-medium text-slate-700"
+                  }`}
+                >
+                  {f.value === fontSize ? <CheckIcon className="h-3.5 w-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── 본문 ──
+             남은 자리를 전부 차지해서, 키보드가 올라와도 뒤가 비치지 않는다 */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-canvas px-4">
+          <div
+            ref={bodyRef}
+            contentEditable
+            suppressContentEditableWarning
+            onKeyUp={rememberCaret}
+            onMouseUp={rememberCaret}
+            onInput={() => {
+              rememberCaret();
+              setSizeOpen(false);
+            }}
+            data-placeholder="내용을 입력하세요"
+            style={{ textAlign: align }}
+            className="rich min-h-[70vh] w-full py-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
+          />
+          {/* 키보드가 내려가 있을 때도 아래가 흰 화면으로 이어지도록 */}
+          <div className="h-[40vh]" />
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => onFiles(e.target.files)}
         />
-        <div className="h-10" />
       </div>
-
-      {/* ── 툴바 위로 미끄러져 올라오는 패널 ── */}
-      <div
-        className="shrink-0 overflow-hidden border-t border-slate-100 bg-white transition-[height] duration-250 ease-out"
-        style={{ height: panel ? 52 : 0 }}
-      >
-        {panel === "text" && (
-          <div className="flex h-[52px] items-center gap-0.5 overflow-x-auto px-2">
-            <ToolBtn onClick={() => cmd("bold")} label="굵게"><span className="text-[16px] font-bold">B</span></ToolBtn>
-            <ToolBtn onClick={() => cmd("italic")} label="기울임"><span className="font-serif text-[16px] italic">I</span></ToolBtn>
-            <ToolBtn onClick={() => cmd("underline")} label="밑줄"><span className="text-[16px] underline">U</span></ToolBtn>
-            <ToolBtn onClick={() => cmd("strikeThrough")} label="취소선"><span className="text-[16px] line-through">S</span></ToolBtn>
-            <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
-            {FONT_SIZES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => cmd("fontSize", s.value)}
-                className="shrink-0 rounded-xl px-2.5 py-2 text-[13px] font-semibold text-slate-600 active:bg-slate-100"
-              >
-                {s.label}
-              </button>
-            ))}
-            <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
-            <ToolBtn onClick={() => cmd("insertUnorderedList")} label="목록"><ListBulletIcon className="h-[19px] w-[19px]" /></ToolBtn>
-            <ToolBtn onClick={() => cmd("insertOrderedList")} label="번호 목록"><ListOrderedIcon className="h-[19px] w-[19px]" /></ToolBtn>
-            <ToolBtn onClick={() => cmd("formatBlock", "blockquote")} label="인용"><QuoteIcon className="h-[19px] w-[19px]" /></ToolBtn>
-          </div>
-        )}
-
-        {panel === "more" && (
-          <div className="flex h-[52px] items-center gap-1 px-2">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                const url = prompt("링크 주소(https://...)를 입력하세요");
-                if (!url) return;
-                if (!/^https?:\/\//i.test(url)) {
-                  alert("http(s) 주소만 넣을 수 있어요.");
-                  return;
-                }
-                cmd("createLink", url);
-              }}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
-            >
-              <LinkIcon className="h-[18px] w-[18px]" /> 링크
-            </button>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                (document.activeElement as HTMLElement | null)?.blur();
-                setPollOpen(true);
-              }}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
-            >
-              <PollIcon className="h-[18px] w-[18px]" /> 투표
-              {pollOn && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-fg">켜짐</span>}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── 툴바 ── */}
-      <div
-        className="flex h-[52px] shrink-0 items-center gap-0.5 border-t border-slate-200 bg-white px-2"
-        style={{ paddingBottom: kbOpen ? 0 : "env(safe-area-inset-bottom)", height: kbOpen ? 52 : undefined }}
-      >
-        <ToolBtn onClick={() => fileRef.current?.click()} label="사진 추가">
-          {imgBusy ? <Spinner className="h-5 w-5" /> : <CameraIcon className="h-[22px] w-[22px]" />}
-        </ToolBtn>
-        <ToolBtn onClick={() => setPanel((p) => (p === "text" ? null : "text"))} label="글자 서식" active={panel === "text"}>
-          <TextIcon className="h-[21px] w-[21px]" />
-        </ToolBtn>
-        {/* 정렬 — 누를 때마다 왼쪽→가운데→오른쪽, 글 전체가 바로 바뀐다 */}
-        <ToolBtn
-          onClick={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
-          label={`정렬 (지금 ${align === "left" ? "왼쪽" : align === "center" ? "가운데" : "오른쪽"})`}
-        >
-          <AlignIcon align={align} className="h-[21px] w-[21px]" />
-        </ToolBtn>
-        <ToolBtn onClick={() => setPanel((p) => (p === "more" ? null : "more"))} label="더보기" active={panel === "more"}>
-          <DotsIcon className="h-[21px] w-[21px]" />
-        </ToolBtn>
-
-        <button
-          onClick={saveDraft}
-          className="ml-auto rounded-xl px-3 py-2 text-[15px] font-semibold text-slate-500 active:bg-slate-100"
-        >
-          저장
-        </button>
-      </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => onFiles(e.target.files)}
-      />
 
       {/* ── 게시판 종류 · 태그 · 공지 ── */}
       <BottomSheet open={optionsOpen} title="글 설정" onClose={() => setOptionsOpen(false)}>
