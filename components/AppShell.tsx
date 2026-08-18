@@ -359,7 +359,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </BottomSheet>
 
-      <main className="mx-auto max-w-5xl px-4 py-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
+      <main className="mx-auto max-w-5xl px-4 py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8">
         {children}
       </main>
 

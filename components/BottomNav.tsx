@@ -59,14 +59,14 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 md:hidden"
-      // 화면 끝~바 간격과 바~홈 인디케이터 간격을 같게 맞춘다.
-      // 세이프 영역(34px)을 그대로 쓰면 너무 뜨므로 좌우 여백만큼 덜어낸다.
-      style={{ paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom) - 0.5rem))" }}
+      // 아래 수치는 인스타그램 하단 바를 같은 기기 스크린샷으로 재서 맞춘 값이다.
+      //   좌우 여백 28 · 바 높이 52 · 아이콘 중심 간격 65 · 바닥에서 30
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-7 md:hidden"
+      style={{ paddingBottom: "max(0.875rem, calc(env(safe-area-inset-bottom) - 0.25rem))" }}
     >
       {/* 떠 있는 알약 모양 바 — 뒤가 비쳐 보이도록 반투명 + 강한 블러 */}
       <div
-        className="pointer-events-auto relative mx-auto flex h-[60px] max-w-md items-center rounded-full border border-white/70 px-2"
+        className="pointer-events-auto relative mx-auto flex h-[52px] max-w-md items-center rounded-full border border-white/70 px-1"
         style={{
           background: "rgb(255 255 255 / 0.62)",
           backdropFilter: "blur(20px) saturate(180%)",
@@ -77,9 +77,9 @@ export default function BottomNav() {
         {/* 미끄러지는 회색 알약 — 칸 하나 너비만큼 이동한다 */}
         <span
           aria-hidden
-          className="pointer-events-none absolute left-2 top-1/2 h-[46px] rounded-full bg-slate-900/[0.07]"
+          className="pointer-events-none absolute left-1 top-1/2 h-[44px] rounded-full bg-slate-900/[0.07]"
           style={{
-            width: `calc((100% - 1rem) / ${n})`,
+            width: `calc((100% - 0.5rem) / ${n})`,
             transform: `translate(${idx * 100}%, -50%)`,
             opacity: idx < 0 ? 0 : 1,
             // 살짝 튕기는 느낌 — 끝에서 아주 조금 지나쳤다가 자리를 잡는다
@@ -99,8 +99,11 @@ export default function BottomNav() {
               aria-current={on ? "page" : undefined}
               className="relative z-10 grid flex-1 place-items-center py-2"
             >
+              {/* 우리 글리프는 24 틀 안에서 3~21만 쓰므로, 인스타그램과 같은
+                  광학 크기(약 21)를 내려면 28로 그려야 한다.
+                  선 굵기는 CSS로 올린다 (속성보다 CSS가 우선한다) */}
               <Glyph
-                className={`h-[25px] w-[25px] transition-colors duration-200 ${
+                className={`h-7 w-7 transition-colors duration-200 [stroke-width:2] ${
                   on ? "text-slate-900" : "text-slate-400"
                 }`}
               />
