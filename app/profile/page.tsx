@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import Avatar from "@/components/Avatar";
+import PushToggle from "@/components/PushToggle";
 import { compressImage } from "@/components/ImagePicker";
 
 function ProfileInner() {
@@ -109,6 +110,11 @@ function ProfileInner() {
         <button onClick={save} disabled={busy} className="btn-accent w-full">
           {busy ? "저장 중…" : saved ? "저장됐어요 ✓" : "저장"}
         </button>
+      </div>
+
+      {/* 알림 설정 — 기기마다 따로 켜야 하므로 프로필 저장과 분리 */}
+      <div className="card">
+        <PushToggle />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
 import { useRef, useState } from "react";
 import { doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { pushToAll } from "@/lib/push";
 import { useTheme } from "@/lib/theme-context";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
@@ -62,6 +63,14 @@ export default function EventForm({
         await updateDoc(doc(db, "events", eventId), data);
       } else {
         await setDoc(doc(db, "events", crypto.randomUUID()), { ...data, createdAt: Date.now() });
+        // 새 일정만 알린다 (수정할 때마다 울리면 피곤하다)
+        const when = [date, startTime].filter(Boolean).join(" ");
+        void pushToAll({
+          title: "새 일정이 등록됐어요",
+          body: [when, data.title].filter(Boolean).join(" · "),
+          href: `/schedule?tab=events&date=${date}`,
+          tag: "event",
+        });
       }
       onSaved({ date, startTime, endTime, title: title.trim(), team: finalTeam });
     } finally {

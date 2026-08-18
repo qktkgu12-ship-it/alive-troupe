@@ -1,0 +1,163 @@
+// 푸시 알림 (Firebase Cloud Messaging) — 브라우저 쪽
+//
+// 흐름
+//  1) 단원이 '알림 켜기'를 누름 → 브라우저 권한 요청
+//  2) 허용하면 이 기기의 토큰(FCM token)을 발급받아 Firestore에 저장
+//  3) 관리자가 공지·일정을 올리면 서버(/api/push)가 저장된 토큰으로 발송
+//
+// 토큰은 '사람'이 아니라 '기기+브라우저' 단위다. 한 단원이 폰과 PC를 쓰면 토큰이 둘이다.
+
+import { deleteDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { getMessaging, getToken, isSupported, onMessage, type Messaging } from "firebase/messaging";
+import app, { auth, db } from "./firebase";
+
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? "";
+
+// 이 기기의 토큰을 기억해 둔다 (알림을 끌 때 어떤 문서를 지울지 알아야 하므로)
+const TOKEN_KEY = "alive-push-token";
+
+/** 이 브라우저가 푸시를 지원하는가 (iOS는 홈 화면에 설치해야만 가능) */
+export async function pushSupported(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return false;
+  if (!VAPID_KEY) return false;
+  try {
+    return await isSupported();
+  } catch {
+    return false;
+  }
+}
+
+/** 현재 알림 권한 상태 */
+export function pushPermission(): NotificationPermission | "unsupported" {
+  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+  return Notification.permission;
+}
+
+async function messagingOrNull(): Promise<Messaging | null> {
+  try {
+    return getMessaging(app);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 알림 켜기. 권한을 요청하고 토큰을 받아 Firestore에 저장한다.
+ * @returns 성공 여부
+ */
+export async function enablePush(uid: string): Promise<boolean> {
+  if (!(await pushSupported())) return false;
+
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") return false;
+
+  // 서비스 워커가 준비돼야 토큰을 받을 수 있다
+  const reg = await navigator.serviceWorker.ready;
+  const messaging = await messagingOrNull();
+  if (!messaging) return false;
+
+  const token = await getToken(messaging, {
+    vapidKey: VAPID_KEY,
+    serviceWorkerRegistration: reg,
+  });
+  if (!token) return false;
+
+  // 문서 ID = 토큰. 같은 기기에서 다시 켜도 문서가 하나로 유지된다.
+  await setDoc(doc(db, "fcmTokens", token), {
+    uid,
+    ua: navigator.userAgent.slice(0, 200),
+    createdAt: serverTimestamp(),
+  });
+
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    /* 무시 */
+  }
+  return true;
+}
+
+/** 알림 끄기. 이 기기의 토큰 문서를 지운다. (브라우저 권한 자체는 설정에서만 취소 가능) */
+export async function disablePush(): Promise<void> {
+  let token = "";
+  try {
+    token = localStorage.getItem(TOKEN_KEY) ?? "";
+  } catch {
+    /* 무시 */
+  }
+  if (!token) return;
+  try {
+    await deleteDoc(doc(db, "fcmTokens", token));
+  } catch {
+    /* 이미 없으면 무시 */
+  }
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* 무시 */
+  }
+}
+
+/** 이 기기에서 알림을 켜 둔 상태인가 */
+export function pushEnabledHere(): boolean {
+  if (typeof window === "undefined") return false;
+  if (pushPermission() !== "granted") return false;
+  try {
+    return !!localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 앱을 보고 있는 동안 도착한 알림을 처리한다.
+ * (백그라운드는 서비스 워커가 맡고, 이건 화면이 켜져 있을 때만)
+ */
+export async function onForegroundPush(cb: (n: { title: string; body: string; href: string }) => void) {
+  const messaging = await messagingOrNull();
+  if (!messaging) return () => {};
+  try {
+    return onMessage(messaging, (payload) => {
+      const d = payload.data ?? {};
+      const n = payload.notification ?? {};
+      cb({
+        title: n.title ?? d.title ?? "ALIVE",
+        body: n.body ?? d.body ?? "",
+        href: d.href ?? "/",
+      });
+    });
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * 관리자용 — 단원 전체에게 푸시 발송.
+ * 권한 확인은 서버가 하므로, 관리자가 아니면 조용히 무시된다.
+ * 보낸 사람 본인에게는 가지 않는다.
+ *
+ * 알림 발송이 실패해도 글·일정 등록 자체는 성공해야 하므로 절대 throw하지 않는다.
+ */
+export async function pushToAll(msg: {
+  title: string;
+  body: string;
+  href?: string;
+  tag?: string;
+}): Promise<void> {
+  try {
+    const u = auth.currentUser;
+    if (!u) return;
+    const idToken = await u.getIdToken();
+    await fetch("/api/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ ...msg, exclude: [u.uid] }),
+    });
+  } catch {
+    /* 알림은 부가 기능이므로 실패해도 넘어간다 */
+  }
+}

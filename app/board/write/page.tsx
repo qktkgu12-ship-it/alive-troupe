@@ -13,6 +13,7 @@ import Select from "@/components/Select";
 import RichEditor from "@/components/RichEditor";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { clearSearchCache } from "@/lib/search";
+import { pushToAll } from "@/lib/push";
 import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -155,6 +156,15 @@ function WriteInner() {
         await setDoc(doc(db, "postMedia", id), { images, authorUid: user?.uid });
       }
       clearSearchCache(); // 방금 쓴 글이 검색에 바로 잡히도록
+      // 공지만 푸시로 알린다. 일반 글까지 울리면 알림이 너무 잦다.
+      if (post.isNotice) {
+        void pushToAll({
+          title: "📢 새 공지",
+          body: post.title,
+          href: `/board/${id}`,
+          tag: "notice",
+        });
+      }
       clearDraft();
       router.replace(`/board/${id}`);
     } finally {
