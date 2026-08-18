@@ -68,6 +68,25 @@ body {
   }
 }
 
+/* 게시글 에디터 스크롤바 — 얇고 둥근 인디케이터 */
+.editor-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.editor-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.editor-scroll::-webkit-scrollbar-thumb:active {
+  background: rgba(0, 0, 0, 0.3);
+}
+.editor-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
 /* 리치 본문(에디터/표시 공용) 서식 */
 .rich {
   word-break: break-word;

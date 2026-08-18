@@ -692,7 +692,7 @@ export default function PostEditorSheet({
 
         {/* ── 본문 ──
              남은 자리를 전부 차지해서, 키보드가 올라와도 뒤가 비치지 않는다 */}
-        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4">
+        <div className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4">
           <div
             ref={bodyRef}
             contentEditable
