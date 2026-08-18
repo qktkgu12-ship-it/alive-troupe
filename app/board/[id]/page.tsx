@@ -17,6 +17,7 @@ import { CommentIcon, EyeIcon, HeartIcon, PencilIcon, TrashIcon } from "@/compon
 import { relativeTime } from "@/lib/utils";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { clearSearchCache } from "@/lib/search";
+import { pushToUsers } from "@/lib/push";
 import { boardCategoryLabel, type Comment, type Post, type PostMedia, type PollVote } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
@@ -186,9 +187,30 @@ function PostDetailInner() {
       });
       await updateDoc(doc(db, "posts", id), { commentCount: increment(1) }).catch(() => {});
       await loadComments();
+      notifyComment(text.trim(), !!parentId);
     } finally {
       setCommentBusy(false);
     }
+  }
+
+  // 댓글이 달렸음을 관련된 사람들에게 알린다.
+  //  - 글쓴이 (내 글에 댓글)
+  //  - 이미 이 글에 댓글을 단 사람들 (대화에 참여 중이므로)
+  // 보낸 사람 본인은 서버가 알아서 제외한다.
+  function notifyComment(text: string, isReply: boolean) {
+    if (!post) return;
+    const targets = [post.authorUid, ...comments.map((c) => c.authorUid)].filter(
+      (u): u is string => !!u && u !== user?.uid
+    );
+    if (targets.length === 0) return;
+    const who = profile?.name || profile?.displayName || "누군가";
+    void pushToUsers(targets, {
+      title: isReply ? `${who}님이 답글을 남겼어요` : `${who}님이 댓글을 남겼어요`,
+      body: text.length > 60 ? `${text.slice(0, 60)}…` : text,
+      href: `/board/${id}`,
+      // 글 단위로 묶어서, 댓글이 연달아 달려도 알림이 하나로 갱신되게 한다
+      tag: `comment-${id}`,
+    });
   }
 
   async function addComment() {

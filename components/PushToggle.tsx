@@ -22,7 +22,12 @@ function iosNeedsInstall(): boolean {
   return !standalone;
 }
 
-export default function PushToggle() {
+export default function PushToggle({
+  /** 승인 대기 화면에서는 받을 알림이 '승인 완료' 하나뿐이라 문구가 다르다 */
+  pending = false,
+}: {
+  pending?: boolean;
+} = {}) {
   const { user } = useAuth();
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
@@ -89,7 +94,15 @@ export default function PushToggle() {
   return (
     <Row
       title="푸시 알림"
-      desc={on ? "새 공지·일정이 올라오면 알려드려요." : "공지·일정 알림을 이 기기에서 받아볼까요?"}
+      desc={
+        pending
+          ? on
+            ? "승인되는 즉시 알려드릴게요."
+            : "승인되면 바로 알 수 있게 알림을 켜둘까요?"
+          : on
+            ? "새 공지·일정·댓글이 있으면 알려드려요."
+            : "공지·일정·댓글 알림을 이 기기에서 받아볼까요?"
+      }
     >
       <button
         role="switch"

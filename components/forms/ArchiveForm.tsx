@@ -7,6 +7,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useTheme } from "@/lib/theme-context";
 import Select from "@/components/Select";
+import { pushToUsers } from "@/lib/push";
 import type { ArchiveClip, ArchiveItem, ArchiveKind, Production } from "@/lib/types";
 
 // 오늘 날짜(YYYY-MM-DD, 로컬 기준)
@@ -102,6 +103,16 @@ export default function ArchiveForm({
           createdByName: author.name,
           createdAt: Date.now(),
         });
+        // 그 작품에 참여하는 단원에게만 알린다 (자료를 볼 수 있는 사람들)
+        const prod = productions.find((p) => p.id === productionId);
+        if (prod?.participants?.length) {
+          void pushToUsers(prod.participants, {
+            title: "새 영상이 올라왔어요",
+            body: [prod.name, fields.title].filter(Boolean).join(" · "),
+            href: "/archive",
+            tag: "archive",
+          });
+        }
       }
       onSaved();
     } finally {

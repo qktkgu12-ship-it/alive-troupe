@@ -10,6 +10,7 @@ import Spinner from "@/components/Spinner";
 import Avatar from "@/components/Avatar";
 import { ChevronDownIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import BottomSheet from "@/components/BottomSheet";
+import { pushToUsers } from "@/lib/push";
 import type { Production, Role, UserProfile } from "@/lib/types";
 
 // 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라)
@@ -99,7 +100,17 @@ function AdminInner() {
   }, [approved, memberSearch]);
 
   async function changeRole(uid: string, role: Role) {
+    const before = users.find((u) => u.uid === uid)?.role;
     await setDoc(doc(db, "users", uid), { role }, { merge: true });
+    // 승인 대기에서 정단원이 된 순간에만 알린다 (등급을 오갈 때마다 울리지 않도록)
+    if (before === "guest" && role !== "guest") {
+      void pushToUsers([uid], {
+        title: "가입이 승인됐어요 🎉",
+        body: "이제 ALIVE의 모든 기능을 이용할 수 있어요.",
+        href: "/",
+        tag: "approval",
+      });
+    }
     load();
   }
 

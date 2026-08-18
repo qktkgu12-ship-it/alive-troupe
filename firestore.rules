@@ -205,8 +205,10 @@ service cloud.firestore {
     match /fcmTokens/{token} {
       // 목록 조회는 서버만 하면 되므로 아무에게도 열지 않음
       allow read: if false;
-      allow create, update: if isMember() && request.resource.data.uid == request.auth.uid;
-      allow delete: if isAdmin() || (isMember() && resource.data.uid == request.auth.uid);
+      // 승인 대기(guest)도 '승인됐어요' 알림을 받으려면 토큰이 필요하다.
+      // 대신 서버가 전체 발송 때 미승인자를 걸러내므로 공지가 새지 않는다.
+      allow create, update: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
     }
 
     // ---------- 사이트 설정(테마) ----------

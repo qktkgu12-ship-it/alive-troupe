@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { pushSignupRequest } from "@/lib/push";
+import PushToggle from "@/components/PushToggle";
 import Spinner from "@/components/Spinner";
 
 export default function PendingPage() {
@@ -43,6 +45,17 @@ export default function PendingPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       await refreshProfile();
+      // 정보를 채워 넣은 시점 = 검토해 달라는 신호. 관리자에게 한 번만 알린다.
+      // (저장 버튼을 여러 번 눌러도 반복해서 울리지 않도록 표시를 남긴다)
+      const flag = `alive-signup-notified-${user.uid}`;
+      try {
+        if (!localStorage.getItem(flag)) {
+          localStorage.setItem(flag, "1");
+          void pushSignupRequest();
+        }
+      } catch {
+        /* 저장소를 못 써도 가입 자체는 진행 */
+      }
     } finally {
       setBusy(false);
     }
@@ -94,6 +107,11 @@ export default function PendingPage() {
         <button onClick={save} disabled={busy} className="btn-accent mt-5 w-full">
           {busy ? "저장 중…" : saved ? "저장됐어요 ✓" : "정보 저장하기"}
         </button>
+
+        {/* 승인되는 순간 바로 알 수 있도록, 대기 중에도 알림을 켤 수 있게 한다 */}
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <PushToggle pending />
+        </div>
 
         <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
           <span>{profile?.email}</span>

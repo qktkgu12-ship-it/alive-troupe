@@ -5,7 +5,8 @@
 // 서비스 워커는 하나만 둔다. FCM 전용 워커(firebase-messaging-sw.js)를 따로 등록하면
 // 같은 범위(/)를 두고 서로 덮어써서 캐싱이나 푸시 중 하나가 죽는다.
 
-export const dynamic = "force-static";
+// 서비스 워커는 항상 최신 내용이 내려가야 업데이트가 제때 반영된다
+export const dynamic = "force-dynamic";
 
 const CONFIG = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

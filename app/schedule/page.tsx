@@ -23,6 +23,7 @@ import Guard from "@/components/Guard";
 import BottomSheet from "@/components/BottomSheet";
 import EventForm from "@/components/forms/EventForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
+import { pushToAll, pushToUsers } from "@/lib/push";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
@@ -623,6 +624,20 @@ function CoordSection({
     setShowCreate(false);
     await loadCoords();
     setCreatedId(id);
+
+    // 가능한 날짜를 받아야 하므로, 대상자에게 바로 알린다.
+    // 대상을 지정했으면 그 사람들에게만, 아니면 단원 전체에게.
+    const msg = {
+      title: "새 일정방이 열렸어요",
+      body: `${fields.title} — 가능한 날짜를 알려주세요`,
+      href: `/schedule?tab=coord&coord=${id}`,
+      tag: "coord",
+    };
+    if (fields.participantUids && fields.participantUids.length > 0) {
+      void pushToUsers(fields.participantUids, msg);
+    } else {
+      void pushToAll(msg);
+    }
   }
 
   async function removeCoord(c: Coordination) {

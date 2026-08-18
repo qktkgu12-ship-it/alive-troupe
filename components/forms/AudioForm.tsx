@@ -4,8 +4,9 @@
 // 페이지에서는 이미 고른 작품에 추가하고, 바텀시트에서는 작품을 직접 고름.
 
 import { useEffect, useState } from "react";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { pushToUsers } from "@/lib/push";
 import Select from "@/components/Select";
 import type { AudioTrack, Production } from "@/lib/types";
 
@@ -50,6 +51,31 @@ export default function AudioForm({
     if (!fixed && !pid && productions && productions.length > 0) setPid(productions[0].id);
   }, [fixed, pid, productions]);
 
+  // 그 작품에 참여하는 단원에게만 알린다 (자료를 볼 수 있는 사람들).
+  // productions prop이 없을 때도 있어서 작품 문서를 직접 읽는다.
+  async function notifyParticipants(targetPid: string, trackTitle: string) {
+    try {
+      const known = productions?.find((p) => p.id === targetPid);
+      let name = known?.name ?? "";
+      let people = known?.participants ?? [];
+      if (people.length === 0) {
+        const snap = await getDoc(doc(db, "productions", targetPid));
+        const data = snap.data() as Production | undefined;
+        name = data?.name ?? name;
+        people = data?.participants ?? [];
+      }
+      if (people.length === 0) return;
+      await pushToUsers(people, {
+        title: "새 자료가 올라왔어요",
+        body: [name, trackTitle].filter(Boolean).join(" · "),
+        href: "/audio",
+        tag: "audio",
+      });
+    } catch {
+      /* 알림 실패가 등록을 막지 않도록 */
+    }
+  }
+
   async function add() {
     const targetPid = fixed ? productionId! : pid;
     if (!targetPid) { alert("작품을 선택해 주세요."); return; }
@@ -67,6 +93,7 @@ export default function AudioForm({
           title: title.trim(), memo: memo.trim(), url: cleanUrl,
           addedByName, createdAt: Date.now(),
         });
+        notifyParticipants(targetPid, title.trim());
         setTitle(""); setUrl(""); setMemo("");
       }
       onAdded();

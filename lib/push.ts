@@ -145,6 +145,32 @@ export async function pushToAll(msg: {
   href?: string;
   tag?: string;
 }): Promise<void> {
+  await send({ ...msg, audience: "all" });
+}
+
+/**
+ * 지정한 단원들에게만 발송 (최대 100명).
+ * 댓글·자료 등록처럼 관련된 사람에게만 알릴 때 쓴다.
+ */
+export async function pushToUsers(
+  uids: string[],
+  msg: { title: string; body: string; href?: string; tag?: string }
+): Promise<void> {
+  const to = [...new Set(uids.filter(Boolean))];
+  if (to.length === 0) return;
+  await send({ ...msg, audience: "uids", to });
+}
+
+/**
+ * 가입 신청이 들어왔음을 관리자에게 알린다.
+ * 승인 대기(guest)도 호출할 수 있어야 하므로, 문구는 서버가 정한다.
+ */
+export async function pushSignupRequest(): Promise<void> {
+  await send({ audience: "admins", title: "", body: "" });
+}
+
+/** 실제 요청. 알림 발송 실패가 본래 작업(글 등록 등)을 막으면 안 되므로 절대 throw하지 않는다. */
+async function send(payload: Record<string, unknown>): Promise<void> {
   try {
     const u = auth.currentUser;
     if (!u) return;
@@ -155,7 +181,7 @@ export async function pushToAll(msg: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${idToken}`,
       },
-      body: JSON.stringify({ ...msg, exclude: [u.uid] }),
+      body: JSON.stringify(payload),
     });
   } catch {
     /* 알림은 부가 기능이므로 실패해도 넘어간다 */
