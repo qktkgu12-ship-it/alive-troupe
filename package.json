@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "//": "firebase-admin -> jwks-rsa 가 ESM 전용인 jose를 require()로 부른다. Node 22.12+ 라야 허용된다.",
     "node": "22.x"
+  },
+  "overrides": {
+    "jose": "^5.10.0"
   },
   "scripts": {
     "dev": "next dev",
