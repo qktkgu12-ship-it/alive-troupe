@@ -170,7 +170,7 @@ export default function BottomNav() {
                 {isNew(href) && !on && (
                   <span
                     aria-label="새 글"
-                    className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"
+                    className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-red-500 ring-[1.5px] ring-white"
                   />
                 )}
               </span>

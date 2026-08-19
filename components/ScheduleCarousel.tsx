@@ -62,23 +62,29 @@ export default function ScheduleCarousel({
   const trackRef = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
 
-  // 스크롤이 멈춘 자리에서 가장 가까운 카드를 '보고 있는 카드'로 친다
+  // 스크롤이 멈춘 자리에서 가장 가까운 카드를 '보고 있는 카드'로 친다.
+  // (줄 끝의 화살표 칸은 카드가 아니므로 셈에서 뺀다)
+  const count = events.length;
   const sync = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
-    const kids = Array.from(el.children) as HTMLElement[];
+    const kids = Array.from(el.children).slice(0, count) as HTMLElement[];
     if (kids.length === 0) return;
+    // 카드가 서는 자리(= 왼쪽 여백만큼 들어온 지점)에 가장 가까운 카드를 고른다
+    const cs = getComputedStyle(el);
+    const pad = parseFloat(cs.scrollPaddingLeft) || parseFloat(cs.paddingLeft) || 0;
+    const base = el.getBoundingClientRect().left + pad;
     let best = 0;
     let min = Infinity;
     kids.forEach((k, i) => {
-      const d = Math.abs(k.offsetLeft - el.scrollLeft);
+      const d = Math.abs(k.getBoundingClientRect().left - base);
       if (d < min) {
         min = d;
         best = i;
       }
     });
     setIdx(best);
-  }, []);
+  }, [count]);
 
   useEffect(() => {
     const el = trackRef.current;
@@ -108,12 +114,13 @@ export default function ScheduleCarousel({
       {/* 카드 줄 — 손으로 밀면 한 장씩 딱딱 맞춰 선다 */}
       <div
         ref={trackRef}
-        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-1"
+        // -mx-4 + px-4 : 화면 끝까지 흐르되 첫 카드는 아래 카드들과 같은 16px 안쪽에서 시작.
+        // scroll-pl-4 : 밀어서 멈춘 카드도 같은 자리에 서도록 (없으면 2번째부터 화면 끝에 붙는다)
+        className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scroll-smooth px-4 pb-1"
       >
         {events.map((e, i) => {
           const color = eventColor(e, teams);
           const dt = parseDate(e.date);
-          const last = i === events.length - 1;
           const href = `/schedule?tab=events&event=${e.id}&date=${e.date}`;
           return (
             <div
@@ -125,7 +132,7 @@ export default function ScheduleCarousel({
                 if (ev.key === "Enter") router.push(href);
               }}
               style={{ backgroundColor: color }}
-              className="relative flex aspect-[5/6] w-[72%] max-w-[280px] shrink-0 cursor-pointer snap-start flex-col rounded-3xl p-5 text-white shadow-[0_10px_28px_-12px_rgba(16,24,40,0.35)] transition active:scale-[0.985]"
+              className="relative flex aspect-[6/5] w-[78%] max-w-[330px] shrink-0 cursor-pointer snap-start flex-col rounded-3xl p-5 text-white shadow-[0_10px_28px_-12px_rgba(16,24,40,0.35)] transition active:scale-[0.985]"
             >
               {/* D-day */}
               <span className="inline-flex w-fit rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold backdrop-blur-sm">
@@ -135,7 +142,7 @@ export default function ScheduleCarousel({
               <p className="mt-4 text-[13px] font-medium text-white/75">
                 {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
               </p>
-              <h3 className="mt-1 line-clamp-3 text-[22px] font-extrabold leading-snug tracking-tight">
+              <h3 className="mt-1 line-clamp-2 text-[22px] font-extrabold leading-snug tracking-tight">
                 {e.title}
               </h3>
 
@@ -159,22 +166,22 @@ export default function ScheduleCarousel({
                 )}
               </div>
 
-              {/* 마지막 카드에만 — 전체 일정으로 가는 화살표 */}
-              {last && (
-                <Link
-                  href="/schedule"
-                  aria-label="전체 일정 보기"
-                  onClick={(ev) => ev.stopPropagation()}
-                  className="absolute bottom-5 right-5 grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white backdrop-blur-sm transition hover:bg-white/30 active:scale-95"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                </Link>
-              )}
             </div>
           );
         })}
+
+        {/* 마지막 카드 오른쪽 여백 — 전체 일정으로 가는 화살표 */}
+        <div className="flex w-[22%] min-w-[72px] shrink-0 items-center justify-center">
+          <Link
+            href="/schedule"
+            aria-label="전체 일정 보기"
+            className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-400 shadow-[0_4px_16px_-6px_rgba(16,24,40,0.28)] transition hover:text-accent active:scale-95"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </Link>
+        </div>
       </div>
 
       {/* 점 — 보고 있는 카드 자리에서 그 색 알약으로 늘어난다 */}
@@ -188,9 +195,9 @@ export default function ScheduleCarousel({
               aria-label={`${i + 1}번째 일정 보기`}
               aria-current={on ? "true" : undefined}
               onClick={() => {
-                const el = trackRef.current;
-                const kid = el?.children[i] as HTMLElement | undefined;
-                if (el && kid) el.scrollTo({ left: kid.offsetLeft, behavior: "smooth" });
+                // scroll-padding을 브라우저가 알아서 지켜 주므로 자리 계산이 필요 없다
+                const kid = trackRef.current?.children[i] as HTMLElement | undefined;
+                kid?.scrollIntoView({ inline: "start", block: "nearest", behavior: "smooth" });
               }}
               className="h-1.5 rounded-full"
               style={{
