@@ -227,56 +227,57 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              {/* 등록 메뉴 — 헤더 오른쪽 아래로 펼쳐지는 창 하나 */}
-              <div
-                className={`absolute right-3 top-[calc(100%+6px)] w-60 origin-top-right transition-all duration-200 ${
-                  createOpen
-                    ? "pointer-events-auto scale-100 opacity-100"
-                    : "pointer-events-none scale-95 opacity-0"
-                }`}
-              >
-                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-[0_16px_40px_-10px_rgba(16,24,40,0.28)] backdrop-blur-xl">
-                  {createItems.map((c) => {
-                    const Icon = c.icon;
-                    const inner = (
-                      <>
-                        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${c.tint}`}>
-                          <Icon className="h-[17px] w-[17px]" />
-                        </span>
-                        <span className="text-[14.5px] font-semibold text-slate-800">{c.label}</span>
-                      </>
-                    );
-                    const cls =
-                      "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-slate-100 active:bg-slate-200";
-                    return c.sheet ? (
-                      <button
-                        key={c.label}
-                        onClick={() => {
-                          setCreateOpen(false);
-                          if (c.sheet === "write") openWrite();
-                          else openCreate(c.sheet as CreateKind);
-                        }}
-                        className={cls}
-                      >
-                        {inner}
-                      </button>
-                    ) : (
-                      <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
-                        {inner}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
             </>
           )}
         </div>
       </header>
 
-      {/* 등록 메뉴 바깥을 누르면 닫힌다 */}
+      {/* 등록 메뉴 바깥을 누르면 닫힌다 — z-30 이상인 페이지 요소도 가려야 하므로 z-40 */}
       {createOpen && (
-        <div className="fixed inset-0 z-20" onClick={() => setCreateOpen(false)} aria-hidden />
+        <div className="fixed inset-0 z-40" onClick={() => setCreateOpen(false)} aria-hidden />
       )}
+
+      {/* 등록 메뉴 — 헤더 바깥에 fixed로 띄워 페이지 z-30 요소 위에 놓인다 */}
+      <div
+        className={`fixed right-3 top-[calc(4rem+6px)] z-50 w-60 origin-top-right transition-all duration-200 ${
+          createOpen
+            ? "pointer-events-auto scale-100 opacity-100"
+            : "pointer-events-none scale-95 opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-[0_16px_40px_-10px_rgba(16,24,40,0.28)] backdrop-blur-xl">
+          {createItems.map((c) => {
+            const Icon = c.icon;
+            const inner = (
+              <>
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${c.tint}`}>
+                  <Icon className="h-[17px] w-[17px]" />
+                </span>
+                <span className="text-[14.5px] font-semibold text-slate-800">{c.label}</span>
+              </>
+            );
+            const cls =
+              "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-slate-100 active:bg-slate-200";
+            return c.sheet ? (
+              <button
+                key={c.label}
+                onClick={() => {
+                  setCreateOpen(false);
+                  if (c.sheet === "write") openWrite();
+                  else openCreate(c.sheet as CreateKind);
+                }}
+                className={cls}
+              >
+                {inner}
+              </button>
+            ) : (
+              <Link key={c.label} href={c.href!} onClick={() => setCreateOpen(false)} className={cls}>
+                {inner}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       {/* 프로필 메뉴 — 내 프로필 · 멤버 · 관리 · 로그아웃 */}
       <BottomSheet open={menuOpen} title="메뉴" onClose={() => setMenuOpen(false)}>
