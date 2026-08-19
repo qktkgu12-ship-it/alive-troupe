@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>일정 카드 — 참여 인원 테스트</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css" />
+<style>
+  :root{
+    color-scheme: light;
+    --accent: 225 50 45;          /* 브랜드 레드 — 위 색상 선택기로 바뀜 */
+    --mint:#19BDA4;
+    --purple:#7A2FF2;
+    --green:#2F9E44;
+    --bg:#f7f8fa;
+    --slide:420ms cubic-bezier(.34,1.36,.4,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:#0f172a;
+    font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo",system-ui,sans-serif;
+    letter-spacing:-.01em; -webkit-font-smoothing:antialiased;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 0}
+
+  h1{font-size:19px;font-weight:800;margin:0 0 4px}
+  .sub{font-size:13px;color:#64748b;margin:0 0 18px;line-height:1.6}
+
+  .picker{
+    display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;
+    padding:12px 14px;margin-bottom:26px;
+    box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -10px rgba(16,24,40,.12);
+  }
+  .picker label{font-size:13.5px;font-weight:600;color:#334155;flex:1}
+  .picker input[type=color]{width:38px;height:38px;border:none;border-radius:10px;background:none;padding:0;cursor:pointer}
+
+  section{margin-bottom:34px}
+  .tag{
+    display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;
+    background:#0f172a;color:#fff;border-radius:6px;padding:3px 7px;margin-bottom:8px;
+  }
+  h2{font-size:16px;font-weight:800;margin:0 0 6px}
+  .desc{font-size:13px;color:#64748b;margin:0 0 14px;line-height:1.65}
+
+  /* ===== 캐러셀 — 실제 앱과 동일한 스냅 동작 ===== */
+  .track{
+    display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;
+    scroll-padding-left:16px;scroll-padding-right:16px;scroll-behavior:smooth;
+    margin:0 -16px;padding:0 16px 2px;
+  }
+  .track::-webkit-scrollbar{display:none}
+  .track{scrollbar-width:none;-ms-overflow-style:none}
+
+  .card{
+    container-type:inline-size;
+    position:relative;display:flex;flex-direction:column;flex:0 0 auto;
+    width:78%;max-width:330px;aspect-ratio:3/2;
+    border-radius:24px;padding:clamp(14px,7.1cqw,24px);
+    color:#fff;scroll-snap-align:center;cursor:pointer;
+    transition:transform .18s ease;
+  }
+  .card:first-child,.card.last{scroll-snap-align:start}
+  .card:active{transform:scale(.985)}
+
+  .dday{
+    align-self:flex-start;border-radius:999px;background:rgba(255,255,255,.2);
+    padding:.2em .75em;font-size:clamp(10.5px,4.9cqw,15px);font-weight:700;
+    backdrop-filter:blur(4px);
+  }
+  .date{margin:clamp(7px,3.9cqw,13px) 0 0;font-size:clamp(11.5px,5.3cqw,16px);font-weight:500;color:rgba(255,255,255,.75)}
+  .title{
+    margin:.1em 0 0;font-size:clamp(17px,8cqw,27px);font-weight:800;line-height:1.15;
+    letter-spacing:-.02em;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .meta{
+    margin:.35em 0 0;display:flex;flex-wrap:wrap;align-items:center;
+    gap:.15em 1em;font-size:clamp(11px,5cqw,15px);font-weight:500;color:rgba(255,255,255,.85);
+  }
+  .meta span{display:flex;align-items:center;gap:.35em;min-width:0}
+  .meta svg{width:1.15em;height:1.15em;flex:none;opacity:.72}
+  .meta .loc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ===== 참여 인원 줄 ===== */
+  .people{margin-top:auto;display:flex;align-items:center;gap:clamp(7px,3.4cqw,11px);padding-top:.5em}
+  .stack{display:flex;align-items:center}
+  .av{
+    width:clamp(24px,10.6cqw,35px);height:clamp(24px,10.6cqw,35px);
+    border-radius:999px;flex:none;
+    border:2px solid rgba(255,255,255,.92);
+    margin-left:calc(clamp(24px,10.6cqw,35px) * -0.3);
+    display:grid;place-items:center;
+    font-size:clamp(10px,4.4cqw,14px);font-weight:700;color:#3f3a44;
+    box-shadow:0 1px 3px rgba(0,0,0,.14);
+  }
+  .stack .av:first-child{margin-left:0}
+  .more{
+    background:rgba(255,255,255,.22);color:#fff;border-color:rgba(255,255,255,.55);
+    backdrop-filter:blur(4px);font-weight:800;
+  }
+
+  /* 참여 버튼 — 공통 */
+  .join{
+    flex:none;border:none;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;justify-content:center;
+    transition:transform .16s ease, background .16s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .join:active{transform:scale(.93)}
+
+  /* A: 아이콘만 — 아바타 줄에 이어 붙는 점선 + 원 */
+  .join-icon{
+    width:clamp(24px,10.6cqw,35px);height:clamp(24px,10.6cqw,35px);
+    border-radius:999px;background:rgba(255,255,255,.16);
+    border:1.6px dashed rgba(255,255,255,.75);color:#fff;
+    margin-left:clamp(4px,1.8cqw,7px);
+  }
+  .join-icon svg{width:52%;height:52%}
+
+  /* B: 텍스트 버튼 */
+  .join-text{
+    margin-left:auto;border-radius:999px;background:rgba(255,255,255,.94);
+    color:#1f2937;font-size:clamp(10.5px,4.6cqw,14px);font-weight:800;
+    padding:clamp(5px,2.4cqw,8px) clamp(10px,4.6cqw,15px);
+    box-shadow:0 2px 8px rgba(0,0,0,.14);white-space:nowrap;
+  }
+
+  /* C: 아이콘 + 짧은 라벨 */
+  .join-mini{
+    margin-left:clamp(4px,1.8cqw,7px);border-radius:999px;
+    background:rgba(255,255,255,.2);border:1.4px solid rgba(255,255,255,.6);
+    color:#fff;font-size:clamp(10px,4.3cqw,13.5px);font-weight:800;
+    padding:clamp(4px,2cqw,7px) clamp(8px,3.6cqw,12px);gap:.28em;
+    backdrop-filter:blur(4px);white-space:nowrap;
+  }
+  .join-mini svg{width:1em;height:1em}
+
+  /* 참여 완료 상태 */
+  .joined{background:rgba(255,255,255,.95)!important;border-color:transparent!important;color:#0f172a!important}
+
+  /* 점 */
+  .dots{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px}
+  .dot{height:6px;width:6px;border-radius:999px;background:#cbd5e1;border:none;padding:0;cursor:pointer;
+       transition:width var(--slide),background-color .26s ease}
+  .dot.on{width:20px}
+
+  /* 비교 노트 */
+  .note{
+    margin-top:12px;background:#fff;border-radius:14px;padding:13px 15px;
+    font-size:12.5px;line-height:1.75;color:#475569;
+    box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -10px rgba(16,24,40,.1);
+  }
+  .note b{color:#0f172a}
+  .note .good::before{content:"○ ";color:#16a34a;font-weight:800}
+  .note .bad::before{content:"× ";color:#dc2626;font-weight:800}
+  .note div{margin-top:2px}
+
+  .verdict{
+    background:#0f172a;color:#fff;border-radius:18px;padding:18px 18px 20px;margin-top:8px;
+  }
+  .verdict h2{color:#fff;margin-bottom:10px;font-size:16px}
+  .verdict p{margin:0 0 10px;font-size:13px;line-height:1.75;color:#cbd5e1}
+  .verdict p:last-child{margin-bottom:0}
+  .verdict b{color:#fff}
+  .hr{height:1px;background:#e2e8f0;margin:30px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>일정 카드 — 참여 인원 & 참여 버튼</h1>
+  <p class="sub">
+    카드에 참여 인원 프로필을 넣고, 참여 버튼을 <b>아이콘만 / 텍스트 / 아이콘+라벨</b> 세 가지로 만들어 봤습니다.
+    실제로 밀어 보고 눌러 보세요. (전체 일정 카드는 대상이 전원이라 프로필을 넣지 않았습니다)
+  </p>
+
+  <div class="picker">
+    <label for="acc">브랜드 색 맞춰 보기</label>
+    <input type="color" id="acc" value="#E1322D" />
+  </div>
+
+  <!-- ================= A ================= -->
+  <section>
+    <span class="tag">A안</span>
+    <h2>아이콘만 — 아바타 줄 끝의 점선 <b>+</b></h2>
+    <p class="desc">얼굴들이 늘어선 줄 맨 끝에 “빈자리”가 하나 있는 모양. 누르면 내 얼굴이 그 자리에 들어갑니다.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday">내일</span>
+        <p class="date">8월 20일 (목)</p>
+        <h3 class="title">A팀 전체 연습</h3>
+        <div class="meta">
+          <span>{clock}19:00~22:00</span>
+          <span>{pin}<span class="loc">스튜디오 얼라이브</span></span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="7"></div>
+          <button class="join join-icon" data-join="icon" aria-label="나도 참여하기">{plus}</button>
+        </div>
+      </div>
+      <div class="card" data-c="purple">
+        <span class="dday">D-4</span>
+        <p class="date">8월 23일 (일)</p>
+        <h3 class="title">B팀 런스루</h3>
+        <div class="meta">
+          <span>{clock}14:00~18:00</span>
+          <span>{pin}<span class="loc">대학로 연습실</span></span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="3"></div>
+          <button class="join join-icon" data-join="icon" aria-label="나도 참여하기">{plus}</button>
+        </div>
+      </div>
+      <div class="card" data-c="accent">
+        <span class="dday">D-6</span>
+        <p class="date">8월 25일 (화)</p>
+        <h3 class="title">정기 단원 회의</h3>
+        <div class="meta">
+          <span>{clock}20:00~21:30</span>
+          <span>{pin}<span class="loc">스튜디오 얼라이브</span></span>
+        </div>
+      </div>
+      <div class="card last" data-c="green">
+        <span class="dday">D-9</span>
+        <p class="date">8월 28일 (금)</p>
+        <h3 class="title">스튜디오 예약</h3>
+        <div class="meta">
+          <span>{clock}10:00~13:00</span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="2"></div>
+          <button class="join join-icon" data-join="icon" aria-label="나도 참여하기">{plus}</button>
+        </div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+    <div class="note">
+      <div class="good">카드가 좁아도 자리를 거의 안 먹어서 제목·시간이 안 밀림</div>
+      <div class="good">얼굴 줄 옆의 <b>+</b>라 “나도 이 줄에 낀다”는 뜻이 그림으로 읽힘</div>
+      <div class="bad">처음 보는 사람은 “전체 명단 보기”로 오해할 수 있음</div>
+    </div>
+  </section>
+
+  <div class="hr"></div>
+
+  <!-- ================= B ================= -->
+  <section>
+    <span class="tag">B안</span>
+    <h2>텍스트 버튼 — “나도 참여”</h2>
+    <p class="desc">아바타는 왼쪽, 오른쪽 끝에 흰 알약 버튼. 무슨 버튼인지 100% 분명합니다.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday">내일</span>
+        <p class="date">8월 20일 (목)</p>
+        <h3 class="title">A팀 전체 연습</h3>
+        <div class="meta">
+          <span>{clock}19:00~22:00</span>
+          <span>{pin}<span class="loc">스튜디오 얼라이브</span></span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="7"></div>
+          <button class="join join-text" data-join="text">나도 참여</button>
+        </div>
+      </div>
+      <div class="card" data-c="purple">
+        <span class="dday">D-4</span>
+        <p class="date">8월 23일 (일)</p>
+        <h3 class="title">B팀 런스루</h3>
+        <div class="meta">
+          <span>{clock}14:00~18:00</span>
+          <span>{pin}<span class="loc">대학로 연습실</span></span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="3"></div>
+          <button class="join join-text" data-join="text">나도 참여</button>
+        </div>
+      </div>
+      <div class="card" data-c="accent">
+        <span class="dday">D-6</span>
+        <p class="date">8월 25일 (화)</p>
+        <h3 class="title">정기 단원 회의</h3>
+        <div class="meta">
+          <span>{clock}20:00~21:30</span>
+          <span>{pin}<span class="loc">스튜디오 얼라이브</span></span>
+        </div>
+      </div>
+      <div class="card last" data-c="green">
+        <span class="dday">D-9</span>
+        <p class="date">8월 28일 (금)</p>
+        <h3 class="title">스튜디오 예약</h3>
+        <div class="meta">
+          <span>{clock}10:00~13:00</span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="2"></div>
+          <button class="join join-text" data-join="text">나도 참여</button>
+        </div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+    <div class="note">
+      <div class="good">오해의 여지가 없음 — 처음 쓰는 단원도 바로 이해</div>
+      <div class="bad">흰 알약이 밝아서 카드에서 <b>제목보다 먼저</b> 눈에 띔 (일정 정보가 뒷전)</div>
+      <div class="bad">이름이 긴 장소와 함께 있으면 좁은 폰에서 줄이 답답해짐</div>
+    </div>
+  </section>
+
+  <div class="hr"></div>
+
+  <!-- ================= C ================= -->
+  <section>
+    <span class="tag">C안</span>
+    <h2>아이콘 + 짧은 라벨 — <b>+ 참여</b></h2>
+    <p class="desc">A안의 자리 차지 + B안의 명확함을 절충. 투명 배경이라 카드에서 튀지 않습니다.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday">내일</span>
+        <p class="date">8월 20일 (목)</p>
+        <h3 class="title">A팀 전체 연습</h3>
+        <div class="meta">
+          <span>{clock}19:00~22:00</span>
+          <span>{pin}<span class="loc">스튜디오 얼라이브</span></span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="7"></div>
+          <button class="join join-mini" data-join="mini">{plus}참여</button>
+        </div>
+      </div>
+      <div class="card" data-c="purple">
+        <span class="dday">D-4</span>
+        <p class="date">8월 23일 (일)</p>
+        <h3 class="title">B팀 런스루</h3>
+        <div class="meta">
+          <span>{clock}14:00~18:00</span>
+          <span>{pin}<span class="loc">대학로 연습실</span></span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="3"></div>
+          <button class="join join-mini" data-join="mini">{plus}참여</button>
+        </div>
+      </div>
+      <div class="card" data-c="accent">
+        <span class="dday">D-6</span>
+        <p class="date">8월 25일 (화)</p>
+        <h3 class="title">정기 단원 회의</h3>
+        <div class="meta">
+          <span>{clock}20:00~21:30</span>
+          <span>{pin}<span class="loc">스튜디오 얼라이브</span></span>
+        </div>
+      </div>
+      <div class="card last" data-c="green">
+        <span class="dday">D-9</span>
+        <p class="date">8월 28일 (금)</p>
+        <h3 class="title">스튜디오 예약</h3>
+        <div class="meta">
+          <span>{clock}10:00~13:00</span>
+        </div>
+        <div class="people">
+          <div class="stack" data-stack data-n="2"></div>
+          <button class="join join-mini" data-join="mini">{plus}참여</button>
+        </div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+    <div class="note">
+      <div class="good">뜻이 분명하면서도 카드의 주인공(제목)을 안 가림</div>
+      <div class="good">아바타 줄과 한 덩어리로 붙어 있어 “이 사람들에 나도 추가”로 읽힘</div>
+      <div class="bad">A안보다 가로를 조금 더 먹음 (장소명이 아주 길면 아바타가 2~3개로 줄어듦)</div>
+    </div>
+  </section>
+
+  <div class="hr"></div>
+
+  <div class="verdict">
+    <h2>제 추천 — C안 (아이콘 + “참여”)</h2>
+    <p>
+      <b>아이콘만(A안)은 추천하지 않습니다.</b> 아바타 줄 옆의 <b>+</b>는 디자이너에겐 익숙하지만,
+      실제 단원들은 “참여 신청”보다 “참여자 전체 보기”로 읽을 가능성이 큽니다.
+      한 번 눌러야 알 수 있는 버튼은 실제로 잘 안 눌립니다.
+    </p>
+    <p>
+      <b>텍스트만(B안)은 너무 셉니다.</b> 흰 알약이 컬러 카드 위에서 가장 밝은 요소가 되어,
+      정작 봐야 할 일정 제목보다 먼저 눈에 들어옵니다. 카드는 “정보”가 주인공이어야 합니다.
+    </p>
+    <p>
+      <b>C안</b>은 “참여” 두 글자로 뜻을 확실히 하면서도, 반투명이라 카드 위계를 안 깹니다.
+      아바타 줄에 딱 붙어 있어 “이 사람들 + 나”라는 관계도 그대로 읽힙니다.
+    </p>
+    <p>
+      한 가지 더 — 카드는 <b>빠른 신청</b>만 담당하고, 일정 상세 화면에는
+      “나도 참여하기” 전체 버튼과 참여자 명단을 따로 두는 걸 권합니다.
+      카드에서 실수로 눌러도 상세에서 취소할 수 있어야 하니까요.
+    </p>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var ICON = {
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
+  };
+  // 본문의 {clock} {pin} {plus} 자리를 실제 아이콘으로 교체
+  document.body.innerHTML = document.body.innerHTML
+    .replace(/\{clock\}/g, ICON.clock)
+    .replace(/\{pin\}/g, ICON.pin)
+    .replace(/\{plus\}/g, ICON.plus);
+
+  // ---- 카드 색 ----
+  function paint(){
+    var acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    document.querySelectorAll('.card').forEach(function(c){
+      var k = c.getAttribute('data-c');
+      c.style.background =
+        k === 'mint'   ? 'var(--mint)'   :
+        k === 'purple' ? 'var(--purple)' :
+        k === 'green'  ? 'var(--green)'  : 'rgb(' + acc + ')';
+    });
+  }
+  var picker = document.getElementById('acc');
+  function hexToTriplet(h){
+    h = h.replace('#','');
+    return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)].join(' ');
+  }
+  picker.addEventListener('input', function(){
+    document.documentElement.style.setProperty('--accent', hexToTriplet(picker.value));
+    paint();
+  });
+  document.documentElement.style.setProperty('--accent', hexToTriplet(picker.value));
+
+  // ---- 아바타 채우기 (최대 4명 + 나머지는 +N) ----
+  var PEOPLE = [
+    ['지','#c7b9f5'],['현','#f6dd8a'],['수','#f3c0b8'],['민','#b7e0c6'],
+    ['서','#f9c6dd'],['준','#bcd6f7'],['하','#e6c9a8'],['윤','#cfe3a9']
+  ];
+  var MAX = 4;
+  document.querySelectorAll('[data-stack]').forEach(function(st){
+    var n = parseInt(st.getAttribute('data-n'), 10);
+    var show = Math.min(n, MAX);
+    for (var i = 0; i < show; i++){
+      var p = PEOPLE[i % PEOPLE.length];
+      var d = document.createElement('div');
+      d.className = 'av';
+      d.style.background = p[1];
+      d.textContent = p[0];
+      st.appendChild(d);
+    }
+    if (n > MAX){
+      var m = document.createElement('div');
+      m.className = 'av more';
+      m.textContent = '+' + (n - MAX);
+      st.appendChild(m);
+    }
+  });
+
+  // ---- 참여 버튼 ----
+  document.querySelectorAll('[data-join]').forEach(function(btn){
+    btn.addEventListener('click', function(ev){
+      ev.stopPropagation();                       // 카드 이동 막기
+      var kind = btn.getAttribute('data-join');
+      var on = btn.classList.toggle('joined');
+      if (kind === 'text')      btn.textContent = on ? '참여 중 ✓' : '나도 참여';
+      else if (kind === 'mini') btn.innerHTML = on ? '✓ 참여 중' : ICON.plus + '참여';
+      else                      btn.innerHTML = on ? '<span style="font-size:.62em;font-weight:800;color:#0f172a">나</span>' : ICON.plus;
+      // 참여하면 내 얼굴이 줄에 들어간 것처럼 숫자도 하나 늘려 준다
+      var stack = btn.parentElement.querySelector('[data-stack]');
+      var more = stack && stack.querySelector('.more');
+      if (more){
+        var cur = parseInt(more.textContent.replace('+',''), 10);
+        more.textContent = '+' + (on ? cur + 1 : cur - 1);
+      }
+    });
+  });
+
+  // ---- 캐러셀 점 ----
+  document.querySelectorAll('[data-carousel]').forEach(function(track){
+    var dots = track.parentElement.querySelector('[data-dots]');
+    var cards = Array.prototype.slice.call(track.querySelectorAll('.card'));
+    cards.forEach(function(_, i){
+      var b = document.createElement('button');
+      b.className = 'dot' + (i === 0 ? ' on' : '');
+      b.addEventListener('click', function(){
+        cards[i].scrollIntoView({inline: (i === 0 || i === cards.length - 1) ? 'start' : 'center', block:'nearest', behavior:'smooth'});
+      });
+      dots.appendChild(b);
+    });
+    function sync(){
+      var r = track.getBoundingClientRect(), mid = r.left + r.width / 2;
+      var best = 0, min = Infinity;
+      cards.forEach(function(c, i){
+        var cr = c.getBoundingClientRect();
+        var d = Math.abs(cr.left + cr.width / 2 - mid);
+        if (d < min){ min = d; best = i; }
+      });
+      Array.prototype.forEach.call(dots.children, function(d, i){
+        var on = i === best;
+        d.classList.toggle('on', on);
+        d.style.background = on ? getComputedStyle(cards[best]).backgroundColor : '#cbd5e1';
+      });
+    }
+    var raf;
+    track.addEventListener('scroll', function(){
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(sync);
+    }, {passive:true});
+    sync();
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>
