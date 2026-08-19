@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>B안 — D-day 우상단 / 시간 줄 분리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css" />
+<style>
+  :root{
+    color-scheme:light;
+    --accent:225 50 45;
+    --mint:#19BDA4; --purple:#7A2FF2; --green:#2F9E44;
+    --bg:#f7f8fa;
+    --slide:420ms cubic-bezier(.34,1.36,.4,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:#0f172a;
+    font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo",system-ui,sans-serif;
+    letter-spacing:-.01em;-webkit-font-smoothing:antialiased;padding-bottom:60px;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 0}
+  h1{font-size:19px;font-weight:800;margin:0 0 4px}
+  .sub{font-size:13px;color:#64748b;margin:0 0 18px;line-height:1.6}
+  .picker{
+    display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;
+    padding:12px 14px;margin-bottom:26px;
+    box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -10px rgba(16,24,40,.12);
+  }
+  .picker label{font-size:13.5px;font-weight:600;color:#334155;flex:1}
+  .picker input[type=color]{width:38px;height:38px;border:none;border-radius:10px;background:none;padding:0;cursor:pointer}
+
+  section{margin-bottom:34px}
+  .tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;
+       background:#0f172a;color:#fff;border-radius:6px;padding:3px 7px;margin-bottom:8px}
+  .tag.old{background:#94a3b8}
+  .tag.pick{background:rgb(var(--accent))}
+  h2{font-size:16px;font-weight:800;margin:0 0 6px}
+  .desc{font-size:13px;color:#64748b;margin:0 0 14px;line-height:1.65}
+
+  /* ===== 캐러셀 ===== */
+  .track{
+    display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;
+    scroll-padding-left:16px;scroll-padding-right:16px;scroll-behavior:smooth;
+    margin:0 -16px;padding:0 16px 2px;
+  }
+  .track::-webkit-scrollbar{display:none}
+  .track{scrollbar-width:none;-ms-overflow-style:none}
+
+  .card{
+    container-type:inline-size;
+    position:relative;display:flex;flex-direction:column;flex:0 0 auto;
+    width:78%;max-width:330px;aspect-ratio:3/2;
+    border-radius:24px;padding:clamp(14px,7.1cqw,24px);
+    color:#fff;scroll-snap-align:center;cursor:pointer;transition:transform .18s ease;
+  }
+  .card:first-child,.card.last{scroll-snap-align:start}
+  .card:active{transform:scale(.985)}
+
+  .dday{
+    border-radius:999px;background:rgba(255,255,255,.2);
+    padding:.2em .75em;font-size:clamp(10.5px,4.9cqw,15px);font-weight:700;
+    backdrop-filter:blur(4px);
+  }
+  /* 기존안: 좌상단 */
+  .dday-left{align-self:flex-start}
+  /* 새안: 우상단 고정 — 본문이 위에서부터 바로 시작된다 */
+  .dday-tr{
+    position:absolute;top:clamp(14px,7.1cqw,24px);right:clamp(14px,7.1cqw,24px);
+  }
+  /* 칩이 떠 있는 자리만큼 첫 줄을 비워 둔다 (안 그러면 글자가 칩 밑으로 들어감) */
+  .dday-tr + *{padding-right:clamp(46px,18cqw,62px)}
+
+  .date{margin:0;font-size:clamp(11.5px,5.3cqw,16px);font-weight:500;color:rgba(255,255,255,.75)}
+  /* 시간 — 아이콘 없이 날짜 바로 밑. 날짜보다 또렷하게 */
+  .time{margin:.1em 0 0;font-size:clamp(12.5px,5.8cqw,17.5px);font-weight:700;color:#fff;letter-spacing:-.015em}
+  .time .dotsep{opacity:.5;margin:0 .4em;font-weight:500}
+  .time .place{font-weight:500;color:rgba(255,255,255,.82)}
+
+  .title{
+    margin:clamp(6px,3cqw,10px) 0 0;font-size:clamp(17px,8cqw,27px);font-weight:800;
+    line-height:1.15;letter-spacing:-.02em;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .loc{
+    margin:.3em 0 0;display:flex;align-items:center;gap:.35em;min-width:0;
+    font-size:clamp(11px,5cqw,15px);font-weight:500;color:rgba(255,255,255,.82);
+  }
+  .loc svg{width:1.15em;height:1.15em;flex:none;opacity:.72}
+  .loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* 하단 참여 줄 */
+  .people{margin-top:auto;display:flex;align-items:center;gap:clamp(7px,3.4cqw,11px);padding-top:.5em}
+  .stack{display:flex;align-items:center}
+  .av{
+    width:clamp(24px,10.6cqw,35px);height:clamp(24px,10.6cqw,35px);border-radius:999px;flex:none;
+    border:2px solid rgba(255,255,255,.92);
+    margin-left:calc(clamp(24px,10.6cqw,35px) * -0.3);
+    display:grid;place-items:center;
+    font-size:clamp(10px,4.4cqw,14px);font-weight:700;color:#3f3a44;
+    box-shadow:0 1px 3px rgba(0,0,0,.14);
+  }
+  .stack .av:first-child{margin-left:0}
+  .more{background:rgba(255,255,255,.22);color:#fff;border-color:rgba(255,255,255,.55);
+        backdrop-filter:blur(4px);font-weight:800}
+  .join{
+    flex:none;border:none;cursor:pointer;font-family:inherit;margin-left:auto;
+    display:inline-flex;align-items:center;justify-content:center;
+    border-radius:999px;background:rgba(255,255,255,.94);color:#1f2937;
+    font-size:clamp(10.5px,4.6cqw,14px);font-weight:800;
+    padding:clamp(5px,2.4cqw,8px) clamp(10px,4.6cqw,15px);
+    box-shadow:0 2px 8px rgba(0,0,0,.14);white-space:nowrap;
+    transition:transform .16s ease;-webkit-tap-highlight-color:transparent;
+  }
+  .join:active{transform:scale(.93)}
+
+  /* 기존안 하단 메타(비교용) */
+  .meta{
+    margin:.35em 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:.15em 1em;
+    font-size:clamp(11px,5cqw,15px);font-weight:500;color:rgba(255,255,255,.85);
+  }
+  .meta span{display:flex;align-items:center;gap:.35em;min-width:0}
+  .meta svg{width:1.15em;height:1.15em;flex:none;opacity:.72}
+
+  .dots{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px}
+  .dot{height:6px;width:6px;border-radius:999px;background:#cbd5e1;border:none;padding:0;cursor:pointer;
+       transition:width var(--slide),background-color .26s ease}
+  .dot.on{width:20px}
+
+  .note{
+    margin-top:12px;background:#fff;border-radius:14px;padding:13px 15px;
+    font-size:12.5px;line-height:1.75;color:#475569;
+    box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -10px rgba(16,24,40,.1);
+  }
+  .note b{color:#0f172a}
+  .note .good::before{content:"○ ";color:#16a34a;font-weight:800}
+  .note .bad::before{content:"× ";color:#dc2626;font-weight:800}
+  .hr{height:1px;background:#e2e8f0;margin:30px 0}
+  .verdict{background:#0f172a;color:#fff;border-radius:18px;padding:18px 18px 20px}
+  .verdict h2{color:#fff;margin-bottom:10px;font-size:16px}
+  .verdict p{margin:0 0 10px;font-size:13px;line-height:1.75;color:#cbd5e1}
+  .verdict p:last-child{margin-bottom:0}
+  .verdict b{color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>B안 — D-day 우상단 · 시간 줄 분리</h1>
+  <p class="sub">
+    말씀하신 대로 <b>D-day를 우상단</b>으로 보내고, <b>시간을 날짜 밑 독립된 줄</b>로 내리고 시계 아이콘을 뺐습니다.
+    장소를 어디에 둘지가 남아서 세 가지로 만들어 봤어요.
+  </p>
+
+  <div class="picker">
+    <label for="acc">브랜드 색 맞춰 보기</label>
+    <input type="color" id="acc" value="#E1322D" />
+  </div>
+
+  <!-- ============ 기존 ============ -->
+  <section>
+    <span class="tag old">기존</span>
+    <h2>지금 B안 (비교용)</h2>
+    <p class="desc">D-day 좌상단, 시간·장소가 하단에 아이콘과 함께. 아래 세 개와 번갈아 보세요.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday dday-left">내일</span>
+        <p class="date" style="margin-top:clamp(7px,3.9cqw,13px)">8월 20일 (목)</p>
+        <h3 class="title" style="margin-top:.1em">A팀 전체 연습</h3>
+        <div class="meta">
+          <span>{clock}19:00~22:00</span>
+          <span>{pin}<span class="loc-t">스튜디오 얼라이브</span></span>
+        </div>
+        <div class="people"><div class="stack" data-stack data-n="7"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card last" data-c="purple">
+        <span class="dday dday-left">D-4</span>
+        <p class="date" style="margin-top:clamp(7px,3.9cqw,13px)">8월 23일 (일)</p>
+        <h3 class="title" style="margin-top:.1em">B팀 런스루</h3>
+        <div class="meta">
+          <span>{clock}14:00~18:00</span>
+          <span>{pin}<span class="loc-t">대학로 연습실</span></span>
+        </div>
+        <div class="people"><div class="stack" data-stack data-n="3"></div><button class="join">나도 참여</button></div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+  </section>
+
+  <div class="hr"></div>
+
+  <!-- ============ 1 ============ -->
+  <section>
+    <span class="tag pick">1안</span>
+    <h2>장소를 시간 옆에 붙임</h2>
+    <p class="desc">“언제·어디서”가 한 덩어리로 위에 모이고, 아래는 참여 줄만 남습니다. 카드에 빈 공간이 가장 크게 생겨요.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday dday-tr">내일</span>
+        <p class="date">8월 20일 (목)</p>
+        <p class="time">19:00~22:00<span class="dotsep">·</span><span class="place">스튜디오 얼라이브</span></p>
+        <h3 class="title">A팀 전체 연습</h3>
+        <div class="people"><div class="stack" data-stack data-n="7"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card" data-c="purple">
+        <span class="dday dday-tr">D-4</span>
+        <p class="date">8월 23일 (일)</p>
+        <p class="time">14:00~18:00<span class="dotsep">·</span><span class="place">대학로 연습실</span></p>
+        <h3 class="title">B팀 런스루</h3>
+        <div class="people"><div class="stack" data-stack data-n="3"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card" data-c="accent">
+        <span class="dday dday-tr">D-6</span>
+        <p class="date">8월 25일 (화)</p>
+        <p class="time">20:00~21:30<span class="dotsep">·</span><span class="place">스튜디오 얼라이브</span></p>
+        <h3 class="title">정기 단원 회의</h3>
+      </div>
+      <div class="card last" data-c="green">
+        <span class="dday dday-tr">D-9</span>
+        <p class="date">8월 28일 (금)</p>
+        <p class="time">10:00~13:00</p>
+        <h3 class="title">스튜디오 예약</h3>
+        <div class="people"><div class="stack" data-stack data-n="2"></div><button class="join">나도 참여</button></div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+    <div class="note">
+      <div class="good">줄 수가 가장 적어 카드가 시원함 — 말씀하신 “안 답답한” 느낌이 제일 큼</div>
+      <div class="good">시간과 장소를 한 번에 읽어서 눈이 덜 움직임</div>
+      <div class="bad">장소명이 길면 잘림 (“대학로 스튜디오 얼라이브 3관” 같은 경우)</div>
+    </div>
+  </section>
+
+  <div class="hr"></div>
+
+  <!-- ============ 2 ============ -->
+  <section>
+    <span class="tag pick">2안</span>
+    <h2>장소는 제목 밑에 따로 (핀 아이콘 유지)</h2>
+    <p class="desc">시간만 위로 올리고 장소는 제목 아래 자기 줄을 가집니다. 긴 장소명도 안 잘려요.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday dday-tr">내일</span>
+        <p class="date">8월 20일 (목)</p>
+        <p class="time">19:00~22:00</p>
+        <h3 class="title">A팀 전체 연습</h3>
+        <p class="loc">{pin}<span>스튜디오 얼라이브</span></p>
+        <div class="people"><div class="stack" data-stack data-n="7"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card" data-c="purple">
+        <span class="dday dday-tr">D-4</span>
+        <p class="date">8월 23일 (일)</p>
+        <p class="time">14:00~18:00</p>
+        <h3 class="title">B팀 런스루</h3>
+        <p class="loc">{pin}<span>대학로 스튜디오 얼라이브 3관</span></p>
+        <div class="people"><div class="stack" data-stack data-n="3"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card" data-c="accent">
+        <span class="dday dday-tr">D-6</span>
+        <p class="date">8월 25일 (화)</p>
+        <p class="time">20:00~21:30</p>
+        <h3 class="title">정기 단원 회의</h3>
+        <p class="loc">{pin}<span>스튜디오 얼라이브</span></p>
+      </div>
+      <div class="card last" data-c="green">
+        <span class="dday dday-tr">D-9</span>
+        <p class="date">8월 28일 (금)</p>
+        <p class="time">10:00~13:00</p>
+        <h3 class="title">스튜디오 예약</h3>
+        <div class="people"><div class="stack" data-stack data-n="2"></div><button class="join">나도 참여</button></div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+    <div class="note">
+      <div class="good">긴 장소명도 온전히 보임</div>
+      <div class="good">핀 아이콘이 남아 있어 “장소”라는 게 한눈에 구분됨</div>
+      <div class="bad">줄이 하나 늘어 1안보다는 빽빽함 (그래도 기존보다는 여유로움)</div>
+    </div>
+  </section>
+
+  <div class="hr"></div>
+
+  <!-- ============ 3 ============ -->
+  <section>
+    <span class="tag pick">3안</span>
+    <h2>날짜·시간을 한 줄로, 제목을 크게</h2>
+    <p class="desc">“8월 20일 (목) 19:00” 을 한 줄에 묶고 제목을 주인공으로 키웠습니다. 줄 수는 1안과 같습니다.</p>
+    <div class="track" data-carousel>
+      <div class="card" data-c="mint">
+        <span class="dday dday-tr">내일</span>
+        <p class="time" style="font-size:clamp(12px,5.5cqw,16.5px)">8월 20일 (목)<span class="dotsep">·</span>19:00~22:00</p>
+        <h3 class="title" style="font-size:clamp(18.5px,8.8cqw,29px);margin-top:clamp(4px,2cqw,7px)">A팀 전체 연습</h3>
+        <p class="loc">{pin}<span>스튜디오 얼라이브</span></p>
+        <div class="people"><div class="stack" data-stack data-n="7"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card" data-c="purple">
+        <span class="dday dday-tr">D-4</span>
+        <p class="time" style="font-size:clamp(12px,5.5cqw,16.5px)">8월 23일 (일)<span class="dotsep">·</span>14:00~18:00</p>
+        <h3 class="title" style="font-size:clamp(18.5px,8.8cqw,29px);margin-top:clamp(4px,2cqw,7px)">B팀 런스루</h3>
+        <p class="loc">{pin}<span>대학로 연습실</span></p>
+        <div class="people"><div class="stack" data-stack data-n="3"></div><button class="join">나도 참여</button></div>
+      </div>
+      <div class="card" data-c="accent">
+        <span class="dday dday-tr">D-6</span>
+        <p class="time" style="font-size:clamp(12px,5.5cqw,16.5px)">8월 25일 (화)<span class="dotsep">·</span>20:00~21:30</p>
+        <h3 class="title" style="font-size:clamp(18.5px,8.8cqw,29px);margin-top:clamp(4px,2cqw,7px)">정기 단원 회의</h3>
+        <p class="loc">{pin}<span>스튜디오 얼라이브</span></p>
+      </div>
+      <div class="card last" data-c="green">
+        <span class="dday dday-tr">D-9</span>
+        <p class="time" style="font-size:clamp(12px,5.5cqw,16.5px)">8월 28일 (금)<span class="dotsep">·</span>10:00~13:00</p>
+        <h3 class="title" style="font-size:clamp(18.5px,8.8cqw,29px);margin-top:clamp(4px,2cqw,7px)">스튜디오 예약</h3>
+        <div class="people"><div class="stack" data-stack data-n="2"></div><button class="join">나도 참여</button></div>
+      </div>
+    </div>
+    <div class="dots" data-dots></div>
+    <div class="note">
+      <div class="good">제목이 확실한 주인공이 됨 — 카드를 훑을 때 “무슨 일정인지”가 먼저 들어옴</div>
+      <div class="good">1안과 줄 수가 같으면서 장소도 안 잘림</div>
+      <div class="bad">날짜와 시간이 붙어 있어 시간만 빠르게 확인하기는 1·2안보다 약간 불리</div>
+    </div>
+  </section>
+
+  <div class="hr"></div>
+
+  <div class="verdict">
+    <h2>보시고 정해 주세요 — 제 의견은 2안</h2>
+    <p>
+      말씀하신 <b>D-day 우상단 + 시간 독립 줄</b>은 확실히 효과가 있습니다.
+      D-day가 좌상단에 있을 땐 그 아래로 모든 게 밀려 내려와 카드 위쪽이 눌린 느낌이었는데,
+      우상단으로 빼니 <b>날짜가 카드 맨 위에서 바로 시작</b>해서 위아래가 트입니다.
+      시계 아이콘을 뺀 것도 좋습니다 — 시간은 숫자만으로 이미 시간인 게 분명해서 아이콘이 군더더기였어요.
+    </p>
+    <p>
+      셋 중엔 <b>2안</b>을 권합니다. 1안이 가장 시원하긴 한데 장소명이 조금만 길어도 잘려서
+      정작 필요한 정보를 못 읽습니다. 우리 일정은 장소 이름이 긴 편이라 실전에서 손해가 커요.
+      2안은 줄 하나를 더 쓰는 대신 그 문제가 없고, 기존안과 비교하면 충분히 여유롭습니다.
+    </p>
+    <p>
+      제목을 더 키우고 싶으시면 <b>3안</b>도 좋은 선택입니다. 다만 단원들이 카드를 볼 때
+      “언제”를 가장 먼저 찾는다면 시간이 독립된 2안이 낫습니다.
+    </p>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var ICON = {
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'
+  };
+  document.body.innerHTML = document.body.innerHTML
+    .replace(/\{clock\}/g, ICON.clock).replace(/\{pin\}/g, ICON.pin);
+
+  function paint(){
+    var acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    document.querySelectorAll('.card').forEach(function(c){
+      var k = c.getAttribute('data-c');
+      c.style.background = k==='mint'?'var(--mint)':k==='purple'?'var(--purple)':k==='green'?'var(--green)':'rgb('+acc+')';
+    });
+  }
+  var picker = document.getElementById('acc');
+  function trip(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)].join(' ');}
+  picker.addEventListener('input', function(){
+    document.documentElement.style.setProperty('--accent', trip(picker.value)); paint();
+  });
+  document.documentElement.style.setProperty('--accent', trip(picker.value));
+
+  var PEOPLE = [['지','#c7b9f5'],['현','#f6dd8a'],['수','#f3c0b8'],['민','#b7e0c6'],['서','#f9c6dd'],['준','#bcd6f7']];
+  var MAX = 4;
+  document.querySelectorAll('[data-stack]').forEach(function(st){
+    var n = parseInt(st.getAttribute('data-n'),10), show = Math.min(n,MAX);
+    for (var i=0;i<show;i++){
+      var p = PEOPLE[i%PEOPLE.length], d = document.createElement('div');
+      d.className='av'; d.style.background=p[1]; d.textContent=p[0]; st.appendChild(d);
+    }
+    if (n>MAX){ var m=document.createElement('div'); m.className='av more'; m.textContent='+'+(n-MAX); st.appendChild(m); }
+  });
+
+  document.querySelectorAll('.join').forEach(function(btn){
+    btn.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var on = btn.classList.toggle('joined');
+      btn.textContent = on ? '참여 중 ✓' : '나도 참여';
+      var st = btn.parentElement.querySelector('[data-stack]');
+      var more = st && st.querySelector('.more');
+      if (more){ var c = parseInt(more.textContent.replace('+',''),10); more.textContent = '+'+(on?c+1:c-1); }
+    });
+  });
+
+  document.querySelectorAll('[data-carousel]').forEach(function(track){
+    var dots = track.parentElement.querySelector('[data-dots]');
+    var cards = Array.prototype.slice.call(track.querySelectorAll('.card'));
+    cards.forEach(function(_,i){
+      var b=document.createElement('button'); b.className='dot'+(i===0?' on':'');
+      b.addEventListener('click',function(){
+        cards[i].scrollIntoView({inline:(i===0||i===cards.length-1)?'start':'center',block:'nearest',behavior:'smooth'});
+      });
+      dots.appendChild(b);
+    });
+    function sync(){
+      var r=track.getBoundingClientRect(), mid=r.left+r.width/2, best=0, min=Infinity;
+      cards.forEach(function(c,i){
+        var cr=c.getBoundingClientRect(), d=Math.abs(cr.left+cr.width/2-mid);
+        if(d<min){min=d;best=i;}
+      });
+      Array.prototype.forEach.call(dots.children,function(d,i){
+        var on=i===best; d.classList.toggle('on',on);
+        d.style.background = on ? getComputedStyle(cards[best]).backgroundColor : '#cbd5e1';
+      });
+    }
+    var raf;
+    track.addEventListener('scroll',function(){cancelAnimationFrame(raf);raf=requestAnimationFrame(sync);},{passive:true});
+    sync();
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>
