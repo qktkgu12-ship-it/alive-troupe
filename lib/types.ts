@@ -267,4 +267,10 @@ export interface SiteSettings {
   boardCategories?: string[]; // 게시판 종류(탭) 목록 — 관리자가 추가/삭제
   teams?: string[]; // 팀 목록 (A팀/B팀 등) — 관리자가 추가/삭제, 비어있으면 팀 기능 off
   accentColor: string; // HEX 예: #7c3aed
+  /**
+   * 기기 알림 일시 중지.
+   * 켜 두면 서버가 단원에게 가는 푸시를 전부 막는다 (본인 테스트 발송만 통과).
+   * 시험 삼아 글·일정을 등록할 때 단원들 폰이 울리지 않게 하려고 쓴다.
+   */
+  pushPaused?: boolean;
 }

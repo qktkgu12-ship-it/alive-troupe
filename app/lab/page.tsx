@@ -278,8 +278,10 @@ function LabInner() {
 }
 
 export default function LabPage() {
+  // 관리자만. 내비게이션에 없는 페이지지만 주소만 알면 누구나 들어올 수 있어서,
+  // 실험 중인 화면이 단원들에게 보이지 않도록 권한으로 막는다.
   return (
-    <Guard>
+    <Guard require="admin">
       <LabInner />
     </Guard>
   );

@@ -123,6 +123,22 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
 
   if (!title) return NextResponse.json({ error: "title-required" }, { status: 400 });
 
+  // ---- 3-1. 알림 일시 중지 ----
+  // 관리자가 settings/site 의 pushPaused 를 켜 두면 남에게 가는 알림을 전부 막는다.
+  // 시험 삼아 글·일정을 등록해도 단원들 폰이 울리지 않는다.
+  // 본인에게 보내는 테스트(self)는 설정 확인용이라 그대로 통과시킨다.
+  if (audience !== "self") {
+    step.at = "readSettings";
+    try {
+      const s = await db.collection("settings").doc("site").get();
+      if (s.exists && s.get("pushPaused") === true) {
+        return NextResponse.json({ ok: true, skipped: "push-paused", sent: 0 });
+      }
+    } catch {
+      /* 설정을 못 읽으면 평소대로 보낸다 (알림이 조용히 죽는 편보다 낫다) */
+    }
+  }
+
   // ---- 4. 받을 사람 정하기 ----
   const exclude = new Set(payload.exclude ?? []);
   // 테스트는 나에게 보내는 것이 목적이므로 본인 제외를 적용하지 않는다

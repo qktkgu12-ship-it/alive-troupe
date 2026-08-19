@@ -313,6 +313,14 @@ function AdminInner() {
         <ProductionManager members={approved} />
       </CollapsibleSection>
 
+      {/* 알림 */}
+      <CollapsibleSection
+        id="push"
+        title={<>알림 {settings.pushPaused && <span className="font-normal text-red-500">일시 중지 중</span>}</>}
+      >
+        <PushPauseToggle />
+      </CollapsibleSection>
+
       {/* 데이터 정리 */}
       <CollapsibleSection id="misc" title="데이터 정리">
         <p className="mb-1 text-sm font-semibold text-slate-700">데이터 정리</p>
@@ -333,6 +341,68 @@ function AdminInner() {
         </div>
       </CollapsibleSection>
     </div>
+  );
+}
+
+// ---------- 기기 알림 일시 중지 ----------
+// 시험 삼아 글·일정을 등록할 때 단원들 폰이 울리지 않게 한다.
+// 서버(/api/push)가 이 값을 보고 남에게 가는 알림을 전부 막는다.
+function PushPauseToggle() {
+  const { settings, saveSettings } = useTheme();
+  const paused = !!settings.pushPaused;
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      await saveSettings({ pushPaused: !paused });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <p className="mb-1 text-sm font-semibold text-slate-700">기기 알림 일시 중지</p>
+      <p className="mb-3 text-sm leading-relaxed text-slate-500">
+        켜 두면 글·일정을 등록해도 <b className="font-semibold text-slate-700">단원들 폰에 알림이 가지 않습니다.</b>{" "}
+        새 글 표시(빨간점)나 앱 안의 알림 목록은 평소대로 쌓이고, 기기 알림만 멈춥니다.
+        내 폰으로 보내는 테스트 알림은 계속 받을 수 있어요.
+      </p>
+
+      <button
+        onClick={toggle}
+        disabled={busy}
+        aria-pressed={paused}
+        className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition disabled:opacity-50 ${
+          paused ? "border-red-200 bg-red-50" : "border-slate-200 bg-white hover:bg-slate-50"
+        }`}
+      >
+        <span
+          className={`relative h-7 w-12 shrink-0 rounded-full transition ${paused ? "bg-red-500" : "bg-slate-300"}`}
+        >
+          <span
+            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+              paused ? "left-6" : "left-1"
+            }`}
+          />
+        </span>
+        <span className="min-w-0">
+          <span className={`block text-sm font-bold ${paused ? "text-red-600" : "text-slate-800"}`}>
+            {paused ? "알림이 멈춰 있어요" : "알림이 켜져 있어요"}
+          </span>
+          <span className="block text-xs text-slate-500">
+            {busy ? "저장 중…" : paused ? "눌러서 다시 보내기" : "눌러서 잠시 멈추기"}
+          </span>
+        </span>
+      </button>
+
+      {paused && (
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700">
+          테스트가 끝나면 꼭 다시 켜 주세요. 켤 때까지 계속 멈춰 있습니다.
+        </p>
+      )}
+    </>
   );
 }
 
