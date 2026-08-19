@@ -17,9 +17,12 @@ import type { ScheduleEvent } from "@/lib/types";
 // 카드가 미끄러지는 느낌 — 점 애니메이션도 이 값을 그대로 쓴다
 const SLIDE = "420ms cubic-bezier(0.34, 1.36, 0.4, 1)";
 
+// 팀 색은 일정 달력(TEAM_PALETTE)과 같은 색조·채도를 쓴다.
+// 달력의 민트 rgb(94,234,212)는 파스텔이라 흰 글자를 얹으면 읽히지 않으므로
+// 색조(170.6°)와 채도(77%)는 그대로 두고 명도만 64% → 42%로 낮췄다.
 const COLORS = {
   all: "#E5484D", // 전체 일정 (팀 지정 없음)
-  teamA: "#35BD95", // 첫 번째 팀
+  teamA: "#19BDA4", // 첫 번째 팀 — 달력 민트를 어둡게
   teamB: "#7A2FF2", // 두 번째 팀
   naver: "#2F9E44", // 네이버 예약
 } as const;
