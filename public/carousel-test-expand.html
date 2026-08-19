@@ -106,14 +106,15 @@
     line-height:1.14;letter-spacing:-.03em;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
   }
+  /* 레퍼런스 순서: 제목 → 얼굴들 → 맨 아래 줄에 장소(좌) · D-day(우) */
+  .faces{margin-top:auto;padding-top:.6em}
+  .headfoot{display:flex;align-items:center;gap:10px;margin-top:.5em}
   .place{
-    margin:.34em 0 0;display:flex;align-items:center;gap:.34em;min-width:0;
+    margin:0;display:flex;align-items:center;gap:.34em;min-width:0;flex:1;
     font-size:clamp(11.5px,5.2cqw,15.5px);font-weight:500;color:rgba(255,255,255,.8);
   }
   .place svg{width:1.12em;height:1.12em;flex:none;opacity:.7}
   .place span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-  .headfoot{margin-top:auto;display:flex;align-items:flex-end;gap:10px;padding-top:.55em}
   .stack{display:flex;align-items:center}
   .av{
     width:clamp(25px,10.8cqw,35px);height:clamp(25px,10.8cqw,35px);border-radius:999px;flex:none;
@@ -135,7 +136,7 @@
 
   /* 펼치면 상단의 시간·장소·얼굴은 사라진다 (아래 상세와 겹치므로) */
   .card.open .time,
-  .card.open .place,
+  .card.open .faces,
   .card.open .headfoot{display:none}
   .card.open .dday-top{display:inline-block}
 
@@ -184,15 +185,16 @@
   /* ── 참여 인원 명단 — 레퍼런스의 프로필 모음 ── */
   .roster{margin-top:12px;border-top:1px solid #eef1f5;padding-top:4px}
   .rgroup + .rgroup{border-top:1px solid #eef1f5;margin-top:12px;padding-top:12px}
-  .rhead{margin:8px 0 11px;font-size:13px;font-weight:600;color:#8b95a5}
+  .rhead{margin:8px 0 9px;font-size:13px;font-weight:600;color:#8b95a5}
   .rhead b{color:#101625;font-weight:700}
-  .rlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
-  .rlist.solo{grid-template-columns:1fr;gap:11px}
-  .person{display:flex;align-items:center;gap:11px;min-width:0}
+  /* 크기는 일정방 만들기의 개별 참여인원 리스트와 동일 — 아바타 28px, 이름 14px */
+  .rlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+  .rlist.solo{grid-template-columns:1fr;gap:6px}
+  .person{display:flex;align-items:center;gap:10px;min-width:0;padding:2px 0}
   .face{
-    width:42px;height:42px;flex:none;border-radius:30%;
+    width:28px;height:28px;flex:none;border-radius:30%;
     display:grid;place-items:center;overflow:hidden;
-    font-size:15px;font-weight:700;color:#43414c;
+    font-size:12px;font-weight:700;color:#43414c;
   }
   .face.blank{background:#d8dbe1;color:#fff}
   .face.blank svg{width:100%;height:100%}
@@ -201,9 +203,9 @@
   .rlist.solo .pname{flex-direction:row;align-items:baseline;gap:9px}
   .rlist.solo .pname .n{flex:none}
   .rlist.solo .pname .why{min-width:0}
-  .pname .n{font-size:15px;font-weight:600;color:#101625;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pname .n .me{font-size:11px;font-weight:800;color:#fff;background:#111827;border-radius:5px;padding:1.5px 5px;margin-left:5px;vertical-align:1.5px}
-  .pname .why{font-size:12.5px;color:#98a1af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pname .n{font-size:14px;font-weight:500;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pname .n .me{font-size:10px;font-weight:800;color:#fff;background:#111827;border-radius:5px;padding:1.5px 4.5px;margin-left:5px;vertical-align:1.5px}
+  .pname .why{font-size:12px;color:#98a1af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .person.out .face{filter:grayscale(1);opacity:.55}
   .person.out .pname .n{color:#7b8494}
 
@@ -240,6 +242,18 @@
   }
   .dots button.on{width:22px}
   .dots button:focus-visible{outline:2px solid #64748b;outline-offset:3px}
+
+  /* 카드 본문을 누르면 일정 상세로 — 시안에서는 어디로 가는지만 알려 준다 */
+  .head{cursor:pointer}
+  .card:not(.open) .cardin:active .head{opacity:.9}
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:70;
+    background:#111827;color:#fff;border-radius:999px;padding:11px 20px;
+    font-size:13.5px;font-weight:700;white-space:nowrap;
+    box-shadow:0 10px 30px -10px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0)}
 
   /* ── 바텀시트: 이 날 못가요 ───────────────────────────────── */
   .veil{
@@ -341,9 +355,9 @@
             </div>
             <p class="time">19:00~22:00</p>
             <h3 class="title">A팀 전체 연습</h3>
-            <p class="place">{pin}<span>스튜디오 얼라이브</span></p>
+            <div class="faces"><div class="stack" data-stack data-n="7"></div></div>
             <div class="headfoot">
-              <div class="stack" data-stack data-n="7"></div>
+              <p class="place">{pin}<span>스튜디오 얼라이브</span></p>
               <span class="dday dday-foot">내일</span>
             </div>
           </div>
@@ -383,9 +397,9 @@
             </div>
             <p class="time">14:00~18:00</p>
             <h3 class="title">B팀 런스루</h3>
-            <p class="place">{pin}<span>대학로 스튜디오 얼라이브 3관</span></p>
+            <div class="faces"><div class="stack" data-stack data-n="3"></div></div>
             <div class="headfoot">
-              <div class="stack" data-stack data-n="3"></div>
+              <p class="place">{pin}<span>대학로 스튜디오 얼라이브 3관</span></p>
               <span class="dday dday-foot">D-4</span>
             </div>
           </div>
@@ -422,9 +436,9 @@
             </div>
             <p class="time">20:00~21:30</p>
             <h3 class="title">정기 단원 회의</h3>
-            <p class="place">{pin}<span>스튜디오 얼라이브</span></p>
+            <div class="faces"><span class="allhands">단원 전체</span></div>
             <div class="headfoot">
-              <span class="allhands">단원 전체</span>
+              <p class="place">{pin}<span>스튜디오 얼라이브</span></p>
               <span class="dday dday-foot">D-6</span>
             </div>
           </div>
@@ -464,9 +478,9 @@
             </div>
             <p class="time">10:00~13:00</p>
             <h3 class="title">스튜디오 예약</h3>
-            <p class="place">{pin}<span>연습실 B</span></p>
+            <div class="faces"><span class="allhands">네이버 예약</span></div>
             <div class="headfoot">
-              <span class="allhands">네이버 예약</span>
+              <p class="place">{pin}<span>연습실 B</span></p>
               <span class="dday dday-foot">D-9</span>
             </div>
           </div>
@@ -498,10 +512,12 @@
   <div class="why-box">
     <h2>이번에 바뀐 것</h2>
     <ul>
+      <li><b>얼굴과 장소의 자리를 맞바꿨습니다</b> — 레퍼런스처럼 제목 다음에 얼굴들이 오고,
+        맨 아래 줄에 장소(왼쪽)와 D-day(오른쪽)가 나란히 섭니다.</li>
+      <li><b>명단 크기를 일정방 리스트에 맞췄습니다</b> — 아바타 28px, 이름 14px로 앱 안에서 같은 리듬이 됩니다.</li>
+      <li><b>카드 탭과 펼치기를 나눴습니다</b> — 본문은 상세 페이지, 펼치기는 우상단 버튼만.</li>
       <li><b>펼치면 폭까지 넓어집니다</b> — 옆 카드가 화면 밖으로 밀려나 상세에만 집중하게 됩니다.</li>
-      <li><b>상단의 시간·장소·얼굴은 사라집니다</b> — 아래 상세와 겹치니까요. 날짜·제목·D-day만 남습니다.</li>
       <li><b>펼치기 버튼 색을 뒤집었습니다</b> — 접혔을 땐 흰 버튼이라 눈에 띄고, 펼치면 반투명으로 물러납니다.</li>
-      <li><b>참여 인원은 명단</b>으로 — 참석과 불참을 나눠 세고, 불참한 사람은 이름 옆에 사유가 붙습니다.</li>
       <li><b>참석이 기본으로 눌려 있습니다</b> — 팀원이거나 지정 인원이면 이미 참석 상태입니다.</li>
     </ul>
 
@@ -512,18 +528,26 @@
       다시 참석을 누르면 사유와 함께 원래대로 돌아갑니다.
     </p>
 
-    <h3>정하고 넘어가야 할 것</h3>
+    <h3>정해진 것</h3>
     <ul>
-      <li class="warn"><b>카드 탭 동작</b> — 지금은 카드를 누르면 일정 상세로 넘어갑니다. 펼치기가 생겼으니
-        <b>카드 탭은 상세 페이지, 펼치기는 우상단 버튼만</b>으로 나누는 걸 권합니다.</li>
-      <li><b>참여 명단 기준</b> — 지금 구조는 <b>팀 소속 = 참여</b>이고 못 오는 사람만 불참을 등록합니다.
-        명단의 참석 쪽을 이 규칙으로 채우면 되는데, 맞는지 확인이 필요합니다.</li>
+      <li><b>카드 본문 탭 = 일정 상세 페이지</b>, <b>펼치기 = 우상단 버튼만</b>.
+        카드 아무 데나 눌러 보시면 어디로 가는지 알려 주는 안내가 뜹니다.</li>
+      <li><b>불참 사유는 전원에게 공개</b>합니다.</li>
+      <li><b>명단 크기는 일정방 만들기의 개별 참여인원 리스트와 동일</b>하게 맞췄습니다 —
+        아바타 28px, 이름 14px.</li>
+    </ul>
+
+    <h3>다음에 할 것</h3>
+    <ul>
+      <li><b>확정 일정 만들 때 참여 인원 선택창</b> — 일정방 만들기의 참여인원 선택과 똑같이 만들고,
+        카드에는 거기서 고른 인원이 뜨게 합니다. (다음 작업)</li>
       <li><b>참여 신청 저장 위치</b> — 팀원이 아닌 사람의 신청은 새 저장소와 보안 규칙이 필요합니다.</li>
-      <li><b>불참 사유를 모두에게 보일지</b> — 지금 시안은 전원에게 보입니다. 관리자만 보게 할 수도 있습니다.</li>
     </ul>
   </div>
 
 </div>
+
+<div class="toast" id="toast"></div>
 
 <!-- 바텀시트 -->
 <div class="veil" id="veil"></div>
@@ -718,9 +742,21 @@
     });
   });
 
+  /* ── 카드 본문 탭 = 일정 상세로 이동 (펼치기는 우상단 버튼만) ── */
+  var toast = document.getElementById('toast'), toastT;
+  document.querySelectorAll('.card').forEach(function(card){
+    card.querySelector('.head').addEventListener('click', function(){
+      toast.textContent = '“' + card.dataset.title + '” 상세 페이지로 이동';
+      toast.classList.add('on');
+      clearTimeout(toastT);
+      toastT = setTimeout(function(){ toast.classList.remove('on'); }, 1700);
+    });
+  });
+
   /* ── 펼치기 — 한 번에 하나만 ── */
   document.querySelectorAll('.chev').forEach(function(btn){
-    btn.addEventListener('click', function(){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
       var card = btn.closest('.card');
       var opening = !card.classList.contains('open');
       document.querySelectorAll('.card.open').forEach(function(c){
