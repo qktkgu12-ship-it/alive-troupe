@@ -70,14 +70,15 @@ export default function ScheduleCarousel({
     if (!el) return;
     const kids = Array.from(el.children).slice(0, count) as HTMLElement[];
     if (kids.length === 0) return;
-    // 카드가 서는 자리(= 왼쪽 여백만큼 들어온 지점)에 가장 가까운 카드를 고른다
-    const cs = getComputedStyle(el);
-    const pad = parseFloat(cs.scrollPaddingLeft) || parseFloat(cs.paddingLeft) || 0;
-    const base = el.getBoundingClientRect().left + pad;
+    // 카드마다 서는 자리가 다르므로(왼쪽 / 가운데) 왼쪽 끝이 아니라
+    // '카드 한가운데가 화면 한가운데에 가장 가까운 것'으로 고른다.
+    const r = el.getBoundingClientRect();
+    const mid = r.left + r.width / 2;
     let best = 0;
     let min = Infinity;
     kids.forEach((k, i) => {
-      const d = Math.abs(k.getBoundingClientRect().left - base);
+      const kr = k.getBoundingClientRect();
+      const d = Math.abs(kr.left + kr.width / 2 - mid);
       if (d < min) {
         min = d;
         best = i;
@@ -115,13 +116,17 @@ export default function ScheduleCarousel({
       <div
         ref={trackRef}
         // -mx-4 + px-4 : 화면 끝까지 흐르되 첫 카드는 아래 카드들과 같은 16px 안쪽에서 시작.
-        // scroll-pl-4 : 밀어서 멈춘 카드도 같은 자리에 서도록 (없으면 2번째부터 화면 끝에 붙는다)
-        className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scroll-smooth px-4 pb-1"
+        // scroll-px-4 : 멈추는 자리도 좌우 16px씩 들여서 잡는다.
+        //   양쪽을 같게 둬야 가운데 정렬 카드의 좌우 여백이 정확히 반씩 나뉜다.
+        className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto scroll-smooth px-4"
       >
         {events.map((e, i) => {
           const color = eventColor(e, teams);
           const dt = parseDate(e.date);
           const href = `/schedule?tab=events&event=${e.id}&date=${e.date}`;
+          // 첫 카드는 아래 카드들과 줄을 맞춰 왼쪽에, 마지막 카드는 오른쪽에 화살표
+          // 자리를 남겨야 하므로 역시 왼쪽에. 사이 카드들만 가운데로 세운다.
+          const edge = i === 0 || i === events.length - 1;
           return (
             <div
               key={e.id}
@@ -132,32 +137,34 @@ export default function ScheduleCarousel({
                 if (ev.key === "Enter") router.push(href);
               }}
               style={{ backgroundColor: color }}
-              className="relative flex aspect-[6/5] w-[78%] max-w-[330px] shrink-0 cursor-pointer snap-start flex-col rounded-3xl p-5 text-white shadow-[0_10px_28px_-12px_rgba(16,24,40,0.35)] transition active:scale-[0.985]"
+              className={`relative flex aspect-[3/2] w-[78%] max-w-[330px] shrink-0 cursor-pointer flex-col rounded-3xl p-4 text-white transition active:scale-[0.985] ${
+                edge ? "snap-start" : "snap-center"
+              }`}
             >
               {/* D-day */}
-              <span className="inline-flex w-fit rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold backdrop-blur-sm">
+              <span className="inline-flex w-fit rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold backdrop-blur-sm">
                 {ddayLabel(e.date)}
               </span>
 
-              <p className="mt-4 text-[13px] font-medium text-white/75">
+              <p className="mt-2.5 text-[12px] font-medium text-white/75">
                 {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
               </p>
-              <h3 className="mt-1 line-clamp-2 text-[22px] font-extrabold leading-snug tracking-tight">
+              <h3 className="mt-0.5 line-clamp-2 text-[19px] font-extrabold leading-tight tracking-tight">
                 {e.title}
               </h3>
 
-              {/* 시간·장소는 카드 아래쪽에 붙인다 */}
-              <div className="mt-auto space-y-1.5 pt-4 text-[13px] font-medium text-white/85">
+              {/* 시간·장소 — 카드가 낮아진 만큼 한 줄로 붙인다 */}
+              <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-2 text-[12px] font-medium text-white/85">
                 {e.startTime && (
-                  <span className="flex items-center gap-1.5">
-                    <ClockIcon className="h-4 w-4 shrink-0 text-white/70" />
+                  <span className="flex items-center gap-1">
+                    <ClockIcon className="h-3.5 w-3.5 shrink-0 text-white/70" />
                     {e.startTime}
                     {e.endTime ? `~${e.endTime}` : ""}
                   </span>
                 )}
                 {e.location && (
-                  <span className="flex items-center gap-1.5">
-                    <PinIcon className="h-4 w-4 shrink-0 text-white/70" />
+                  <span className="flex min-w-0 items-center gap-1">
+                    <PinIcon className="h-3.5 w-3.5 shrink-0 text-white/70" />
                     <span className="truncate">{e.location}</span>
                   </span>
                 )}
@@ -165,7 +172,6 @@ export default function ScheduleCarousel({
                   <span className="text-white/60">시간·장소 미정</span>
                 )}
               </div>
-
             </div>
           );
         })}
@@ -195,9 +201,11 @@ export default function ScheduleCarousel({
               aria-label={`${i + 1}번째 일정 보기`}
               aria-current={on ? "true" : undefined}
               onClick={() => {
-                // scroll-padding을 브라우저가 알아서 지켜 주므로 자리 계산이 필요 없다
+                // 그 카드가 원래 서는 자리(왼쪽 / 가운데)로 보낸다.
+                // scroll-padding은 브라우저가 알아서 지켜 준다.
                 const kid = trackRef.current?.children[i] as HTMLElement | undefined;
-                kid?.scrollIntoView({ inline: "start", block: "nearest", behavior: "smooth" });
+                const inline = i === 0 || i === events.length - 1 ? "start" : "center";
+                kid?.scrollIntoView({ inline, block: "nearest", behavior: "smooth" });
               }}
               className="h-1.5 rounded-full"
               style={{
