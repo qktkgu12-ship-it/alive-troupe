@@ -115,18 +115,29 @@
   }
   .place svg{width:1.12em;height:1.12em;flex:none;opacity:.7}
   .place span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .stack{display:flex;align-items:center}
+  /* 얼굴들은 흰 알약 안에 담긴다 — 추가 인원(+N)도 같은 알약 안에 */
+  .faces{display:flex}
+  .stack{
+    display:inline-flex;align-items:center;
+    background:#fff;border-radius:999px;padding:clamp(2.5px,1.1cqw,4px);
+    box-shadow:0 2px 8px -2px rgba(16,24,40,.28);
+  }
   .av{
-    width:clamp(25px,10.8cqw,35px);height:clamp(25px,10.8cqw,35px);border-radius:999px;flex:none;
-    border:2px solid rgba(255,255,255,.94);
-    margin-left:calc(clamp(25px,10.8cqw,35px) * -.3);
+    width:clamp(22px,9.6cqw,31px);height:clamp(22px,9.6cqw,31px);border-radius:999px;flex:none;
+    border:2px solid #fff;
+    margin-left:calc(clamp(22px,9.6cqw,31px) * -.28);
     display:grid;place-items:center;
-    font-size:clamp(10px,4.4cqw,14px);font-weight:700;color:#3b3740;
-    box-shadow:0 1px 3px rgba(0,0,0,.16);
+    font-size:clamp(9.5px,4.1cqw,13px);font-weight:700;color:#3b3740;
   }
   .stack .av:first-child{margin-left:0}
-  .more{background:rgba(255,255,255,.24);color:#fff;border-color:rgba(255,255,255,.6);font-weight:800}
-  .allhands{font-size:clamp(11px,5cqw,15px);font-weight:600;color:rgba(255,255,255,.85)}
+  .more{background:#eef1f5;color:#4b5563;font-weight:800}
+  /* 얼굴 대신 글자가 들어가는 카드도 같은 알약으로 */
+  .allhands{
+    display:inline-flex;align-items:center;background:#fff;border-radius:999px;
+    padding:clamp(4px,1.9cqw,7px) clamp(10px,4.4cqw,14px);
+    font-size:clamp(11px,4.7cqw,14px);font-weight:700;color:#3d4757;
+    box-shadow:0 2px 8px -2px rgba(16,24,40,.28);
+  }
   .dday{
     flex:none;border-radius:999px;background:rgba(255,255,255,.22);
     padding:.24em .8em;font-size:clamp(10.5px,4.9cqw,15px);font-weight:800;backdrop-filter:blur(4px);
@@ -192,7 +203,7 @@
   .rlist.solo{grid-template-columns:1fr;gap:6px}
   .person{display:flex;align-items:center;gap:10px;min-width:0;padding:2px 0}
   .face{
-    width:28px;height:28px;flex:none;border-radius:30%;
+    width:28px;height:28px;flex:none;border-radius:999px;
     display:grid;place-items:center;overflow:hidden;
     font-size:12px;font-weight:700;color:#43414c;
   }
@@ -515,7 +526,9 @@
       <li><b>얼굴과 장소의 자리를 맞바꿨습니다</b> — 레퍼런스처럼 제목 다음에 얼굴들이 오고,
         맨 아래 줄에 장소(왼쪽)와 D-day(오른쪽)가 나란히 섭니다.</li>
       <li><b>명단 크기를 일정방 리스트에 맞췄습니다</b> — 아바타 28px, 이름 14px로 앱 안에서 같은 리듬이 됩니다.</li>
-      <li><b>카드 탭과 펼치기를 나눴습니다</b> — 본문은 상세 페이지, 펼치기는 우상단 버튼만.</li>
+      <li><b>얼굴들을 흰 알약에 담았습니다</b> — 추가 인원(+N)도 같은 알약 안에 들어갑니다. 프로필은 모두 원형입니다.</li>
+      <li><b>카드 탭과 펼치기를 나눴습니다</b> — 본문은 지금 배포된 대로 일정 페이지로,
+        펼치기는 우상단 버튼만. (일정 상세 페이지는 나중에)</li>
       <li><b>펼치면 폭까지 넓어집니다</b> — 옆 카드가 화면 밖으로 밀려나 상세에만 집중하게 됩니다.</li>
       <li><b>펼치기 버튼 색을 뒤집었습니다</b> — 접혔을 땐 흰 버튼이라 눈에 띄고, 펼치면 반투명으로 물러납니다.</li>
       <li><b>참석이 기본으로 눌려 있습니다</b> — 팀원이거나 지정 인원이면 이미 참석 상태입니다.</li>
@@ -530,8 +543,8 @@
 
     <h3>정해진 것</h3>
     <ul>
-      <li><b>카드 본문 탭 = 일정 상세 페이지</b>, <b>펼치기 = 우상단 버튼만</b>.
-        카드 아무 데나 눌러 보시면 어디로 가는지 알려 주는 안내가 뜹니다.</li>
+      <li><b>카드 본문 탭 = 일정 페이지</b>(지금 배포된 동작 그대로), <b>펼치기 = 우상단 버튼만</b>.
+        카드 아무 데나 눌러 보시면 어디로 가는지 안내가 뜹니다.</li>
       <li><b>불참 사유는 전원에게 공개</b>합니다.</li>
       <li><b>명단 크기는 일정방 만들기의 개별 참여인원 리스트와 동일</b>하게 맞췄습니다 —
         아바타 28px, 이름 14px.</li>
@@ -541,6 +554,7 @@
     <ul>
       <li><b>확정 일정 만들 때 참여 인원 선택창</b> — 일정방 만들기의 참여인원 선택과 똑같이 만들고,
         카드에는 거기서 고른 인원이 뜨게 합니다. (다음 작업)</li>
+      <li><b>일정 상세 페이지</b> — 카드 탭이 갈 전용 화면. 지금은 일정 페이지로 갑니다.</li>
       <li><b>참여 신청 저장 위치</b> — 팀원이 아닌 사람의 신청은 새 저장소와 보안 규칙이 필요합니다.</li>
     </ul>
   </div>
@@ -742,11 +756,12 @@
     });
   });
 
-  /* ── 카드 본문 탭 = 일정 상세로 이동 (펼치기는 우상단 버튼만) ── */
+  /* ── 카드 본문 탭 = 지금 배포된 동작 그대로 일정 페이지로 이동
+        (펼치기는 우상단 버튼만. 일정 상세 페이지는 나중에) ── */
   var toast = document.getElementById('toast'), toastT;
   document.querySelectorAll('.card').forEach(function(card){
     card.querySelector('.head').addEventListener('click', function(){
-      toast.textContent = '“' + card.dataset.title + '” 상세 페이지로 이동';
+      toast.textContent = '일정 페이지로 이동 · ' + card.dataset.title;
       toast.classList.add('on');
       clearTimeout(toastT);
       toastT = setTimeout(function(){ toast.classList.remove('on'); }, 1700);
