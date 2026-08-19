@@ -68,6 +68,12 @@ body {
   }
 }
 
+/* 일정 카드 — 카드 폭을 기준으로 글자·여백이 따라 커지게 한다.
+   (화면 폭이 아니라 '카드 폭' 기준이라 어느 기기에서도 같은 비율로 보인다) */
+.cq {
+  container-type: inline-size;
+}
+
 /* 캐러셀 등 — 스크롤바를 감춘다 (손으로 미는 영역) */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
