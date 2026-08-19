@@ -1,0 +1,628 @@
+<title>확장형 일정 카드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" />
+
+<style>
+  /* ── 페이지 크롬 토큰 (설명 영역) — 라이트/다크 모두 대응 ───────────── */
+  :root{
+    --page-bg:#f2f3f6;
+    --page-fg:#14161c;
+    --page-muted:#5b6473;
+    --page-panel:#ffffff;
+    --page-line:#e2e5ea;
+    --page-chip:#14161c;
+    --page-chip-fg:#ffffff;
+    --shadow:0 1px 2px rgba(16,24,40,.05),0 10px 30px -12px rgba(16,24,40,.16);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --page-bg:#101216;
+      --page-fg:#eef0f4;
+      --page-muted:#98a1b0;
+      --page-panel:#191c22;
+      --page-line:#2a2f38;
+      --page-chip:#eef0f4;
+      --page-chip-fg:#101216;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --page-bg:#101216;
+    --page-fg:#eef0f4;
+    --page-muted:#98a1b0;
+    --page-panel:#191c22;
+    --page-line:#2a2f38;
+    --page-chip:#eef0f4;
+    --page-chip-fg:#101216;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px -14px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--page-bg);color:var(--page-fg);
+    font-family:"Pretendard Variable",Pretendard,"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+    letter-spacing:-.012em;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:28px 18px 72px}
+
+  h1{font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.03em;text-wrap:balance}
+  .lede{font-size:14px;line-height:1.7;color:var(--page-muted);margin:0 0 22px;max-width:52ch}
+  .lede b{color:var(--page-fg);font-weight:700}
+
+  .bar{
+    display:flex;align-items:center;gap:12px;background:var(--page-panel);
+    border:1px solid var(--page-line);border-radius:14px;padding:12px 14px;margin-bottom:12px;
+  }
+  .bar label{font-size:13.5px;font-weight:600;flex:1}
+  .bar input[type=color]{width:36px;height:36px;border:none;border-radius:9px;background:none;padding:0;cursor:pointer}
+
+  .hint{
+    font-size:12.5px;line-height:1.65;color:var(--page-muted);
+    margin:0 0 26px;padding:11px 14px;border-radius:12px;
+    background:var(--page-panel);border:1px dashed var(--page-line);
+  }
+  .hint b{color:var(--page-fg)}
+
+  /* ── 앱 미리보기 영역 — 실제 앱이 라이트 전용이라 이 안은 항상 라이트 ── */
+  .preview{
+    color-scheme:light;
+    background:#f7f8fa;color:#0f172a;
+    border:1px solid var(--page-line);border-radius:22px;
+    padding:18px 0 20px;margin-bottom:30px;box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .preview-top{display:flex;align-items:baseline;gap:8px;padding:0 18px 14px}
+  .preview-top h2{font-size:15.5px;font-weight:800;margin:0;color:#0f172a;letter-spacing:-.02em}
+  .preview-top span{font-size:12px;color:#8b95a5}
+
+  /* ── 캐러셀 ─────────────────────────────────────────────── */
+  .track{
+    display:flex;align-items:flex-start;gap:12px;
+    overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;
+    scroll-padding-left:18px;scroll-padding-right:18px;
+    padding:0 18px 4px;
+  }
+  .track::-webkit-scrollbar{display:none}
+  .track{scrollbar-width:none;-ms-overflow-style:none}
+
+  .card{
+    container-type:inline-size;
+    flex:0 0 auto;width:80%;max-width:330px;
+    border-radius:26px;color:#fff;scroll-snap-align:center;
+    box-shadow:0 10px 30px -14px rgba(16,24,40,.45);
+  }
+  .card:first-of-type,.card.last{scroll-snap-align:start}
+  .cardin{position:relative;padding:clamp(15px,7.1cqw,24px)}
+
+  /* 접힌 상태의 높이를 3:2로 잡아 주는 머리 영역.
+     49/30 = 안쪽 폭 기준 비율 → 좌우 패딩까지 더하면 카드 전체가 3:2가 된다. */
+  .head{aspect-ratio:49/30;display:flex;flex-direction:column}
+
+  .date{margin:0;font-size:clamp(11.5px,5.3cqw,16px);font-weight:500;color:rgba(255,255,255,.78);padding-right:clamp(34px,13cqw,44px)}
+  .time{margin:.12em 0 0;font-size:clamp(13px,6cqw,18px);font-weight:700;color:#fff;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .title{
+    margin:clamp(7px,3.2cqw,11px) 0 0;font-size:clamp(17.5px,8.2cqw,28px);font-weight:800;
+    line-height:1.14;letter-spacing:-.03em;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .place{
+    margin:.34em 0 0;display:flex;align-items:center;gap:.34em;min-width:0;
+    font-size:clamp(11.5px,5.2cqw,15.5px);font-weight:500;color:rgba(255,255,255,.8);
+  }
+  .place svg{width:1.12em;height:1.12em;flex:none;opacity:.7}
+  .place span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* 머리 맨 아래 줄 — 얼굴은 왼쪽, D-day는 우하단 */
+  .headfoot{margin-top:auto;display:flex;align-items:flex-end;gap:10px;padding-top:.55em}
+  .stack{display:flex;align-items:center}
+  .av{
+    width:clamp(25px,10.8cqw,35px);height:clamp(25px,10.8cqw,35px);border-radius:999px;flex:none;
+    border:2px solid rgba(255,255,255,.94);
+    margin-left:calc(clamp(25px,10.8cqw,35px) * -.3);
+    display:grid;place-items:center;
+    font-size:clamp(10px,4.4cqw,14px);font-weight:700;color:#3b3740;
+    box-shadow:0 1px 3px rgba(0,0,0,.16);
+  }
+  .stack .av:first-child{margin-left:0}
+  .more{background:rgba(255,255,255,.24);color:#fff;border-color:rgba(255,255,255,.6);font-weight:800}
+  .allhands{font-size:clamp(11px,5cqw,15px);font-weight:600;color:rgba(255,255,255,.85)}
+  .dday{
+    margin-left:auto;flex:none;border-radius:999px;background:rgba(255,255,255,.22);
+    padding:.24em .8em;font-size:clamp(10.5px,4.9cqw,15px);font-weight:800;
+    letter-spacing:-.01em;backdrop-filter:blur(4px);
+  }
+
+  /* 우상단 펼치기 버튼 */
+  .chev{
+    position:absolute;top:clamp(13px,6.2cqw,21px);right:clamp(13px,6.2cqw,21px);
+    width:clamp(27px,11.4cqw,36px);height:clamp(27px,11.4cqw,36px);
+    border:none;border-radius:999px;cursor:pointer;
+    background:rgba(255,255,255,.22);color:#fff;
+    display:grid;place-items:center;
+    transition:background .18s ease,transform .32s cubic-bezier(.32,.72,0,1);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .chev:hover{background:rgba(255,255,255,.34)}
+  .chev:focus-visible{outline:2.5px solid #fff;outline-offset:2px}
+  .chev svg{width:56%;height:56%}
+  .card.open .chev{transform:rotate(180deg);background:rgba(255,255,255,.95);color:#1b2030}
+
+  /* ── 펼쳐지는 상세 ───────────────────────────────────────── */
+  .drawer{display:grid;grid-template-rows:0fr;transition:grid-template-rows .38s cubic-bezier(.32,.72,0,1)}
+  .card.open .drawer{grid-template-rows:1fr}
+  .drawer > .clip{overflow:hidden;min-height:0}
+
+  .sheet{
+    margin-top:clamp(11px,4.8cqw,16px);background:#fff;border-radius:18px;
+    padding:clamp(13px,5.6cqw,18px);color:#0f172a;
+    box-shadow:0 6px 20px -10px rgba(16,24,40,.3);
+  }
+  .row{display:flex;align-items:flex-start;gap:11px;padding:clamp(6px,2.6cqw,8px) 0}
+  .row + .row{border-top:1px solid #f1f3f6}
+  .row .ic{
+    width:26px;height:26px;flex:none;border-radius:999px;background:#f4f6f9;
+    display:grid;place-items:center;color:#7b8494;margin-top:-1px;
+  }
+  .row .ic svg{width:15px;height:15px}
+  .row .txt{min-width:0;flex:1}
+  .row .k{margin:0;font-size:11.5px;font-weight:600;color:#9aa3b2;letter-spacing:.01em}
+  .row .v{margin:1px 0 0;font-size:14px;font-weight:600;color:#101625;line-height:1.4;word-break:break-word}
+  .row .v .sub{font-weight:500;color:#7b8494}
+  .row .v.num{font-variant-numeric:tabular-nums}
+
+  /* 상세 안의 얼굴들 — 흰 바닥이라 테두리를 옅게 */
+  .stack.on-white .av{border-color:#fff;box-shadow:0 0 0 1px #e6e9ee}
+  .stack.on-white .more{background:#eef1f5;color:#5b6473;border-color:#fff}
+  .attendees{display:flex;align-items:center;gap:9px;margin-top:7px;flex-wrap:wrap}
+  .confirm{font-size:11.5px;font-weight:700;color:#16a34a;background:#eafaf0;border-radius:999px;padding:2.5px 8px}
+  .pending{color:#b45309;background:#fdf5e6}
+
+  .cta{
+    display:block;width:100%;margin-top:12px;border:none;border-radius:14px;cursor:pointer;
+    background:#111827;color:#fff;font:inherit;font-size:14.5px;font-weight:800;padding:13px;
+    letter-spacing:-.01em;transition:transform .16s ease,background .16s ease;
+  }
+  .cta:hover{background:#1f2937}
+  .cta:active{transform:scale(.985)}
+  .cta:focus-visible{outline:2.5px solid #fff;outline-offset:2px}
+  .cta.done{background:#eef1f5;color:#3d4757}
+
+  /* 참석 여부 — 색 위에 그대로 얹는다 */
+  .rsvp{display:flex;align-items:center;gap:9px;padding:clamp(11px,4.6cqw,15px) 2px 2px}
+  .rsvp p{margin:0;flex:1;font-size:clamp(11.5px,5.2cqw,14.5px);font-weight:600;color:rgba(255,255,255,.9)}
+  .rsvp button{
+    flex:none;border-radius:999px;cursor:pointer;font:inherit;
+    font-size:clamp(11.5px,5.2cqw,14px);font-weight:800;padding:.5em 1.15em;
+    background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.55);
+    transition:background .16s ease,transform .16s ease;
+  }
+  .rsvp button:hover{background:rgba(255,255,255,.16)}
+  .rsvp button:active{transform:scale(.94)}
+  .rsvp button:focus-visible{outline:2.5px solid #fff;outline-offset:2px}
+  .rsvp button.sel{background:#fff;color:#141a27;border-color:#fff}
+
+  .note-ext{
+    margin:clamp(10px,4.4cqw,14px) 2px 2px;font-size:clamp(11px,5cqw,13.5px);
+    font-weight:600;color:rgba(255,255,255,.82);line-height:1.55;
+  }
+
+  /* 점 */
+  .dots{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px}
+  .dots button{
+    height:6px;width:6px;border-radius:999px;background:#cfd6df;border:none;padding:0;cursor:pointer;
+    transition:width .42s cubic-bezier(.34,1.36,.4,1),background-color .26s ease;
+  }
+  .dots button.on{width:22px}
+  .dots button:focus-visible{outline:2px solid #64748b;outline-offset:3px}
+
+  /* ── 설명 카드 ──────────────────────────────────────────── */
+  .why{background:var(--page-panel);border:1px solid var(--page-line);border-radius:18px;padding:18px 20px 20px}
+  .why h2{font-size:15.5px;font-weight:800;margin:0 0 12px;letter-spacing:-.02em}
+  .why h3{font-size:13.5px;font-weight:800;margin:16px 0 5px}
+  .why p{margin:0 0 10px;font-size:13.5px;line-height:1.75;color:var(--page-muted)}
+  .why p:last-child{margin-bottom:0}
+  .why b{color:var(--page-fg);font-weight:700}
+  .why ul{margin:0;padding-left:0;list-style:none}
+  .why li{
+    font-size:13.5px;line-height:1.7;color:var(--page-muted);
+    padding-left:20px;position:relative;margin-bottom:7px;
+  }
+  .why li::before{
+    content:"";position:absolute;left:6px;top:.62em;
+    width:5px;height:5px;border-radius:999px;background:var(--page-line);
+  }
+  .why li b{color:var(--page-fg)}
+  .why li.warn::before{background:#e0803a}
+
+  .kbd{
+    font-size:11.5px;font-weight:700;background:var(--page-chip);color:var(--page-chip-fg);
+    border-radius:6px;padding:2px 7px;letter-spacing:.01em;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;scroll-behavior:auto!important}
+  }
+</style>
+
+<div class="wrap">
+
+  <h1>확장형 일정 카드</h1>
+  <p class="lede">
+    카드 <b>우상단 버튼</b>을 누르면 그 자리에서 펼쳐져 상세가 나옵니다.
+    참여 버튼은 펼친 안쪽에 있으니 접힌 카드는 일정 정보만 깔끔하게 보여 줍니다.
+    <b>D-day는 우하단</b>으로 옮겨 얼굴들과 한 줄을 씁니다.
+  </p>
+
+  <div class="bar">
+    <label for="acc">브랜드 색 맞춰 보기</label>
+    <input type="color" id="acc" value="#E1322D" />
+  </div>
+
+  <p class="hint">
+    <b>눌러 보세요</b> — 카드를 옆으로 밀고, 우상단 <span class="kbd">펼치기</span> 버튼을 눌러 보세요.
+    일정 성격에 따라 상세 내용과 버튼이 달라집니다. 카드는 하나씩만 펼쳐집니다.
+  </p>
+
+  <div class="preview">
+    <div class="preview-top">
+      <h2>다가오는 일정</h2>
+      <span>홈 화면 캐러셀</span>
+    </div>
+
+    <div class="track" id="track">
+
+      <!-- 1. 내가 속한 팀 → 참석 여부를 고른다 -->
+      <div class="card" data-c="mint">
+        <div class="cardin">
+          <button class="chev" aria-expanded="false" aria-label="상세 보기">{chev}</button>
+          <div class="head">
+            <p class="date">8월 20일 (목)</p>
+            <p class="time">19:00~22:00</p>
+            <h3 class="title">A팀 전체 연습</h3>
+            <p class="place">{pin}<span>스튜디오 얼라이브</span></p>
+            <div class="headfoot">
+              <div class="stack" data-stack data-n="7"></div>
+              <span class="dday">내일</span>
+            </div>
+          </div>
+          <div class="drawer"><div class="clip">
+            <div class="sheet">
+              <div class="row">
+                <span class="ic">{clock}</span>
+                <div class="txt"><p class="k">시간</p><p class="v num">19:00~22:00 <span class="sub">· 3시간</span></p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{people}</span>
+                <div class="txt">
+                  <p class="k">참여 인원</p>
+                  <p class="v">7명 <span class="sub">· A팀 전원</span></p>
+                  <div class="attendees">
+                    <div class="stack on-white" data-stack data-n="7"></div>
+                    <span class="confirm">5명 확정</span>
+                    <span class="confirm pending">2명 미정</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <span class="ic">{pin}</span>
+                <div class="txt"><p class="k">장소</p><p class="v">스튜디오 얼라이브 <span class="sub">· 대학로 3관</span></p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{bell}</span>
+                <div class="txt"><p class="k">알림</p><p class="v">시작 30분 전</p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{user}</span>
+                <div class="txt"><p class="k">등록</p><p class="v">김서연</p></div>
+              </div>
+            </div>
+            <div class="rsvp">
+              <p>참석하시겠어요?</p>
+              <button data-rsvp="no">불참</button>
+              <button data-rsvp="yes">참석</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- 2. 내 팀이 아닌 일정 → 참여 신청 -->
+      <div class="card" data-c="purple">
+        <div class="cardin">
+          <button class="chev" aria-expanded="false" aria-label="상세 보기">{chev}</button>
+          <div class="head">
+            <p class="date">8월 23일 (일)</p>
+            <p class="time">14:00~18:00</p>
+            <h3 class="title">B팀 런스루</h3>
+            <p class="place">{pin}<span>대학로 스튜디오 얼라이브 3관</span></p>
+            <div class="headfoot">
+              <div class="stack" data-stack data-n="3"></div>
+              <span class="dday">D-4</span>
+            </div>
+          </div>
+          <div class="drawer"><div class="clip">
+            <div class="sheet">
+              <div class="row">
+                <span class="ic">{clock}</span>
+                <div class="txt"><p class="k">시간</p><p class="v num">14:00~18:00 <span class="sub">· 4시간</span></p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{people}</span>
+                <div class="txt">
+                  <p class="k">참여 인원</p>
+                  <p class="v">3명 <span class="sub">· B팀</span></p>
+                  <div class="attendees">
+                    <div class="stack on-white" data-stack data-n="3"></div>
+                    <span class="confirm">3명 확정</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <span class="ic">{pin}</span>
+                <div class="txt"><p class="k">장소</p><p class="v">대학로 스튜디오 얼라이브 3관</p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{user}</span>
+                <div class="txt"><p class="k">등록</p><p class="v">박지훈</p></div>
+              </div>
+              <button class="cta" data-join>나도 참여하기</button>
+            </div>
+            <p class="note-ext">내 팀 일정이 아니라 참여 신청으로 등록됩니다.</p>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- 3. 전체 일정 → 얼굴 없이 '단원 전체' -->
+      <div class="card" data-c="accent">
+        <div class="cardin">
+          <button class="chev" aria-expanded="false" aria-label="상세 보기">{chev}</button>
+          <div class="head">
+            <p class="date">8월 25일 (화)</p>
+            <p class="time">20:00~21:30</p>
+            <h3 class="title">정기 단원 회의</h3>
+            <p class="place">{pin}<span>스튜디오 얼라이브</span></p>
+            <div class="headfoot">
+              <span class="allhands">단원 전체</span>
+              <span class="dday">D-6</span>
+            </div>
+          </div>
+          <div class="drawer"><div class="clip">
+            <div class="sheet">
+              <div class="row">
+                <span class="ic">{clock}</span>
+                <div class="txt"><p class="k">시간</p><p class="v num">20:00~21:30 <span class="sub">· 1시간 30분</span></p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{people}</span>
+                <div class="txt">
+                  <p class="k">대상</p>
+                  <p class="v">단원 전체 <span class="sub">· 12명</span></p>
+                  <div class="attendees">
+                    <span class="confirm">9명 확정</span>
+                    <span class="confirm pending">3명 미정</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <span class="ic">{pin}</span>
+                <div class="txt"><p class="k">장소</p><p class="v">스튜디오 얼라이브</p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{user}</span>
+                <div class="txt"><p class="k">등록</p><p class="v">김서연 <span class="sub">· 관리자</span></p></div>
+              </div>
+            </div>
+            <div class="rsvp">
+              <p>참석하시겠어요?</p>
+              <button data-rsvp="no">불참</button>
+              <button data-rsvp="yes">참석</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- 4. 네이버 예약 → 참여 개념이 없는 외부 일정 -->
+      <div class="card last" data-c="green">
+        <div class="cardin">
+          <button class="chev" aria-expanded="false" aria-label="상세 보기">{chev}</button>
+          <div class="head">
+            <p class="date">8월 28일 (금)</p>
+            <p class="time">10:00~13:00</p>
+            <h3 class="title">스튜디오 예약</h3>
+            <p class="place">{pin}<span>연습실 B</span></p>
+            <div class="headfoot">
+              <span class="allhands">네이버 예약</span>
+              <span class="dday">D-9</span>
+            </div>
+          </div>
+          <div class="drawer"><div class="clip">
+            <div class="sheet">
+              <div class="row">
+                <span class="ic">{clock}</span>
+                <div class="txt"><p class="k">시간</p><p class="v num">10:00~13:00 <span class="sub">· 3시간</span></p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{pin}</span>
+                <div class="txt"><p class="k">장소</p><p class="v">연습실 B</p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{user}</span>
+                <div class="txt"><p class="k">예약자</p><p class="v">이현우</p></div>
+              </div>
+              <div class="row">
+                <span class="ic">{link}</span>
+                <div class="txt"><p class="k">가져온 곳</p><p class="v">네이버 예약 <span class="sub">· 자동 동기화</span></p></div>
+              </div>
+            </div>
+            <p class="note-ext">외부에서 가져온 예약이라 참여 신청은 없습니다.</p>
+          </div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <div class="why">
+    <h2>이 방식이 좋은 이유</h2>
+    <p>
+      접힌 카드에는 <b>일정 정보만</b> 남습니다. 지난번 B안에서 흰 참여 버튼이 제목보다 먼저 눈에 들어오던 문제가
+      사라지고, 카드를 훑을 때 “언제 무슨 일정인지”가 제일 먼저 읽힙니다.
+    </p>
+    <p>
+      참여는 <b>펼친 다음</b> 하게 되니 실수로 누를 일도 거의 없습니다.
+      상세를 보려고 페이지를 옮기지 않아도 되는 것도 이점입니다.
+    </p>
+
+    <h3>D-day를 우하단으로 옮긴 효과</h3>
+    <p>
+      좌상단에 있을 때는 칩이 한 줄을 통째로 차지해 그 아래 모든 게 밀려 내려왔습니다.
+      우하단으로 보내면 <b>얼굴들과 한 줄을 나눠 쓰고</b> 날짜가 카드 맨 위에서 바로 시작해서,
+      세로로 한 줄을 그냥 벌어 옵니다. 펼치기 버튼이 갈 우상단 자리도 자연스럽게 비워집니다.
+    </p>
+
+    <h3>일정 성격에 따라 다르게</h3>
+    <ul>
+      <li><b>내 팀 일정</b> (민트) — 팀원은 기본 참석이니 <b>참석 / 불참</b>을 고릅니다. 지금 쓰는 불참 등록 방식과 그대로 맞습니다.</li>
+      <li><b>다른 팀 일정</b> (보라) — 참여자가 아니니 <b>나도 참여하기</b> 버튼이 나옵니다.</li>
+      <li><b>전체 일정</b> (브랜드 색) — 대상이 전원이라 얼굴 대신 <b>단원 전체</b>로 적고, 참석 여부만 고릅니다.</li>
+      <li><b>네이버 예약</b> (초록) — 외부에서 가져온 일정이라 참여 버튼 없이 예약자만 보여 줍니다.</li>
+    </ul>
+
+    <h3>정하고 넘어가야 할 것</h3>
+    <ul>
+      <li><b>참여 명단을 어디서 가져올지</b> — 지금은 <b>팀 소속 = 참여</b>이고 못 오는 사람만 불참을 등록합니다. 카드의 얼굴을 이 규칙으로 뽑을지, 아니면 참여 명단을 따로 관리할지 정해야 합니다.</li>
+      <li><b>참여 신청 저장 위치</b> — 팀원이 아닌 사람의 신청은 새 저장소가 필요합니다. 보안 규칙도 같이 손봐야 합니다.</li>
+      <li class="warn"><b>카드 탭 동작</b> — 지금은 카드를 누르면 일정 상세로 넘어갑니다. 펼치기가 생기면 “카드는 펼치기, 상세로는 안 넘어감”으로 바꿀지 정해야 합니다. 둘 다 두면 헷갈립니다.</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var I = {
+    chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+    pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    people:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="8" r="3.4"/></svg>',
+    bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/></svg>',
+    user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.1-5.4 7-5.4s7 1.8 7 5.4"/></svg>',
+    link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>'
+  };
+  var root = document.querySelector('.wrap');
+  root.innerHTML = root.innerHTML.replace(/\{(chev|pin|clock|people|bell|user|link)\}/g, function(_, k){ return I[k]; });
+
+  /* ── 카드 색 ── */
+  var COL = {mint:'#19BDA4', purple:'#7A2FF2', green:'#2F9E44'};
+  function paint(){
+    var acc = document.getElementById('acc').value;
+    document.querySelectorAll('.card').forEach(function(c){
+      c.style.background = COL[c.dataset.c] || acc;
+    });
+    syncDots();
+  }
+  document.getElementById('acc').addEventListener('input', paint);
+
+  /* ── 얼굴 채우기: 최대 4명 + 나머지는 +N ── */
+  var P = [['지','#c9bcf6'],['현','#f7de8d'],['수','#f4c2ba'],['민','#b9e2c8'],['서','#fac8de'],['준','#bed8f8'],['하','#e8cdab']];
+  var MAX = 4;
+  document.querySelectorAll('[data-stack]').forEach(function(st){
+    var n = +st.dataset.n, show = Math.min(n, MAX);
+    for (var i = 0; i < show; i++){
+      var p = P[i % P.length], d = document.createElement('div');
+      d.className = 'av'; d.style.background = p[1]; d.textContent = p[0];
+      st.appendChild(d);
+    }
+    if (n > MAX){
+      var m = document.createElement('div');
+      m.className = 'av more'; m.textContent = '+' + (n - MAX);
+      st.appendChild(m);
+    }
+  });
+
+  /* ── 펼치기 — 한 번에 하나만 ── */
+  document.querySelectorAll('.chev').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var card = btn.closest('.card');
+      var opening = !card.classList.contains('open');
+      document.querySelectorAll('.card.open').forEach(function(c){
+        if (c !== card){
+          c.classList.remove('open');
+          c.querySelector('.chev').setAttribute('aria-expanded', 'false');
+        }
+      });
+      card.classList.toggle('open', opening);
+      btn.setAttribute('aria-expanded', String(opening));
+      btn.setAttribute('aria-label', opening ? '상세 접기' : '상세 보기');
+      if (opening) card.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'});
+    });
+  });
+
+  /* ── 참석 여부 ── */
+  document.querySelectorAll('.rsvp').forEach(function(box){
+    box.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){
+        var was = b.classList.contains('sel');
+        box.querySelectorAll('button').forEach(function(x){ x.classList.remove('sel'); });
+        if (!was) b.classList.add('sel');
+        box.querySelector('p').textContent = was ? '참석하시겠어요?'
+          : (b.dataset.rsvp === 'yes' ? '참석으로 등록했어요' : '불참으로 등록했어요');
+      });
+    });
+  });
+
+  /* ── 참여 신청 ── */
+  document.querySelectorAll('[data-join]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var on = b.classList.toggle('done');
+      b.textContent = on ? '참여 신청됨 · 취소하기' : '나도 참여하기';
+      b.closest('.card').querySelectorAll('[data-stack]').forEach(function(st){
+        if (on){
+          var d = document.createElement('div');
+          d.className = 'av'; d.dataset.me = '1';
+          d.style.background = '#111827'; d.style.color = '#fff'; d.textContent = '나';
+          st.appendChild(d);
+        } else {
+          var me = st.querySelector('[data-me]');
+          if (me) me.remove();
+        }
+      });
+    });
+  });
+
+  /* ── 점 ── */
+  var track = document.getElementById('track');
+  var dots = document.getElementById('dots');
+  var cards = [].slice.call(track.querySelectorAll('.card'));
+  cards.forEach(function(_, i){
+    var b = document.createElement('button');
+    b.className = i === 0 ? 'on' : '';
+    b.setAttribute('aria-label', (i + 1) + '번째 일정 보기');
+    b.addEventListener('click', function(){
+      cards[i].scrollIntoView({inline: (i === 0 || i === cards.length - 1) ? 'start' : 'center', block:'nearest', behavior:'smooth'});
+    });
+    dots.appendChild(b);
+  });
+  function syncDots(){
+    var r = track.getBoundingClientRect(), mid = r.left + r.width / 2, best = 0, min = Infinity;
+    cards.forEach(function(c, i){
+      var cr = c.getBoundingClientRect(), d = Math.abs(cr.left + cr.width / 2 - mid);
+      if (d < min){ min = d; best = i; }
+    });
+    [].forEach.call(dots.children, function(d, i){
+      var on = i === best;
+      d.classList.toggle('on', on);
+      d.style.background = on ? getComputedStyle(cards[best]).backgroundColor : '#cfd6df';
+    });
+  }
+  var raf;
+  track.addEventListener('scroll', function(){
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(syncDots);
+  }, {passive:true});
+
+  paint();
+})();
+</script>
