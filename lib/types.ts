@@ -128,6 +128,23 @@ export interface Coordination {
   createdAt: number;
 }
 
+// 예약 신청 (단원이 스튜디오 사용을 신청 → 관리자가 확정하면 events 로 승격)
+// 승인/거절 모두 이 문서를 삭제한다(대기 상태만 존재). 승인 시 events 문서가 새로 생김.
+export interface BookingRequest {
+  id: string;
+  requesterUid: string;
+  requesterName: string;
+  requesterAvatar?: string;
+  title: string; // 일정 이름 (기본: 스튜디오 얼라이브)
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  team?: string; // 참여 팀 (개별 지정이 없을 때)
+  participantUids?: string[]; // 개별 지정한 참여 인원
+  participantLabel?: string; // 표시용 요약 (예: "3명" / "A팀" / "전체")
+  createdAt: number;
+}
+
 // 개인 가능 일정 (단원이 본인 가능 날짜를 체크)
 // (구) 전역 조율: 문서 ID = `${uid}_${yearMonth}`. (신) 카드별: coordinations/{cid}/availability/{uid}
 export interface Availability {

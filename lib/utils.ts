@@ -122,12 +122,37 @@ export const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 // 가능 시간 30분 슬롯 (09:00 ~ 24:00, 시작시간 기준) — 타임바에서 1시간 칸을 반으로 나눠 씀
 export const TIME_SLOTS: string[] = (() => {
   const out: string[] = [];
-  for (let h = 9; h < 24; h++) {
+  for (let h = 0; h < 24; h++) {
     out.push(`${String(h).padStart(2, "0")}:00`);
     out.push(`${String(h).padStart(2, "0")}:30`);
   }
   return out;
 })();
+
+const WEEKDAY_KO = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** "14:00" → "오후 2:00", "09:30" → "오전 9:30" (ampm 생략하려면 withAmPm=false) */
+export function ampmTimeKo(time: string, withAmPm = true): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time ?? "");
+  if (!m) return time ?? "";
+  const h = Number(m[1]);
+  const mm = m[2];
+  const ampm = h < 12 ? "오전" : "오후";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return withAmPm ? `${ampm} ${h12}:${mm}` : `${h12}:${mm}`;
+}
+
+/** 예약 알림·카드용 라벨 → "8월 23일 (토) 오후 2:00 ~ 5:00" */
+export function bookingWhenLabel(date: string, start: string, end: string): string {
+  const md = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
+  const head = md
+    ? `${Number(md[2])}월 ${Number(md[3])}일 (${WEEKDAY_KO[new Date(`${date}T00:00:00`).getDay()]})`
+    : date ?? "";
+  const startL = start ? ampmTimeKo(start) : "";
+  const endL = end ? ampmTimeKo(end, false) : "";
+  const timeL = startL && endL ? `${startL} ~ ${endL}` : startL || "";
+  return timeL ? `${head} ${timeL}` : head;
+}
 
 // 슬롯 시작시간 → 끝시간 (+30분)
 export function slotEnd(slot: string): string {
