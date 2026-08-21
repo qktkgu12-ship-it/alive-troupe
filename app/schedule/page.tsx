@@ -23,15 +23,13 @@ import Guard from "@/components/Guard";
 import BottomSheet from "@/components/BottomSheet";
 import EventForm from "@/components/forms/EventForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
-import { pushToAdmins, pushToAll, pushToUsers } from "@/lib/push";
+import { pushToAll, pushToUsers } from "@/lib/push";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
 import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
-import type { Absence, Availability, BookingRequest, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
+import type { Absence, Availability, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
-  ampmTimeKo,
-  bookingWhenLabel,
   buildMonthGrid,
   slotEnd,
   TIME_SLOTS,
@@ -326,9 +324,6 @@ function ScheduleInner() {
           yearMonth={yearMonth}
           events={events}
           isAdmin={isAdmin}
-          uid={user?.uid ?? ""}
-          myName={profile?.name || profile?.displayName || ""}
-          myAvatar={profile?.avatar || ""}
           onChanged={loadEvents}
           highlightId={highlightEvent}
           highlightDate={highlightDate}
@@ -407,7 +402,7 @@ function TimeRangeBar({
           {hours.map((h, i) => {
             const n = Number(h);
             const disp = n === 12 ? 12 : n % 12;
-            const label = n === 0 ? "자정" : n === 12 ? "정오" : `${disp}시`;
+            const label = n === 12 ? "정오" : `${disp}시`;
             return (
               <div key={h} className="relative w-[52px] shrink-0">
                 <span className={`absolute bottom-0 whitespace-nowrap text-[11px] font-semibold text-slate-500 ${
@@ -2163,480 +2158,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 /* =========================================================================
-   예약 신청 / 승인 (스튜디오 사용 신청 → 관리자 확정 → 네이버 예약 차단)
-   ========================================================================= */
-
-// 관리자가 확정 후 해당 시간을 닫아야 하는 네이버 예약 관리 페이지
-const NAVER_MANAGE_URL =
-  "https://m-partner.booking.naver.com/bizes/1715363/biz-items/7953780/schedules";
-
-// 이미 잡힌 일정(확정 일정 + 외부 손님 예약)이 차지하는 30분 슬롯 집합
-function computeDisabledSlots(dayEvents: ScheduleEvent[]): Set<string> {
-  const set = new Set<string>();
-  for (const e of dayEvents) {
-    if (!e.startTime) continue;
-    const startM = toMinutes(e.startTime);
-    let endM = e.endTime ? toMinutes(e.endTime) : startM + 30;
-    if (endM <= startM) endM = 24 * 60; // 자정 넘김 → 그날 끝까지
-    for (const s of TIME_SLOTS) {
-      const sM = toMinutes(s);
-      const eM = toMinutes(slotEnd(s));
-      if (sM < endM && eM > startM) set.add(s);
-    }
-  }
-  return set;
-}
-
-// 확정 일정 + 외부 손님 예약을 한 번에 읽어 날짜별로 묶는다 (신청 시트 충돌 검사용)
-function useBookedByDate(active: boolean): Record<string, ScheduleEvent[]> {
-  const [all, setAll] = useState<ScheduleEvent[]>([]);
-  useEffect(() => {
-    if (!active) return;
-    let alive = true;
-    (async () => {
-      const [evSnap, exSnap] = await Promise.all([
-        getDocs(collection(db, "events")),
-        getDocs(collection(db, "externalBookings")).catch(() => null),
-      ]);
-      if (!alive) return;
-      const events = evSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScheduleEvent, "id">) }));
-      const external: ScheduleEvent[] = (exSnap?.docs ?? []).map((d) => {
-        const b = d.data() as Omit<ExternalBooking, "id">;
-        return { id: `ext_${d.id}`, title: "외부 손님 예약", date: b.date, startTime: b.startTime ?? "", endTime: b.endTime ?? "", location: "", memo: "", source: "external", createdAt: b.createdAt ?? 0 };
-      });
-      setAll([...events, ...external]);
-    })();
-    return () => { alive = false; };
-  }, [active]);
-  return useMemo(() => {
-    const m: Record<string, ScheduleEvent[]> = {};
-    for (const e of all) (m[e.date] ??= []).push(e);
-    return m;
-  }, [all]);
-}
-
-// ---- 단원용: 예약 신청 바텀시트 (일정방 만들기 폼과 같은 결) ----
-function BookingRequestSheet({
-  open,
-  onClose,
-  uid,
-  myName,
-  myAvatar,
-  myTeam,
-  teams,
-  onSubmitted,
-}: {
-  open: boolean;
-  onClose: () => void;
-  uid: string;
-  myName: string;
-  myAvatar: string;
-  myTeam: string;
-  teams: string[];
-  onSubmitted: () => void;
-}) {
-  const { settings } = useTheme();
-  const currentProductionId = settings.currentProductionId ?? "";
-  const todayStr = toDateStr(new Date());
-
-  const eventsByDate = useBookedByDate(open);
-
-  const [date, setDate] = useState<string | null>(null);
-  const [slots, setSlots] = useState<string[]>([]);
-  const [anchor, setAnchor] = useState<string | null>(null);
-  const [title, setTitle] = useState("스튜디오 얼라이브");
-  const [mode, setMode] = useState<"team" | "individual">("team");
-  const [team, setTeam] = useState(myTeam || (teams[0] ?? ""));
-  const [members, setMembers] = useState<{ uid: string; name: string; avatar?: string; team?: string }[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [selectedUids, setSelectedUids] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
-
-  // 열릴 때마다 초기화
-  useEffect(() => {
-    if (!open) return;
-    setDate(null); setSlots([]); setAnchor(null);
-    setTitle("스튜디오 얼라이브"); setMode("team");
-    setTeam(myTeam || (teams[0] ?? "")); setSelectedUids([]);
-    const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  // 개별 모드 진입 시 단원 목록 로드 (현재 진행 작품 참여자)
-  useEffect(() => {
-    if (!open || mode !== "individual" || members.length > 0) return;
-    setMembersLoading(true);
-    (async () => {
-      const snap = await getDocs(collection(db, "publicProfiles"));
-      const all = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }));
-      let filtered = all;
-      if (currentProductionId) {
-        const psnap = await getDoc(doc(db, "productions", currentProductionId));
-        const parts = (psnap.data()?.participants as string[] | undefined) ?? [];
-        if (parts.length > 0) { const ps = new Set(parts); filtered = all.filter((m) => ps.has(m.uid)); }
-      }
-      setMembers(filtered.sort((a, b) => a.name.localeCompare(b.name, "ko")));
-      setMembersLoading(false);
-    })();
-  }, [open, mode, members.length, currentProductionId]);
-
-  const disabledSlots = useMemo(
-    () => (date ? computeDisabledSlots(eventsByDate[date] ?? []) : new Set<string>()),
-    [date, eventsByDate]
-  );
-
-  function pickDate(ds: string) {
-    if (ds < todayStr) return;
-    setDate(ds); setSlots([]); setAnchor(null);
-  }
-
-  // 타임바 범위 선택: 1탭=시작, 2탭=끝
-  function tapSlot(s: string) {
-    if (disabledSlots.has(s)) return;
-    if (anchor === null) { setAnchor(s); setSlots([]); return; }
-    const lo = TIME_SLOTS.indexOf(anchor);
-    const hi = TIME_SLOTS.indexOf(s);
-    const [a, b] = lo <= hi ? [lo, hi] : [hi, lo];
-    const range: string[] = [];
-    for (let k = a; k <= b; k++) { const sl = TIME_SLOTS[k]; if (!disabledSlots.has(sl)) range.push(sl); }
-    setSlots(range); setAnchor(null);
-  }
-
-  const start = slots.length ? slots[0] : "";
-  const end = slots.length ? slotEnd(slots[slots.length - 1]) : "";
-  const participantLabel = mode === "individual" ? `${selectedUids.length}명` : (team || "전체");
-
-  async function submit(): Promise<boolean> {
-    if (!date) { alert("날짜를 선택해 주세요."); return false; }
-    if (slots.length === 0) { alert("시간을 선택해 주세요."); return false; }
-    if (mode === "individual" && selectedUids.length === 0) { alert("참여 인원을 한 명 이상 선택해 주세요."); return false; }
-    if (busy) return false;
-    setBusy(true);
-    try {
-      const id = crypto.randomUUID();
-      const reqData: Omit<BookingRequest, "id"> = {
-        requesterUid: uid,
-        requesterName: myName || "이름없음",
-        ...(myAvatar ? { requesterAvatar: myAvatar } : {}),
-        title: title.trim() || "스튜디오 얼라이브",
-        date,
-        startTime: start,
-        endTime: end,
-        ...(mode === "individual" ? { participantUids: selectedUids } : { team }),
-        participantLabel,
-        createdAt: Date.now(),
-      };
-      await setDoc(doc(db, "bookingRequests", id), reqData);
-      // 관리자에게 기기 알림
-      void pushToAdmins({
-        title: `[예약신청] ${bookingWhenLabel(date, start, end)}`,
-        body: `${myName || "단원"}님의 예약 신청이 접수되었습니다!`,
-        href: "/schedule?tab=events",
-        tag: "booking-request",
-      });
-      onSubmitted();
-      return true;
-    } catch {
-      alert("신청에 실패했어요. 잠시 뒤 다시 시도해 주세요.");
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <BottomSheet open={open} title="예약 신청" onClose={onClose} onConfirm={submit}>
-      <div className="space-y-4">
-        {/* 일정 이름 */}
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-500">일정 이름</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="스튜디오 얼라이브"
-            className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-[15px] outline-none focus:border-accent"
-          />
-        </div>
-
-        {/* 참여 인원 */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-xs font-semibold text-slate-500">참여 인원</label>
-            <div className="flex rounded-lg bg-surface p-0.5 text-xs font-medium">
-              {(["team", "individual"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`rounded-md px-3 py-1 transition ${mode === m ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-                >
-                  {m === "team" ? "팀" : "개별"}
-                </button>
-              ))}
-            </div>
-          </div>
-          {mode === "team" ? (
-            <div className="flex flex-wrap gap-1.5">
-              {(["전체", ...teams] as string[]).map((t) => {
-                const val = t === "전체" ? "" : t;
-                const on = team === val;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setTeam(val)}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${on ? "border-[#1c1c1e] bg-[#1c1c1e] text-white" : "border-slate-200 text-slate-600"}`}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          ) : membersLoading ? (
-            <p className="py-2 text-sm text-slate-400">단원 목록을 불러오는 중…</p>
-          ) : (
-            <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-100">
-              {members.map((m) => {
-                const on = selectedUids.includes(m.uid);
-                return (
-                  <button
-                    key={m.uid}
-                    onClick={() => setSelectedUids((p) => (p.includes(m.uid) ? p.filter((u) => u !== m.uid) : [...p, m.uid]))}
-                    className="flex w-full items-center gap-3 border-b border-slate-50 px-3 py-2.5 last:border-0"
-                  >
-                    <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
-                    <span className="flex-1 text-left text-sm font-medium text-slate-800">{m.name}</span>
-                    <span className={`grid h-5 w-5 place-items-center rounded-md ${on ? "bg-accent text-white" : "bg-slate-200 text-transparent"}`}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3"><polyline points="20 6 9 17 4 12" /></svg>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* 날짜 — 오늘 이후만, 예약 있는 날은 빨간 점 */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-xs font-semibold text-slate-500">날짜</label>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))} aria-label="이전 달" className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
-              <span className="min-w-[76px] text-center text-sm font-semibold text-slate-700">{cursor.getFullYear()}년 {cursor.getMonth() + 1}월</span>
-              <button onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))} aria-label="다음 달" className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
-            </div>
-          </div>
-          <CalendarGrid
-            grid={grid}
-            renderCell={(d) => {
-              const ds = toDateStr(d);
-              const isPast = ds < todayStr;
-              const isToday = ds === todayStr;
-              const on = date === ds;
-              const hasBooking = (eventsByDate[ds]?.length ?? 0) > 0;
-              const dow = d.getDay();
-              return (
-                <button
-                  data-date={ds}
-                  disabled={isPast}
-                  onClick={() => pickDate(ds)}
-                  className={`relative flex h-9 w-full items-center justify-center rounded-lg text-[14px] transition ${
-                    on
-                      ? "bg-accent font-bold text-accent-fg"
-                      : isPast
-                        ? "text-slate-300"
-                        : isToday
-                          ? "border border-accent font-semibold text-slate-700"
-                          : dow === 0 || dow === 6
-                            ? "text-slate-400 hover:bg-slate-100"
-                            : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {d.getDate()}
-                  {hasBooking && (
-                    <span className={`absolute right-1.5 top-1 h-1.5 w-1.5 rounded-full ${on ? "bg-white" : "bg-accent"}`} />
-                  )}
-                </button>
-              );
-            }}
-          />
-          <p className="mt-1.5 text-[11px] text-slate-400"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-accent align-middle" />예약이 있는 날이에요. 겹치는 시간은 선택할 수 없어요.</p>
-        </div>
-
-        {/* 시간 */}
-        {date && (
-          <div>
-            <div className="mb-1.5 flex items-baseline justify-between">
-              <label className="text-xs font-semibold text-slate-500">시간</label>
-              <span className={`text-sm font-semibold ${slots.length ? "text-accent" : "text-slate-400"}`}>
-                {slots.length ? `${ampmTimeKo(start)} ~ ${ampmTimeKo(end, false)}` : anchor ? "끝 시간을 탭하세요" : "시작 시간을 탭하세요"}
-              </span>
-            </div>
-            <TimeRangeBar
-              mySlots={slots}
-              othersBySlot={{}}
-              denom={0}
-              maxDateCount={0}
-              anchor={anchor}
-              onTap={tapSlot}
-              locked={false}
-              disabledSlots={disabledSlots}
-            />
-          </div>
-        )}
-      </div>
-    </BottomSheet>
-  );
-}
-
-// ---- 관리자용: 승인 대기 목록 + 확정 시 네이버 예약 차단 안내 ----
-function PendingApprovals({ onApproved }: { onApproved: () => void }) {
-  const [reqs, setReqs] = useState<BookingRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [naver, setNaver] = useState<{ when: string; title: string } | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const snap = await getDocs(query(collection(db, "bookingRequests"), orderBy("createdAt", "desc")));
-      setReqs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) })));
-    } catch {
-      setReqs([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
-
-  async function approve(r: BookingRequest) {
-    if (busyId) return;
-    setBusyId(r.id);
-    try {
-      const eventId = crypto.randomUUID();
-      await setDoc(doc(db, "events", eventId), {
-        title: r.title,
-        date: r.date,
-        startTime: r.startTime,
-        endTime: r.endTime,
-        location: "스튜디오 얼라이브",
-        memo: "",
-        team: r.team ?? "",
-        createdAt: Date.now(),
-      });
-      await deleteDoc(doc(db, "bookingRequests", r.id)).catch(() => {});
-      // 신청한 단원에게 기기 알림
-      void pushToUsers([r.requesterUid], {
-        title: `[예약확정] ${bookingWhenLabel(r.date, r.startTime, r.endTime)}`,
-        body: "예약이 확정되었습니다!",
-        href: `/schedule?tab=events&event=${eventId}&date=${r.date}`,
-        tag: "booking-confirmed",
-      });
-      setOpenId(null);
-      setReqs((prev) => prev.filter((x) => x.id !== r.id));
-      onApproved();
-      // 확정한 시간을 네이버에서 닫도록 안내
-      setNaver({ when: bookingWhenLabel(r.date, r.startTime, r.endTime), title: r.title });
-    } catch {
-      alert("확정에 실패했어요. 잠시 뒤 다시 시도해 주세요.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function reject(r: BookingRequest) {
-    if (busyId) return;
-    if (!confirm(`${r.requesterName}님의 예약 신청을 거절할까요?`)) return;
-    setBusyId(r.id);
-    try {
-      await deleteDoc(doc(db, "bookingRequests", r.id));
-      setOpenId(null);
-      setReqs((prev) => prev.filter((x) => x.id !== r.id));
-    } catch {
-      alert("처리에 실패했어요.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  return (
-    <>
-      {reqs.length > 0 && (
-        <div>
-          <div className="mb-2.5 flex items-center gap-2 px-0.5">
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
-            <span className="text-[15px] font-extrabold text-slate-900">승인 대기</span>
-            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-xs font-extrabold text-white">{reqs.length}</span>
-          </div>
-          <div className="space-y-2.5">
-            {reqs.map((r) => {
-              const isOpen = openId === r.id;
-              const busy = busyId === r.id;
-              return (
-                <div key={r.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition ${isOpen ? "border-amber-300" : "border-slate-100"}`}>
-                  <button onClick={() => setOpenId(isOpen ? null : r.id)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-                    <ProfileAvatar uid={r.requesterUid} name={r.requesterName} avatar={r.requesterAvatar} className="h-10 w-10 text-sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[15px] font-bold text-slate-900">{r.requesterName} <span className="text-xs font-medium text-slate-400">신청</span></p>
-                      <p className="truncate text-[13px] text-slate-500">{r.title} · {r.participantLabel ?? r.team ?? "전체"}</p>
-                      <p className="mt-0.5 text-[13.5px] font-semibold text-accent">{bookingWhenLabel(r.date, r.startTime, r.endTime)}</p>
-                    </div>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#c7c7cc" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9" /></svg>
-                  </button>
-                  {isOpen && (
-                    <div className="flex gap-2 px-4 pb-3.5">
-                      <button onClick={() => reject(r)} disabled={busy} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:opacity-50">거절</button>
-                      <button onClick={() => approve(r)} disabled={busy} className="flex-[2] rounded-xl bg-accent py-2.5 text-sm font-extrabold text-accent-fg transition hover:brightness-110 disabled:opacity-50">
-                        {busy ? "처리 중…" : "✓ 확정"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 확정 후 네이버 예약 차단 안내 */}
-      <BottomSheet open={!!naver} title="네이버에서 이 시간 닫기" onClose={() => setNaver(null)}>
-        {naver && (
-          <div className="space-y-4">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7"><polyline points="20 6 9 17 4 12" /></svg>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-extrabold text-slate-900">확정됐어요</p>
-              <p className="mt-1 text-sm text-slate-500">외부 손님이 같은 시간에 예약하지 못하도록<br />네이버 예약 관리에서 이 시간을 닫아주세요.</p>
-            </div>
-            <div className="rounded-2xl bg-surface p-4">
-              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-accent">
-                <CalendarIcon className="h-4 w-4" /> 닫을 시간
-              </p>
-              <p className="text-[15px] font-bold text-slate-900">{naver.when}</p>
-              <p className="mt-0.5 text-[13px] text-slate-500">{naver.title}</p>
-            </div>
-            <a
-              href={NAVER_MANAGE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setNaver(null)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-base font-extrabold text-white"
-              style={{ backgroundColor: "#03C75A" }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" /></svg>
-              네이버 예약 관리 열기
-            </a>
-            <button onClick={() => setNaver(null)} className="w-full py-1 text-sm font-semibold text-slate-400">나중에 할게요</button>
-          </div>
-        )}
-      </BottomSheet>
-    </>
-  );
-}
-
-/* =========================================================================
    확정 일정 (지난 일정도 흐리게 함께 표시)
    ========================================================================= */
 
@@ -2647,9 +2168,6 @@ function EventsSection({
   yearMonth,
   events,
   isAdmin,
-  uid,
-  myName,
-  myAvatar,
   onChanged,
   highlightId,
   highlightDate,
@@ -2664,9 +2182,6 @@ function EventsSection({
   yearMonth: string;
   events: ScheduleEvent[];
   isAdmin: boolean;
-  uid: string;
-  myName: string;
-  myAvatar: string;
   onChanged: () => void;
   highlightId?: string | null;
   highlightDate?: string | null;
@@ -2676,7 +2191,6 @@ function EventsSection({
   onNewHandled?: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [showBooking, setShowBooking] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
   // 보는 달이 바뀌거나, 홈·알림에서 넘어와 highlightDate가 들어오면 선택 날짜를 맞춤
   // (highlightDate는 부모가 URL 파라미터를 읽은 뒤 = 첫 렌더 이후에 도착하므로 반드시 deps에 있어야 함)
@@ -2783,37 +2297,29 @@ function EventsSection({
     else groups.push([e.date, [e]]);
   }
 
+  const naver = useNaverBooking();
+
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 + 예약 신청 버튼 */}
+      {/* 헤더: 월 이동 + 네이버 예약 버튼 */}
       <div className="flex items-center gap-1">
         <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
         <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
         <div className="flex-1" />
         <button
-          onClick={() => setShowBooking(true)}
-          className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg transition active:brightness-90"
+          onClick={naver.openNaver}
+          className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
+          style={{ backgroundColor: "#03C75A" }}
         >
-          <PlusIcon className="h-3.5 w-3.5 shrink-0" />
-          <span className="leading-none">예약 신청</span>
+          {/* 네이버 N 아이콘 */}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
+            <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+          </svg>
+          <span className="leading-none translate-y-[2px]">예약하기</span>
         </button>
       </div>
-
-      {/* 예약 신청 바텀시트 */}
-      <BookingRequestSheet
-        open={showBooking}
-        onClose={() => setShowBooking(false)}
-        uid={uid}
-        myName={myName}
-        myAvatar={myAvatar}
-        myTeam={myTeam}
-        teams={teams}
-        onSubmitted={() => { setShowBooking(false); alert("예약 신청을 보냈어요! 관리자 확정 후 알림으로 알려드릴게요."); }}
-      />
-
-      {/* 승인 대기 (관리자 전용) */}
-      {isAdmin && <PendingApprovals onApproved={onChanged} />}
+      <NaverNoticeModal open={naver.showNotice} onClose={naver.closeNotice} onConfirm={naver.confirmNotice} />
 
       {/* 팀 필터 */}
       {teams.length > 0 && (

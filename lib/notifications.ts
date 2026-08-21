@@ -7,14 +7,12 @@ import { db } from "./firebase";
 import {
   type ArchiveItem,
   type AudioTrack,
-  type BookingRequest,
   type Comment,
   type Post,
   type Production,
   type ScheduleEvent,
   type UserProfile,
 } from "./types";
-import { bookingWhenLabel } from "./utils";
 
 const DAY = 86_400_000;
 
@@ -262,27 +260,8 @@ export async function fetchNotifications({
       })
     : Promise.resolve();
 
-  // ---------- (관리자) 예약 신청 대기 ----------
-  const jobBookings = isAdmin
-    ? safe(async () => {
-        const snap = await getDocs(collection(db, "bookingRequests"));
-        snap.forEach((d) => {
-          const r = d.data() as BookingRequest;
-          if ((r.createdAt ?? 0) <= cutoff) return;
-          out.push({
-            id: `booking_${d.id}`,
-            type: "approval",
-            title: `예약 신청: ${r.requesterName || "단원"}`,
-            sub: bookingWhenLabel(r.date, r.startTime, r.endTime),
-            time: r.createdAt,
-            href: "/schedule?tab=events",
-          });
-        });
-      })
-    : Promise.resolve();
-
   // 서로 독립인 묶음들을 한꺼번에 — 예전엔 순차라 왕복이 그대로 다 더해졌다
-  await Promise.all([jobEvents, jobArchiveAudio, jobNotices, jobMyPosts, jobApprovals, jobBookings]);
+  await Promise.all([jobEvents, jobArchiveAudio, jobNotices, jobMyPosts, jobApprovals]);
 
   out.sort((a, b) => b.time - a.time);
   return out.slice(0, 50);

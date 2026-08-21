@@ -81,14 +81,6 @@ service cloud.firestore {
       }
     }
 
-    // ---------- 예약 신청 (단원이 스튜디오 사용 신청 → 관리자가 확정) ----------
-    // 단원은 본인 명의로만 신청/취소, 관리자는 확정(승격 후 삭제)·거절(삭제) 가능
-    match /bookingRequests/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && request.resource.data.requesterUid == request.auth.uid;
-      allow delete: if isAdmin() || (isMember() && resource.data.requesterUid == request.auth.uid);
-    }
-
     // ---------- 외부 손님 예약 (Apps Script가 네이버 예약 메일에서 넣음) ----------
     // 확정 일정에는 안 뜨지만, 일정방에서 스튜디오가 이미 잡혀 있음을 알리는 용도
     match /externalBookings/{id} {
