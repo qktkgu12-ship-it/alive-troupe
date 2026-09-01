@@ -1931,7 +1931,8 @@ function CoordDetail({
 }
 
 /* =========================================================================
-   단원 예약 신청 시트
+   단원 예약 신청 시트 — 일정 잡기 만들기와 동일한 카드 레이아웃
+   달력 날짜 선택 → 하단에 시간바(TimeRangeBar) 등장
    ========================================================================= */
 function BookingRequestSheet({
   open,
@@ -1941,6 +1942,7 @@ function BookingRequestSheet({
   myAvatar,
   myTeam,
   onSubmitted,
+  eventsByDate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1949,33 +1951,95 @@ function BookingRequestSheet({
   myAvatar?: string;
   myTeam: string;
   onSubmitted: () => void;
+  eventsByDate: Record<string, ScheduleEvent[]>;
 }) {
   const todayStr = toDateStr(new Date());
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(todayStr);
-  const [startTime, setStartTime] = useState("10:00");
-  const [endTime, setEndTime] = useState("12:00");
+  const locationRef = useRef<HTMLInputElement>(null);
+  const [location, setLocation] = useState("스튜디오 얼라이브");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // 달력
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
+
+  // 시간바 — 2탭 범위 선택 (CoordDetail과 동일 로직)
+  const [mySlots, setMySlots] = useState<string[]>([]);
+  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+
+  // 이미 잡힌 일정이 있는 슬롯은 선택 불가
+  const disabledSlots = useMemo(() => {
+    const set = new Set<string>();
+    if (!selectedDate) return set;
+    for (const e of eventsByDate[selectedDate] ?? []) {
+      if (!e.startTime) continue;
+      const startM = toMinutes(e.startTime);
+      let endM = e.endTime ? toMinutes(e.endTime) : startM + 30;
+      if (endM <= startM) endM = 24 * 60;
+      for (const s of TIME_SLOTS) {
+        const sM = toMinutes(s);
+        const eM = toMinutes(slotEnd(s));
+        if (sM < endM && eM > startM) set.add(s);
+      }
+    }
+    return set;
+  }, [selectedDate, eventsByDate]);
+
+  function tapSlot(slot: string) {
+    if (disabledSlots.has(slot)) return;
+    if (rangeAnchor === null) {
+      setMySlots([]);
+      setRangeAnchor(slot);
+    } else {
+      const iA = TIME_SLOTS.indexOf(rangeAnchor);
+      const iB = TIME_SLOTS.indexOf(slot);
+      const [lo, hi] = iA <= iB ? [iA, iB] : [iB, iA];
+      const range = TIME_SLOTS.slice(lo, hi + 1).filter((s) => !disabledSlots.has(s));
+      setMySlots(range);
+      setRangeAnchor(null);
+    }
+  }
+
+  // 선택된 슬롯 → startTime, endTime 계산
+  const startTime = mySlots.length > 0 ? mySlots[0] : "";
+  const endTime = mySlots.length > 0 ? slotEnd(mySlots[mySlots.length - 1]) : "";
+
+  function selectDate(ds: string) {
+    if (selectedDate === ds) {
+      setSelectedDate(null);
+      setMySlots([]);
+      setRangeAnchor(null);
+    } else {
+      setSelectedDate(ds);
+      setMySlots([]);
+      setRangeAnchor(null);
+    }
+  }
+
   async function handleSubmit() {
-    if (!title.trim() || !date || !startTime || !endTime) return;
+    if (!title.trim()) { alert("일정 이름을 입력해 주세요."); return; }
+    if (!selectedDate) { alert("날짜를 선택해 주세요."); return; }
+    if (!startTime || !endTime) { alert("시간을 선택해 주세요. 시간바에서 시작과 끝 지점을 터치해 주세요."); return; }
     setSubmitting(true);
     try {
       const ref = doc(collection(db, "bookingRequests"));
-      const whenLabel = bookingWhenLabel(date, startTime, endTime);
+      const whenLabel = bookingWhenLabel(selectedDate, startTime, endTime);
       const req: Omit<BookingRequest, "id"> = {
         requesterUid: uid,
         requesterName: myName,
         requesterAvatar: myAvatar,
         title: title.trim(),
-        date,
+        date: selectedDate,
         startTime,
         endTime,
         team: myTeam || undefined,
         createdAt: Date.now(),
       };
       await setDoc(ref, req);
-      // 관리자에게 푸시
       await pushToAdmins({
         title: `[예약신청] ${whenLabel}`,
         body: `${myName}님의 예약 신청이 접수되었습니다!`,
@@ -1984,71 +2048,136 @@ function BookingRequestSheet({
       });
       onSubmitted();
       onClose();
+      // 초기화
       setTitle("");
-      setDate(todayStr);
-      setStartTime("10:00");
-      setEndTime("12:00");
+      setLocation("스튜디오 얼라이브");
+      setSelectedDate(null);
+      setMySlots([]);
+      setRangeAnchor(null);
     } finally {
       setSubmitting(false);
     }
   }
 
-  const timeOptions = TIME_SLOTS;
-
   return (
     <BottomSheet open={open} onClose={onClose} title="스튜디오 예약 신청">
-      <div className="space-y-4 px-4 pb-6">
-        {/* 제목 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">용도</label>
-          <input
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
-            placeholder="예: 합창 연습, 개인 연습"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-        {/* 날짜 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">날짜</label>
-          <input
-            type="date"
-            min={todayStr}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        {/* 시간 */}
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">시작</label>
-            <select
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            >
-              {timeOptions.map((t) => (
-                <option key={t} value={t}>{ampmTimeKo(t)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">종료</label>
-            <select
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            >
-              {timeOptions.map((t) => (
-                <option key={t} value={t}>{ampmTimeKo(t)}</option>
-              ))}
-            </select>
+      <div className="space-y-3 px-4 pb-6">
+        {/* 일정 이름 + 장소 — CoordCreateForm과 동일 */}
+        <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+          <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 이름" />
+          <div className="flex items-center">
+            <input
+              ref={locationRef}
+              className="field flex-1 !border-0 !shadow-none"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="장소"
+            />
+            {location && (
+              <button
+                type="button"
+                onClick={() => { setLocation(""); locationRef.current?.focus(); }}
+                aria-label="장소 지우기"
+                className="mr-3 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="h-3 w-3">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* 달력 — 날짜 1개 선택 */}
+        <div className="card">
+          <p className="font-bold text-slate-900">예약 날짜</p>
+          <p className="mb-3 mt-0.5 text-xs leading-relaxed text-slate-400">
+            날짜를 선택하면 아래에 시간바가 나타나요.
+          </p>
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
+              aria-label="이전 달"
+              className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+            >
+              ‹
+            </button>
+            <span className="text-sm font-bold text-slate-800">
+              {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
+            </span>
+            <button
+              onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
+              aria-label="다음 달"
+              className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+            >
+              ›
+            </button>
+          </div>
+          <CalendarGrid
+            grid={grid}
+            renderCell={(d) => {
+              const ds = toDateStr(d);
+              const isPast = ds < todayStr;
+              const on = selectedDate === ds;
+              const hasEvent = (eventsByDate[ds] ?? []).length > 0;
+              if (isPast) {
+                return (
+                  <div className="flex h-full w-full items-center justify-center rounded-lg text-sm text-slate-300">
+                    {d.getDate()}
+                  </div>
+                );
+              }
+              return (
+                <button
+                  onClick={() => selectDate(ds)}
+                  className={`relative flex h-full w-full items-center justify-center rounded-lg text-sm transition ${
+                    on ? "bg-accent font-bold text-accent-fg" : "bg-surface text-slate-600 hover:bg-slate-200"
+                  } ${!on && ds === todayStr ? "ring-1 ring-accent/50" : ""}`}
+                >
+                  {d.getDate()}
+                  {hasEvent && (
+                    <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${on ? "bg-accent-fg" : "bg-rose-400"}`} />
+                  )}
+                </button>
+              );
+            }}
+          />
+
+          {/* 날짜 선택 시 시간바 표시 */}
+          {selectedDate && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-500">
+                  {fullDateLabel(selectedDate)}
+                  {startTime && endTime ? ` · ${ampmTimeKo(startTime)} ~ ${ampmTimeKo(endTime, false)}` : ""}
+                </p>
+                {mySlots.length > 0 && (
+                  <button
+                    onClick={() => { setMySlots([]); setRangeAnchor(null); }}
+                    className="text-xs font-medium text-slate-400 hover:text-slate-600"
+                  >
+                    초기화
+                  </button>
+                )}
+              </div>
+              <TimeRangeBar
+                mySlots={mySlots}
+                othersBySlot={{}}
+                denom={1}
+                maxDateCount={0}
+                anchor={rangeAnchor}
+                onTap={tapSlot}
+                locked={false}
+                disabledSlots={disabledSlots}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 신청 버튼 */}
         <button
           onClick={handleSubmit}
-          disabled={submitting || !title.trim() || !date}
+          disabled={submitting || !title.trim() || !selectedDate || !startTime}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-40"
           style={{ backgroundColor: "rgb(var(--accent))" }}
         >
@@ -2058,6 +2187,7 @@ function BookingRequestSheet({
     </BottomSheet>
   );
 }
+
 
 /* =========================================================================
    관리자 예약 승인 패널
@@ -2554,6 +2684,15 @@ function EventsSection({
     else groups.push([e.date, [e]]);
   }
 
+  // 날짜별 이벤트 맵 (예약 신청 시트의 disabledSlots 계산에 사용)
+  const evByDate = useMemo(() => {
+    const m: Record<string, ScheduleEvent[]> = {};
+    for (const e of events) {
+      (m[e.date] ??= []).push(e);
+    }
+    return m;
+  }, [events]);
+
   const naver = useNaverBooking();
 
   return (
@@ -2588,6 +2727,7 @@ function EventsSection({
         myAvatar={myAvatar}
         myTeam={myTeam}
         onSubmitted={onChanged}
+        eventsByDate={evByDate}
       />
 
       {/* 팀 필터 */}
