@@ -2462,7 +2462,7 @@ function BookingRequestSheet({
    ========================================================================= */
 const NAVER_MANAGE_URL = "https://m-partner.booking.naver.com/bizes/1715363/biz-items/7953780/schedules";
 
-function PendingApprovals({ onApproved }: { onApproved: () => void }) {
+function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => void; onCountChange?: (n: number) => void }) {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [naverSheet, setNaverSheet] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -2470,7 +2470,9 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
   const load = useCallback(async () => {
     try {
       const snap = await getDocs(query(collection(db, "bookingRequests"), orderBy("createdAt", "asc")));
-      setRequests(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) })));
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) }));
+      setRequests(list);
+      onCountChange?.(list.length);
     } catch (err) {
       console.error("[PendingApprovals] bookingRequests 로드 실패:", err);
       // orderBy 인덱스 없이 시도
@@ -2479,11 +2481,12 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
         const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) }));
         list.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
         setRequests(list);
+        onCountChange?.(list.length);
       } catch (err2) {
         console.error("[PendingApprovals] 재시도도 실패:", err2);
       }
     }
-  }, []);
+  }, [onCountChange]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -2960,6 +2963,8 @@ function EventsSection({
 
   const newEventRef = useRef<(() => void) | null>(null);
   const editEventRef = useRef<(() => void) | null>(null);
+  const pendingRef = useRef<HTMLDivElement | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
   // 달력 그리드
   const [ym_year, ym_month] = yearMonth.split("-").map(Number);
   const miniGrid = useMemo(() => buildMonthGrid(ym_year, ym_month - 1), [ym_year, ym_month]);
@@ -3065,9 +3070,6 @@ function EventsSection({
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
       </div>
 
-      {/* 관리자: 승인 대기 목록 */}
-      {isAdmin && <PendingApprovals onApproved={onChanged} />}
-
       {/* 단원: 예약 신청 시트 */}
       <BookingRequestSheet
         open={showBookingSheet}
@@ -3083,6 +3085,19 @@ function EventsSection({
 
       {/* 팀 필터 + 예약신청/일정등록 버튼 (같은 줄) */}
       <div className="flex flex-wrap items-center gap-1.5">
+        {/* 관리자: 승인 대기 dot — 클릭 시 아래 섹션으로 스크롤 */}
+        {isAdmin && (
+          <button
+            onClick={() => pendingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex items-center gap-1 rounded-full border border-yellow-200 bg-yellow-50 px-2 py-1 transition hover:bg-yellow-100"
+            aria-label="승인 대기 보기"
+          >
+            <span className="h-2 w-2 rounded-full bg-yellow-400 shrink-0" />
+            {pendingCount > 0 && (
+              <span className="text-[11px] font-bold text-yellow-700">{pendingCount}</span>
+            )}
+          </button>
+        )}
         {teams.length > 0 && (
           <>
             {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
@@ -3385,6 +3400,13 @@ function EventsSection({
           </div>
         );
       })()}
+
+      {/* 관리자: 승인 대기 목록 — 일정 목록 아래 배치 */}
+      {isAdmin && (
+        <div ref={pendingRef} className="scroll-mt-24">
+          <PendingApprovals onApproved={onChanged} onCountChange={setPendingCount} />
+        </div>
+      )}
     </div>
   );
 }
