@@ -133,23 +133,25 @@ export default function ScheduleCarousel({
       .catch(() => setMembers([]));
   }, []);
 
-  // 일정별 불참(absences) · 추가참석(attendees) uid 목록
-  const [absentBy, setAbsentBy] = useState<Record<string, string[]>>({});
+  // 일정별 불참(absences, 사유 포함) · 추가참석(attendees) 목록
+  const [absentBy, setAbsentBy] = useState<Record<string, { uid: string; reason: string }[]>>({});
   const [extraBy, setExtraBy] = useState<Record<string, string[]>>({});
 
   const loadAttendance = useCallback(async () => {
     if (events.length === 0) return;
-    const pairs = await Promise.all(
+    const rows = await Promise.all(
       events.map(async (e) => {
         const [abs, att] = await Promise.all([
           getDocs(collection(db, "events", e.id, "absences")).catch(() => null),
           getDocs(collection(db, "events", e.id, "attendees")).catch(() => null),
         ]);
-        return [e.id, abs?.docs.map((d) => d.id) ?? [], att?.docs.map((d) => d.id) ?? []] as const;
+        const absList =
+          abs?.docs.map((d) => ({ uid: d.id, reason: (d.data().reason as string) ?? "" })) ?? [];
+        return [e.id, absList, att?.docs.map((d) => d.id) ?? []] as const;
       })
     );
-    setAbsentBy(Object.fromEntries(pairs.map(([id, a]) => [id, a])));
-    setExtraBy(Object.fromEntries(pairs.map(([id, , x]) => [id, x])));
+    setAbsentBy(Object.fromEntries(rows.map(([id, a]) => [id, a])));
+    setExtraBy(Object.fromEntries(rows.map(([id, , x]) => [id, x])));
   }, [events]);
 
   useEffect(() => {
@@ -235,7 +237,7 @@ export default function ScheduleCarousel({
             onToggle={() => toggle(i, e.id)}
             edge={i === 0 || i === events.length - 1}
             members={members}
-            absentUids={absentBy[e.id] ?? []}
+            absences={absentBy[e.id] ?? []}
             extraUids={extraBy[e.id] ?? []}
             myUid={user?.uid ?? ""}
             myName={profile?.name || profile?.displayName || ""}
@@ -297,7 +299,7 @@ function EventCard({
   onToggle,
   edge,
   members,
-  absentUids,
+  absences,
   extraUids,
   myUid,
   myName,
@@ -310,7 +312,7 @@ function EventCard({
   onToggle: () => void;
   edge: boolean;
   members: Member[];
-  absentUids: string[];
+  absences: { uid: string; reason: string }[];
   extraUids: string[];
   myUid: string;
   myName: string;
@@ -320,26 +322,41 @@ function EventCard({
   const dt = parseDate(e.date);
   const [busy, setBusy] = useState(false);
   const [reasonSheet, setReasonSheet] = useState(false);
+  const [rosterSheet, setRosterSheet] = useState(false);
   const [reason, setReason] = useState("");
 
-  // 기본 명단 = 일정의 팀에 속한 단원 (팀 미지정 일정이면 전 단원)
-  // + 스스로 참여하겠다고 누른 사람 − 불참을 누른 사람
+  // 기본 명단 우선순위:
+  //   1) participantUids가 있으면 그 명단만 (개별 지정 예약)
+  //   2) 없고 team이 있으면 그 팀 단원
+  //   3) 둘 다 없으면 전 단원
+  // 여기에 '나도 참여하기'(attendees)를 더하고 불참(absences)을 뺀 것이 실제 참석자다.
   const { going, iAmBase, iAmGoing } = useMemo(() => {
-    const base = members.filter((m) => (e.team ? m.team === e.team : true));
+    const picked = e.participantUids ?? [];
+    const base =
+      picked.length > 0
+        ? members.filter((m) => picked.includes(m.uid))
+        : members.filter((m) => (e.team ? m.team === e.team : true));
     const baseUids = new Set(base.map((m) => m.uid));
     const extra = members.filter((m) => extraUids.includes(m.uid) && !baseUids.has(m.uid));
-    const absent = new Set(absentUids);
+    const absent = new Set(absences.map((a) => a.uid));
     const list = [...base, ...extra].filter((m) => !absent.has(m.uid));
     return {
       going: list,
       iAmBase: baseUids.has(myUid),
       iAmGoing: list.some((m) => m.uid === myUid),
     };
-  }, [members, extraUids, absentUids, e.team, myUid]);
+  }, [members, extraUids, absences, e.team, e.participantUids, myUid]);
 
+  // 불참자 — 명단에 없는 uid도 이름은 남아 있으므로 프로필이 없으면 건너뛴다
   const absentMembers = useMemo(
-    () => members.filter((m) => absentUids.includes(m.uid)),
-    [members, absentUids]
+    () =>
+      absences
+        .map((a) => {
+          const m = members.find((x) => x.uid === a.uid);
+          return m ? { ...m, reason: a.reason } : null;
+        })
+        .filter((x): x is Member & { reason: string } => x !== null),
+    [members, absences]
   );
 
   // 참석으로 전환 — 불참 기록을 지우고, 기본 명단 밖이면 attendees에 넣는다
@@ -423,7 +440,8 @@ function EventCard({
                 {e.title}
               </h3>
 
-              {/* 접힘에서만 — 펼치면 아래 상세와 겹치므로 사라진다 */}
+              {/* 접힘에서만 — 펼치면 아래 상세와 겹치므로 사라진다.
+                  좌하단에 시계+시간(시작~종료), 우하단에 참여인원 아바타 */}
               <div
                 className="overflow-hidden"
                 style={{
@@ -432,14 +450,17 @@ function EventCard({
                   transition: `max-height ${EXPAND}, opacity 180ms ease`,
                 }}
               >
-                <p className="mt-1.5 text-[13px] font-semibold text-slate-500">
-                  {e.startTime ? ampmTimeKo(e.startTime) : "시간 미정"}
-                </p>
-                {going.length > 0 && (
-                  <div className="mt-2">
-                    <AvatarStack members={going} />
-                  </div>
-                )}
+                <div className="mt-2.5 flex items-end justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
+                    <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-400" />
+                    <span className="truncate">
+                      {e.startTime
+                        ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
+                        : "시간 미정"}
+                    </span>
+                  </span>
+                  {going.length > 0 && <AvatarStack members={going} />}
+                </div>
               </div>
             </div>
 
@@ -488,8 +509,11 @@ function EventCard({
                   </span>
                 </div>
 
-                {/* 참여인원 */}
-                <div className="flex items-center gap-2.5">
+                {/* 참여인원 — 누르면 참석·불참 명단 시트 */}
+                <button
+                  onClick={() => setRosterSheet(true)}
+                  className="-mx-1 flex w-[calc(100%+8px)] items-center gap-2.5 rounded-lg px-1 py-0.5 text-left transition hover:bg-slate-100/70"
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px] shrink-0 text-slate-400">
                     <path d="M16 20v-1.6a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" />
                     <circle cx="9" cy="7.5" r="3.5" />
@@ -501,12 +525,13 @@ function EventCard({
                       <span className="text-slate-400"> · 불참 {absentMembers.length}명</span>
                     )}
                   </span>
-                  {going.length > 0 && (
-                    <span className="ml-auto">
-                      <AvatarStack members={going} max={5} size="h-6 w-6" />
-                    </span>
-                  )}
-                </div>
+                  <span className="ml-auto flex items-center gap-1">
+                    {going.length > 0 && <AvatarStack members={going} max={5} size="h-6 w-6" />}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 shrink-0">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </span>
+                </button>
 
                 {/* 메모 */}
                 {e.memo && (
@@ -568,6 +593,65 @@ function EventCard({
         </div>
       </div>
 
+      {/* 참석·불참 명단 — 2열 그리드로 이름과 얼굴을 한눈에 */}
+      <BottomSheet open={rosterSheet} title="참여 인원" onClose={() => setRosterSheet(false)}>
+        <div className="space-y-5 pb-2">
+          {/* 참석 */}
+          <div>
+            <p className="mb-2.5 text-[13px] font-semibold text-slate-500">
+              참석 : <span className="text-slate-900">{going.length}명</span>
+            </p>
+            {going.length === 0 ? (
+              <p className="py-3 text-center text-[13px] text-slate-400">아직 참석자가 없어요</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                {going.map((m) => (
+                  <div key={m.uid} className="flex min-w-0 items-center gap-2.5">
+                    <Avatar src={m.avatar} name={m.name} className="h-10 w-10" />
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-800">
+                      {m.name}
+                      {m.uid === myUid && <span className="text-slate-400"> (나)</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 불참 */}
+          {absentMembers.length > 0 && (
+            <div className="border-t border-slate-100 pt-4">
+              <p className="mb-2.5 text-[13px] font-semibold text-slate-500">
+                불참 : <span className="text-slate-900">{absentMembers.length}명</span>
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                {absentMembers.map((m) => (
+                  <div key={m.uid} className="flex min-w-0 items-center gap-2.5">
+                    <span className="relative shrink-0">
+                      <Avatar src={m.avatar} name={m.name} className="h-10 w-10 opacity-45" />
+                      <span className="absolute -bottom-0.5 -right-0.5 grid h-[18px] w-[18px] place-items-center rounded-full border-2 border-white bg-red-500">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" className="h-2.5 w-2.5">
+                          <path d="M6 6l12 12M18 6 6 18" />
+                        </svg>
+                      </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-medium text-slate-400">
+                        {m.name}
+                        {m.uid === myUid && " (나)"}
+                      </span>
+                      {m.reason && (
+                        <span className="block truncate text-[12px] text-slate-400">{m.reason}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
+
       {/* 불참 사유 — 사유는 선택, 비워도 그냥 불참 처리 */}
       <BottomSheet open={reasonSheet} title="이 날 못 가요" onClose={() => setReasonSheet(false)}>
         <div className="space-y-3">
@@ -584,6 +668,7 @@ function EventCard({
               </p>
             </div>
           )}
+
           <input
             value={reason}
             onChange={(ev) => setReason(ev.target.value)}

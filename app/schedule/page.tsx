@@ -2509,6 +2509,14 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
       location: r.location ?? "",
       memo: "",
       ...(r.team ? { team: r.team } : {}),
+      // 개별 지정 신청이면 그 명단을 그대로 일정에 넘긴다.
+      // (안 넘기면 팀 기준으로 되돌아가 전 단원이 대상이 돼 버린다)
+      ...(r.participantUids && r.participantUids.length > 0
+        ? {
+            participantUids: r.participantUids,
+            participantLabel: r.participantLabel ?? `${r.participantUids.length}명`,
+          }
+        : {}),
       createdAt: Date.now(),
     } satisfies Omit<ScheduleEvent, "id">);
     // 신청 문서 삭제
@@ -3287,7 +3295,7 @@ function EventsSection({
               <EventForm
                 key={editEvent.id}
                 eventId={editEvent.id}
-                initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo }}
+                initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo, participantUids: editEvent.participantUids }}
                 onSaved={() => { setEditEvent(null); onChanged(); }}
                 onCancel={() => setEditEvent(null)}
                 submitRef={editEventRef}

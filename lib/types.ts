@@ -88,6 +88,9 @@ export interface ScheduleEvent {
   location: string; // 장소
   memo: string; // 메모·준비물
   team?: string; // 대상 팀 (빈값이면 전체 공통)
+  // 개별 지정 참여자. 값이 있으면 team보다 우선한다 (팀 대신 이 명단이 대상).
+  participantUids?: string[];
+  participantLabel?: string; // "5명" 등 표시용
   source?: string; // 'naver' = 네이버 스마트플레이스 예약 (초록색), 'external' = 외부 손님 예약
   hidden?: boolean; // 숨겨진 일정 (관리자만 볼 수 있음, 취소선으로 표시)
   createdAt: number;
