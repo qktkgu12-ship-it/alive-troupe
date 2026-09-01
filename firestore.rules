@@ -79,6 +79,16 @@ service cloud.firestore {
           && request.resource.data.uid == request.auth.uid;
         allow delete: if isAdmin() || (isMember() && uid == request.auth.uid);
       }
+
+      // 추가 참석 (문서 ID = 단원 uid)
+      // 일정의 팀에 속하지 않은 단원이 '나도 참여하기'를 누른 기록
+      match /attendees/{uid} {
+        allow read: if isMember();
+        allow create, update: if isMember()
+          && uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if isAdmin() || (isMember() && uid == request.auth.uid);
+      }
     }
 
     // ---------- 단원 예약 신청 (관리자 승인 전 임시 보관) ----------
