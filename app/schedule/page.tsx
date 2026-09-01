@@ -2939,23 +2939,23 @@ function EventsSection({
             })}
           </>
         )}
-        {/* 예약 신청 (단원) / 일정 등록 (관리자) — 아카이브 등록 버튼과 동일 h-9 w-9 원형 */}
+        {/* 예약 신청 (단원) / 일정 등록 (관리자) — 타원형 텍스트 버튼 */}
         {!isAdmin ? (
           <button
             onClick={() => setShowBookingSheet(true)}
-            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full text-accent-fg transition hover:brightness-110 active:brightness-90"
+            className="ml-auto flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-accent-fg transition hover:brightness-110 active:brightness-90"
             style={{ backgroundColor: "rgb(var(--accent))" }}
-            aria-label="예약 신청"
           >
-            <PlusIcon className="h-5 w-5" />
+            <PlusIcon className="h-4 w-4 shrink-0" />
+            예약하기
           </button>
         ) : (
           <button
             onClick={() => openNewForm(`${yearMonth}-01`)}
-            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110 active:brightness-90"
-            aria-label="확정 일정 등록"
+            className="ml-auto flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-sm font-semibold text-accent-fg transition hover:brightness-110 active:brightness-90"
           >
-            <PlusIcon className="h-5 w-5" />
+            <PlusIcon className="h-4 w-4 shrink-0" />
+            일정 등록
           </button>
         )}
       </div>
