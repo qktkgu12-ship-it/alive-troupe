@@ -2355,15 +2355,23 @@ function BookingRequestSheet({
           )}
         </div>
 
-        {/* 신청 버튼 */}
-        <button
-          onClick={requestConfirm}
-          disabled={submitting || !title.trim() || !selectedDate || !startTime}
-          className="w-full rounded-2xl py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_-4px_rgba(0,0,0,0.25)] transition disabled:opacity-40 active:brightness-90"
-          style={{ backgroundColor: "rgb(var(--accent))" }}
-        >
-          이 일정으로 예약하기
-        </button>
+        {/* 신청 버튼 — 비활성 상태에서도 클릭 가능하게 하여 requestConfirm 안의 알림 표시 */}
+        {(() => {
+          const inactive = !title.trim() || !selectedDate || !startTime;
+          return (
+            <button
+              onClick={requestConfirm}
+              disabled={submitting}
+              className="w-full rounded-2xl py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_-4px_rgba(0,0,0,0.25)] transition active:brightness-90"
+              style={{
+                backgroundColor: "rgb(var(--accent))",
+                opacity: submitting || inactive ? 0.4 : 1,
+              }}
+            >
+              이 일정으로 예약하기
+            </button>
+          );
+        })()}
       </div>
 
       {/* 겹치는 일정 있는 날짜 선택 시 경고 모달 */}
