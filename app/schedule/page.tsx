@@ -2117,13 +2117,13 @@ function BookingRequestSheet({
       const req: Omit<BookingRequest, "id"> = {
         requesterUid: uid,
         requesterName: myName,
-        requesterAvatar: myAvatar,
+        ...(myAvatar ? { requesterAvatar: myAvatar } : {}),
         title: title.trim(),
         date: selectedDate,
         startTime,
         endTime,
         location: location.trim() || "스튜디오 얼라이브",
-        team: myTeam || undefined,
+        ...(myTeam ? { team: myTeam } : {}),
         ...(audienceMode === "individual" && selectedParticipantUids.length > 0
           ? { participantUids: selectedParticipantUids, participantLabel: `${selectedParticipantUids.length}명` }
           : {}),
