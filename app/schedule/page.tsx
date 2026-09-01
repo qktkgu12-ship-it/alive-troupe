@@ -27,6 +27,7 @@ import { pushToAdmins, pushToAll, pushToUsers } from "@/lib/push";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
+import EventCard, { eventColor, type Member as CardMember } from "@/components/EventCard";
 import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PinIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, BookingRequest, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
@@ -113,8 +114,9 @@ const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
   { border: "rgb(196,181,253)", color: "rgb(109,40,217)", bg: "rgba(196,181,253,0.35)" }, // pastel violet
 ];
 
-// 네이버 예약 (source='naver') 전용 초록색
-const NAVER_COLOR = { border: "rgb(34,197,94)", color: "rgb(21,128,57)", bg: "rgba(34,197,94,0.15)" };
+// 네이버 예약(source='naver')·개별 지정 일정 공용 초록색
+// (네이버 공식 초록 #03C75A — 홈 캐러셀·'네이버 예약 관리' 버튼과 같은 색)
+const GREEN_COLOR = { border: "#03C75A", color: "#04913F", bg: "rgba(3,199,90,0.15)" };
 
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
@@ -123,11 +125,12 @@ function getTeamColor(team: string | undefined, teams: string[]) {
   return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)", bg: "rgba(148,163,184,0.2)" };
 }
 
-// 이벤트 색상 결정 (팀색 우선, 네이버 예약이면 초록)
-function getEventColor(e: { team?: string; source?: string }, teams: string[]) {
+// 이벤트 색상 결정 (네이버 예약·개별 지정 = 초록, 그 외는 팀색)
+function getEventColor(e: { team?: string; source?: string; participantUids?: string[] }, teams: string[]) {
+  if (e.source === 'naver') return GREEN_COLOR;
+  if (e.participantUids && e.participantUids.length > 0) return GREEN_COLOR;
   const tc = getTeamColor(e.team, teams);
   if (tc) return tc;
-  if (e.source === 'naver') return NAVER_COLOR;
   return null;
 }
 
@@ -2597,6 +2600,8 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
             participantLabel: r.participantLabel ?? `${r.participantUids.length}명`,
           }
         : {}),
+      // 신청한 단원 — 이 사람은 관리자가 아니어도 자기 일정을 지울 수 있다
+      createdBy: r.requesterUid,
       createdAt: Date.now(),
     } satisfies Omit<ScheduleEvent, "id">);
     // 신청 문서 삭제
@@ -3097,17 +3102,40 @@ function EventsSection({
     return !e.team || e.team === evTeam;
   });
 
+  // 펼쳐진 카드 (한 번에 한 장만)
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
+
+  // 전 단원 명단 — 카드의 참여인원 계산용 (홈 캐러셀과 같은 방식)
+  const [cardMembers, setCardMembers] = useState<CardMember[]>([]);
+  useEffect(() => {
+    getDocs(collection(db, "publicProfiles"))
+      .then((snap) =>
+        setCardMembers(
+          snap.docs.map((d) => {
+            const p = d.data() as PublicProfile;
+            return { uid: d.id, name: p.name ?? "", avatar: p.avatar, team: p.team };
+          })
+        )
+      )
+      .catch(() => setCardMembers([]));
+  }, []);
+
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
+  const [attendees, setAttendees] = useState<Record<string, string[]>>({});
   const loadAbsences = useCallback(async () => {
-    // 불참 의견은 '아직 안 지난 일정'만 필요 → 지난 일정은 조회 생략(읽기 절감)
+    // 불참·추가참석은 '아직 안 지난 일정'만 필요 → 지난 일정은 조회 생략(읽기 절감)
     const upcoming = events.filter((e) => !eventPassed(e));
     const entries = await Promise.all(
       upcoming.map(async (e) => {
-        const snap = await getDocs(collection(db, "events", e.id, "absences"));
-        return [e.id, snap.docs.map((d) => d.data() as Absence)] as const;
+        const [abs, att] = await Promise.all([
+          getDocs(collection(db, "events", e.id, "absences")),
+          getDocs(collection(db, "events", e.id, "attendees")).catch(() => null),
+        ]);
+        return [e.id, abs.docs.map((d) => d.data() as Absence), att?.docs.map((d) => d.id) ?? []] as const;
       })
     );
-    setAbsences(Object.fromEntries(entries));
+    setAbsences(Object.fromEntries(entries.map(([id, a]) => [id, a])));
+    setAttendees(Object.fromEntries(entries.map(([id, , x]) => [id, x])));
   }, [events]);
   useEffect(() => {
     loadAbsences();
@@ -3422,67 +3450,39 @@ function EventsSection({
         }
 
         const cardList = selectedDate && displayGroups.length === 0 ? null : (
-          <div key={selectedDate ?? "all"} className="space-y-2 animate-list-fade-in">
-            {displayGroups.map(([date, evs]) => (
+          <div key={selectedDate ?? "all"} className="space-y-2.5 animate-list-fade-in">
+            {displayGroups.map(([, evs]) => (
               evs.map((e) => {
                 const past = eventPassed(e);
                 const isHidden = !!e.hidden;
                 const dimmed = past || isHidden;
-                const barColor = dimmed
-                  ? "#cbd5e1"
-                  : getEventColor(e, teams)?.border ?? "rgb(var(--accent))";
+                // 본인이 예약 신청해서 확정된 일정은 본인도 지울 수 있다
+                const mine = !!uid && e.createdBy === uid;
                 return (
-                  <div
-                    key={e.id}
-                    id={`ev-${e.id}`}
-                    onClick={() => { if (isAdmin && !past) setEditEvent(e); }}
-                    className={`flex items-center overflow-hidden rounded-2xl bg-white shadow-sm transition ${
-                      highlightId === e.id ? "ring-2 ring-accent" : ""
-                    } ${dimmed ? "opacity-50" : ""} ${isAdmin && !past ? "cursor-pointer hover:shadow-md" : ""}`}
-                  >
-                    {/* 시간 */}
-                    <div className="flex w-[72px] shrink-0 flex-col justify-center pl-3 pr-3 py-3">
-                      {(() => {
-                        const sp = formatTimeParts(e.startTime);
-                        return (
-                          <p className={`whitespace-nowrap tracking-tighter text-[17px] font-bold leading-tight ${isHidden ? "text-slate-400 line-through" : "text-slate-900"}`}>
-                            {sp.time}<span className="ml-[3px] text-[10px] font-semibold tracking-normal">{sp.ampm}</span>
-                          </p>
-                        );
-                      })()}
-                      {e.endTime && (() => {
-                        const ep = formatTimeParts(e.endTime);
-                        return (
-                          <p className="mt-0.5 whitespace-nowrap tracking-tighter text-[12px] font-medium text-slate-400">
-                            {ep.time}<span className="ml-[3px] text-[9px] tracking-normal">{ep.ampm}</span>
-                          </p>
-                        );
-                      })()}
-                    </div>
-                    {/* 컬러 바: 세로 여백 + 둥근 모서리 */}
-                    <div className="self-stretch flex py-3">
-                      <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: barColor }} />
-                    </div>
-                    {/* 내용 */}
-                    <div className="min-w-0 flex-1 py-3 pl-3 pr-3">
-                      <p className="flex items-center gap-1.5 text-[17px] font-bold tracking-tighter text-slate-900">
-                        <TeamBadge team={e.team} />
-                        <span className={`min-w-0 truncate ${isHidden ? "line-through text-slate-400" : ""}`}>{e.title}</span>
-                        {isHidden && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">숨김</span>}
-                        {!isHidden && past && <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">지남</span>}
-                      </p>
-                      {(e.location || e.memo) && (
-                        <p className={`mt-0.5 line-clamp-1 text-[11px] tracking-tighter text-slate-400 ${isHidden ? "line-through" : ""}`}>
-                          {[e.location, e.memo].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                    </div>
-                    {/* 못 가요 아이콘 (숨긴 일정·지난 일정은 표시 안 함) */}
-                    {!past && !isHidden && (
-                      <div onClick={(ev) => ev.stopPropagation()}>
-                        <AbsenceControl eventId={e.id} list={absences[e.id] ?? []} onChanged={loadAbsences} />
-                      </div>
-                    )}
+                  <div key={e.id} id={`ev-${e.id}`} className="scroll-mt-24">
+                    <EventCard
+                      e={e}
+                      color={dimmed ? "#94a3b8" : eventColor(e, teams)}
+                      open={openCardId === e.id}
+                      onToggle={() => setOpenCardId((prev) => (prev === e.id ? null : e.id))}
+                      members={cardMembers}
+                      absences={absences[e.id] ?? []}
+                      extraUids={attendees[e.id] ?? []}
+                      myUid={uid}
+                      myName={myName}
+                      onChanged={loadAbsences}
+                      onEdit={isAdmin && !past ? () => setEditEvent(e) : undefined}
+                      onDelete={(isAdmin || mine) && !past ? () => removeEvent(e.id) : undefined}
+                      dimmed={dimmed}
+                      badge={
+                        (isHidden || past) ? (
+                          <span className="ml-1.5 mt-1 shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
+                            {isHidden ? "숨김" : "지남"}
+                          </span>
+                        ) : undefined
+                      }
+                      wrapperClassName={highlightId === e.id ? "ring-2 ring-accent" : ""}
+                    />
                   </div>
                 );
               })
@@ -3504,106 +3504,6 @@ function EventsSection({
         </div>
       )}
     </div>
-  );
-}
-
-// ---------- 불참 의견 — 아이콘 버튼 + 바텀시트 ----------
-function AbsenceControl({ eventId, list, onChanged }: { eventId: string; list: Absence[]; onChanged: () => void }) {
-  const { user, profile } = useAuth();
-  const mine = list.find((a) => a.uid === user?.uid);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    if (!user) return;
-    setBusy(true);
-    try {
-      await setDoc(doc(db, "events", eventId, "absences", user.uid), {
-        uid: user.uid,
-        name: profile?.name || profile?.displayName || "",
-        reason: reason.trim(),
-        createdAt: Date.now(),
-      });
-      setReason("");
-      setSheetOpen(false);
-      onChanged();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function cancel() {
-    if (!user) return;
-    await deleteDoc(doc(db, "events", eventId, "absences", user.uid));
-    setSheetOpen(false);
-    onChanged();
-  }
-
-  return (
-    <>
-      {/* 아이콘 버튼 */}
-      <button
-        onClick={() => setSheetOpen(true)}
-        aria-label="이 날 못 가요"
-        className={`mr-3 grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${
-          mine ? "bg-red-50 text-red-500" : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
-        }`}
-      >
-        {/* 🚫 ban icon */}
-        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="9" />
-          <line x1="5.5" y1="5.5" x2="18.5" y2="18.5" />
-        </svg>
-      </button>
-
-      {/* 바텀시트 */}
-      <BottomSheet open={sheetOpen} title="이 날 못 가요" onClose={() => setSheetOpen(false)}>
-        <div className="space-y-4">
-          {/* 불참 목록 */}
-          {list.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-slate-500">🚫 못 가요 {list.length}명</p>
-              <div className="space-y-1">
-                {list.map((a) => (
-                  <div key={a.uid} className="flex items-baseline gap-2 text-sm">
-                    <span className="shrink-0 font-medium text-slate-700">{a.name}</span>
-                    {a.reason && <span className="min-w-0 break-words text-slate-400">{a.reason}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 내 불참 처리 */}
-          {mine ? (
-            <button
-              onClick={cancel}
-              className="w-full rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-500 transition hover:bg-red-50"
-            >
-              못 가요 취소하기
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <input
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="사유 (선택)"
-                className="input w-full"
-                onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-              />
-              <button
-                onClick={submit}
-                disabled={busy}
-                className="w-full rounded-xl bg-accent py-3 text-sm font-bold text-accent-fg transition hover:brightness-110 disabled:opacity-50"
-              >
-                못 가요 등록
-              </button>
-            </div>
-          )}
-        </div>
-      </BottomSheet>
-    </>
   );
 }
 

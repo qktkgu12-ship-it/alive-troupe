@@ -93,6 +93,9 @@ export interface ScheduleEvent {
   participantLabel?: string; // "5명" 등 표시용
   source?: string; // 'naver' = 네이버 스마트플레이스 예약 (초록색), 'external' = 외부 손님 예약
   hidden?: boolean; // 숨겨진 일정 (관리자만 볼 수 있음, 취소선으로 표시)
+  // 단원 예약 신청이 승인돼서 만들어진 일정이면 신청한 단원의 uid.
+  // 이 사람은 관리자가 아니어도 자기 일정을 지울 수 있다.
+  createdBy?: string;
   createdAt: number;
 }
 

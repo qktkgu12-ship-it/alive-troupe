@@ -69,7 +69,10 @@ service cloud.firestore {
     // ---------- 확정 일정 ----------
     match /events/{id} {
       allow read: if isMember();
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin();
+      // 삭제: 관리자 / 또는 본인이 예약 신청해서 만들어진 일정(createdBy = 본인)
+      allow delete: if isAdmin()
+        || (isMember() && resource.data.createdBy == request.auth.uid);
 
       // 불참 의견 (문서 ID = 단원 uid)
       match /absences/{uid} {
