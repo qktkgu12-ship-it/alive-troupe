@@ -1943,6 +1943,7 @@ function BookingRequestSheet({
   myTeam,
   onSubmitted,
   eventsByDate,
+  initialDate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1952,6 +1953,7 @@ function BookingRequestSheet({
   myTeam: string;
   onSubmitted: () => void;
   eventsByDate: Record<string, ScheduleEvent[]>;
+  initialDate?: string | null;
 }) {
   const todayStr = toDateStr(new Date());
   const [title, setTitle] = useState("");
@@ -1959,6 +1961,7 @@ function BookingRequestSheet({
   const [location, setLocation] = useState("스튜디오 얼라이브");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [conflictDate, setConflictDate] = useState<string | null>(null);
 
   // 달력
   const [cursor, setCursor] = useState(() => {
@@ -1970,6 +1973,26 @@ function BookingRequestSheet({
   // 시간바 — 2탭 범위 선택 (CoordDetail과 동일 로직)
   const [mySlots, setMySlots] = useState<string[]>([]);
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+
+  // initialDate가 바뀌면 날짜 선택에 반영
+  useEffect(() => {
+    if (open && initialDate) {
+      setSelectedDate(initialDate);
+      setMySlots([]);
+      setRangeAnchor(null);
+      const d = new Date(initialDate + "T00:00:00");
+      setCursor(new Date(d.getFullYear(), d.getMonth(), 1));
+    }
+    if (!open) {
+      // 닫히면 초기화
+      setTitle("");
+      setLocation("스튜디오 얼라이브");
+      setSelectedDate(null);
+      setMySlots([]);
+      setRangeAnchor(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialDate]);
 
   // 이미 잡힌 일정이 있는 슬롯은 선택 불가
   const disabledSlots = useMemo(() => {
@@ -2014,9 +2037,13 @@ function BookingRequestSheet({
       setMySlots([]);
       setRangeAnchor(null);
     } else {
-      setSelectedDate(ds);
       setMySlots([]);
       setRangeAnchor(null);
+      if ((eventsByDate[ds] ?? []).length > 0) {
+        setConflictDate(ds);
+      } else {
+        setSelectedDate(ds);
+      }
     }
   }
 
@@ -2048,20 +2075,14 @@ function BookingRequestSheet({
       });
       onSubmitted();
       onClose();
-      // 초기화
-      setTitle("");
-      setLocation("스튜디오 얼라이브");
-      setSelectedDate(null);
-      setMySlots([]);
-      setRangeAnchor(null);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="스튜디오 예약 신청">
-      <div className="space-y-3 px-4 pb-6">
+    <BottomSheet open={open} onClose={onClose} title="스튜디오 예약 신청" onConfirm={handleSubmit}>
+      <div className="space-y-3 pb-4">
         {/* 일정 이름 + 장소 — CoordCreateForm과 동일 */}
         <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
           <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 이름" />
@@ -2147,10 +2168,14 @@ function BookingRequestSheet({
           {selectedDate && (
             <div className="mt-3 border-t border-slate-100 pt-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-500">
-                  {fullDateLabel(selectedDate)}
-                  {startTime && endTime ? ` · ${ampmTimeKo(startTime)} ~ ${ampmTimeKo(endTime, false)}` : ""}
-                </p>
+                <div>
+                  <p className="text-xs text-slate-500">{fullDateLabel(selectedDate)}</p>
+                  {startTime && endTime && (
+                    <p className="text-[15px] font-bold text-slate-900 leading-snug">
+                      {ampmTimeKo(startTime)} ~ {ampmTimeKo(endTime, false)}
+                    </p>
+                  )}
+                </div>
                 {mySlots.length > 0 && (
                   <button
                     onClick={() => { setMySlots([]); setRangeAnchor(null); }}
@@ -2173,17 +2198,20 @@ function BookingRequestSheet({
             </div>
           )}
         </div>
-
-        {/* 신청 버튼 */}
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || !title.trim() || !selectedDate || !startTime}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-40"
-          style={{ backgroundColor: "rgb(var(--accent))" }}
-        >
-          {submitting ? "신청 중…" : "예약 신청하기"}
-        </button>
       </div>
+
+      {/* 겹치는 일정 있는 날짜 선택 시 경고 모달 */}
+      {conflictDate && (
+        <DateConflictModal
+          date={conflictDate}
+          events={eventsByDate[conflictDate] ?? []}
+          onCancel={() => setConflictDate(null)}
+          onConfirm={() => {
+            setSelectedDate(conflictDate);
+            setConflictDate(null);
+          }}
+        />
+      )}
     </BottomSheet>
   );
 }
@@ -2578,7 +2606,17 @@ function EventsSection({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [showBookingSheet, setShowBookingSheet] = useState(false);
+  const [bookingInitialDate, setBookingInitialDate] = useState<string | null>(null);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
+  const [externalBookings, setExternalBookings] = useState<ScheduleEvent[]>([]);
+  useEffect(() => {
+    getDocs(collection(db, "externalBookings")).then((snap) => {
+      setExternalBookings(snap.docs.map((d) => {
+        const b = d.data() as Omit<ExternalBooking, "id">;
+        return { id: `ext_${d.id}`, title: "외부 손님 예약", date: b.date, startTime: b.startTime ?? "", endTime: b.endTime ?? "", location: "", memo: "", createdAt: b.createdAt, source: "external" as const };
+      }));
+    }).catch(() => {});
+  }, []);
   // 보는 달이 바뀌거나, 홈·알림에서 넘어와 highlightDate가 들어오면 선택 날짜를 맞춤
   // (highlightDate는 부모가 URL 파라미터를 읽은 뒤 = 첫 렌더 이후에 도착하므로 반드시 deps에 있어야 함)
   const todayStr = toDateStr(new Date());
@@ -2684,14 +2722,14 @@ function EventsSection({
     else groups.push([e.date, [e]]);
   }
 
-  // 날짜별 이벤트 맵 (예약 신청 시트의 disabledSlots 계산에 사용)
+  // 날짜별 이벤트 맵 (예약 신청 시트의 disabledSlots 계산에 사용; 외부 손님 예약도 포함)
   const evByDate = useMemo(() => {
     const m: Record<string, ScheduleEvent[]> = {};
-    for (const e of events) {
+    for (const e of [...events, ...externalBookings]) {
       (m[e.date] ??= []).push(e);
     }
     return m;
-  }, [events]);
+  }, [events, externalBookings]);
 
   const naver = useNaverBooking();
 
@@ -2721,13 +2759,14 @@ function EventsSection({
       {/* 단원: 예약 신청 시트 */}
       <BookingRequestSheet
         open={showBookingSheet}
-        onClose={() => setShowBookingSheet(false)}
+        onClose={() => { setShowBookingSheet(false); setBookingInitialDate(null); }}
         uid={uid}
         myName={myName}
         myAvatar={myAvatar}
         myTeam={myTeam}
         onSubmitted={onChanged}
         eventsByDate={evByDate}
+        initialDate={bookingInitialDate}
       />
 
       {/* 팀 필터 */}
@@ -2805,6 +2844,7 @@ function EventsSection({
                 onClick={() => {
                   if (isSelected) {
                     if (isAdmin) { openNewForm(ds); }
+                    else { setBookingInitialDate(ds); setShowBookingSheet(true); }
                     setSelectedDate(null);
                   } else {
                     setSelectedDate(ds);
