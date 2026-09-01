@@ -3035,6 +3035,7 @@ function EventsSection({
   const [showBookingSheet, setShowBookingSheet] = useState(false);
   const [bookingInitialDate, setBookingInitialDate] = useState<string | null>(null);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
+  const [naverBlockSheet, setNaverBlockSheet] = useState(false);
   const [externalBookings, setExternalBookings] = useState<ScheduleEvent[]>([]);
   useEffect(() => {
     getDocs(collection(db, "externalBookings")).then((snap) => {
@@ -3295,7 +3296,7 @@ function EventsSection({
           <EventForm
             key={`${formDate}-${formTimes.startTime}`}
             initial={{ date: formDate, startTime: formTimes.startTime, endTime: formTimes.endTime }}
-            onSaved={() => { setShowForm(false); onChanged(); }}
+            onSaved={() => { setShowForm(false); onChanged(); setNaverBlockSheet(true); }}
             onCancel={() => setShowForm(false)}
             submitRef={newEventRef}
           />
@@ -3415,7 +3416,7 @@ function EventsSection({
                 key={editEvent.id}
                 eventId={editEvent.id}
                 initial={{ date: editEvent.date, startTime: editEvent.startTime, endTime: editEvent.endTime, title: editEvent.title, team: editEvent.team, location: editEvent.location, memo: editEvent.memo, participantUids: editEvent.participantUids }}
-                onSaved={() => { setEditEvent(null); onChanged(); }}
+                onSaved={() => { setEditEvent(null); onChanged(); setNaverBlockSheet(true); }}
                 onCancel={() => setEditEvent(null)}
                 submitRef={editEventRef}
               />
@@ -3515,6 +3516,37 @@ function EventsSection({
         <div ref={pendingRef} className="scroll-mt-24">
           <PendingApprovals onApproved={onChanged} onCountChange={setPendingCount} />
         </div>
+      )}
+
+      {/* 관리자: 일정 등록/수정 후 네이버 예약 차단 안내 */}
+      {isAdmin && (
+        <BottomSheet open={naverBlockSheet} onClose={() => setNaverBlockSheet(false)} title="네이버 예약 차단">
+          <div className="space-y-4 pb-2">
+            <p className="text-center text-sm leading-relaxed text-slate-600">
+              외부 손님이 같은 시간을 예약하지 못하도록<br />
+              네이버 예약 관리에서 해당 시간을 차단해주세요.
+            </p>
+            <a
+              href={NAVER_MANAGE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[15px] font-bold text-white transition active:brightness-90"
+              style={{ backgroundColor: "#03C75A", boxShadow: "0 6px 18px -6px rgba(3,199,90,0.6)" }}
+              onClick={() => setNaverBlockSheet(false)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
+                <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+              </svg>
+              네이버 예약 관리 열기
+            </a>
+            <button
+              onClick={() => setNaverBlockSheet(false)}
+              className="w-full rounded-2xl border border-slate-200 py-3.5 text-[15px] font-medium text-slate-400"
+            >
+              나중에
+            </button>
+          </div>
+        </BottomSheet>
       )}
     </div>
   );

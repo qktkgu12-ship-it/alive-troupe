@@ -145,7 +145,38 @@ export default function EventForm({
 
   return (
     <div className="space-y-3">
-      {/* 참여 인원 — 예약 신청 시트와 같은 팀/개별 카드 */}
+      {/* 제목 + 장소 */}
+      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
+        <input
+          className="field"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="제목"
+        />
+        <div className="flex items-center">
+          <input
+            ref={locationRef}
+            className="field flex-1 !border-0 !shadow-none"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="장소"
+          />
+          {location && (
+            <button
+              type="button"
+              onClick={() => { setLocation(""); locationRef.current?.focus(); }}
+              aria-label="장소 지우기"
+              className="mr-3 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="h-3 w-3">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 참여 인원 — 제목·장소 아래 */}
       <div className="card !p-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="px-1 text-xs font-semibold text-slate-500">참여 인원</p>
@@ -219,37 +250,6 @@ export default function EventForm({
             )}
           </>
         )}
-      </div>
-
-      {/* 제목 + 장소 — 칸 안에 안내문 */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
-        <input
-          className="field"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목"
-        />
-        <div className="flex items-center">
-          <input
-            ref={locationRef}
-            className="field flex-1 !border-0 !shadow-none"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="장소"
-          />
-          {location && (
-            <button
-              type="button"
-              onClick={() => { setLocation(""); locationRef.current?.focus(); }}
-              aria-label="장소 지우기"
-              className="mr-3 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="h-3 w-3">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* 날짜·시간 (한 카드, 줄마다 구분선) */}

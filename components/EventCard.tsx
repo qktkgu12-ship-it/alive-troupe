@@ -350,9 +350,9 @@ export default function EventCard({
           );
         })()}
       </div>
-      {/* 컬러 바 — 두툼한 알약 (홈 캐러셀 카드와 같은 모양) */}
-      <div className="flex self-stretch py-2">
-        <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+      {/* 컬러 바 — 얇은 세로선 */}
+      <div className="flex self-stretch py-3">
+        <div className="w-1 flex-1 rounded-full" style={{ backgroundColor: color }} />
       </div>
       {/* 내용 */}
       <div className="min-w-0 flex-1 py-3 pl-3 pr-2">
@@ -471,23 +471,30 @@ export default function EventCard({
                 </>
               )}
 
-              {/* 관리자·본인 예약: 수정·삭제 */}
+              {/* 관리자·본인 예약: 수정·삭제 아이콘 */}
               {(onEdit || onDelete) && (
-                <div className="mt-2 flex gap-1.5">
+                <div className="mt-2 flex justify-end gap-2">
                   {onEdit && (
                     <button
                       onClick={onEdit}
-                      className="flex-1 rounded-2xl border border-slate-200 py-2.5 text-[13px] font-semibold text-slate-500 transition hover:bg-slate-50"
+                      aria-label="일정 수정"
+                      className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
                     >
-                      일정 수정
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px]">
+                        <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        <path d="m15 5 4 4" />
+                      </svg>
                     </button>
                   )}
                   {onDelete && (
                     <button
                       onClick={onDelete}
-                      className="flex-1 rounded-2xl border border-red-100 py-2.5 text-[13px] font-semibold text-red-500 transition hover:bg-red-50"
+                      aria-label="일정 삭제"
+                      className="grid h-9 w-9 place-items-center rounded-full border border-red-100 text-red-400 transition hover:bg-red-50 hover:text-red-500"
                     >
-                      일정 삭제
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px]">
+                        <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      </svg>
                     </button>
                   )}
                 </div>
