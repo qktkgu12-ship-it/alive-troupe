@@ -416,61 +416,40 @@ function EventCard({
         <div className="w-[5px] shrink-0 self-stretch" style={{ backgroundColor: color }} />
 
         <div className="min-w-0 flex-1">
-          {/* ===== 머리 — 항상 보이는 부분 ===== */}
+          {/* ===== 머리 — 항상 보이는 부분 =====
+               버튼을 relative + min-h로 만들고 chevron·하단바를 absolute로 고정.
+               덕분에 아바타가 카드 오른쪽 끝에 딱 붙고, 제목이 길어도 높이가 늘어난다. */}
           <button
             onClick={onToggle}
             aria-expanded={open}
-            className="flex w-full items-start gap-2 px-4 pb-3 pt-3.5 text-left"
+            className="relative w-full px-4 pt-3.5 text-left"
+            style={{
+              // 접힘: 제목 영역(최소 72px) + 하단바 영역(56px)
+              // 펼침: 제목 영역만 (하단바가 사라지므로 padding 축소)
+              paddingBottom: open ? 12 : 56,
+              minHeight: open ? 0 : 170,
+            }}
           >
-            <div className="min-w-0 flex-1">
-              {/* D-day + 날짜 */}
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="rounded-full px-2 py-[2px] text-[11px] font-extrabold"
-                  style={{ backgroundColor: `${color}18`, color }}
-                >
-                  {ddayLabel(e.date)}
-                </span>
-                <span className="text-[12.5px] font-medium text-slate-400">
-                  {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-                </span>
-              </div>
-
-              <h3 className="mt-1.5 line-clamp-2 text-[18px] font-extrabold leading-tight tracking-tight text-slate-900">
-                {e.title}
-              </h3>
-
-              {/* 접힘에서만 — 펼치면 아래 상세와 겹치므로 사라진다.
-                  좌하단에 시계+시간(시작~종료), 우하단에 참여인원 아바타 */}
-              <div
-                className="overflow-hidden"
-                style={{
-                  maxHeight: open ? 0 : 80,
-                  opacity: open ? 0 : 1,
-                  transition: `max-height ${EXPAND}, opacity 180ms ease`,
-                }}
+            {/* D-day + 날짜 */}
+            <div className="flex items-center gap-1.5 pr-10">
+              <span
+                className="rounded-full px-2 py-[2px] text-[11px] font-extrabold"
+                style={{ backgroundColor: `${color}18`, color }}
               >
-                <div className="mt-3.5 flex items-center justify-between gap-3 pb-0.5">
-                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
-                    <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-400" />
-                    <span>
-                      {e.startTime
-                        ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
-                        : "시간 미정"}
-                    </span>
-                  </span>
-                  {going.length > 0 && (
-                    <span className="shrink-0">
-                      <AvatarStack members={going} max={3} />
-                    </span>
-                  )}
-                </div>
-              </div>
+                {ddayLabel(e.date)}
+              </span>
+              <span className="text-[12.5px] font-medium text-slate-400">
+                {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
+              </span>
             </div>
 
-            {/* 펼치기 화살표 */}
+            <h3 className="mt-1.5 line-clamp-2 pr-10 text-[18px] font-extrabold leading-tight tracking-tight text-slate-900">
+              {e.title}
+            </h3>
+
+            {/* 펼치기 화살표 — 우상단 고정 */}
             <span
-              className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full"
+              className="absolute right-4 top-3.5 grid h-7 w-7 shrink-0 place-items-center rounded-full"
               style={{ backgroundColor: `${color}14`, color }}
             >
               <svg
@@ -481,6 +460,24 @@ function EventCard({
               >
                 <polyline points="6 9 12 15 18 9" />
               </svg>
+            </span>
+
+            {/* 하단 바 — 접힘 전용. absolute로 카드 전체 폭 사용 → 아바타가 오른쪽 끝에 딱 붙는다 */}
+            <span
+              className="absolute bottom-4 left-4 right-4 flex items-center justify-between"
+              style={{
+                opacity: open ? 0 : 1,
+                pointerEvents: open ? "none" : "auto",
+                transition: "opacity 180ms ease",
+              }}
+            >
+              <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
+                <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-400" />
+                {e.startTime
+                  ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
+                  : "시간 미정"}
+              </span>
+              {going.length > 0 && <AvatarStack members={going} max={3} />}
             </span>
           </button>
 
