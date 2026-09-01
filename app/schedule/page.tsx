@@ -2097,12 +2097,14 @@ function BookingRequestSheet({
   // 확인 · 성공 단계
   const [confirmStep, setConfirmStep] = useState<null | "confirm" | "success">(null);
 
-  // 유효성 검사 후 "이 일정으로 예약할까요?" 확인 단계로
-  function requestConfirm() {
-    if (!title.trim()) { alert("일정 이름을 입력해 주세요."); return; }
-    if (!selectedDate) { alert("날짜를 선택해 주세요."); return; }
-    if (!startTime || !endTime) { alert("시간을 선택해 주세요. 시간바에서 시작과 끝 지점을 터치해 주세요."); return; }
+  // 유효성 검사 후 "이 일정으로 예약할까요?" 확인 바텀시트 열기
+  // false 반환 → BottomSheet 닫지 않음
+  function requestConfirm(): false | void {
+    if (!title.trim()) { alert("일정 이름을 입력해 주세요."); return false; }
+    if (!selectedDate) { alert("날짜를 선택해 주세요."); return false; }
+    if (!startTime || !endTime) { alert("시간을 선택해 주세요. 시간바에서 시작과 끝 지점을 터치해 주세요."); return false; }
     setConfirmStep("confirm");
+    return false; // BottomSheet 닫지 않기 (확인 바텀시트를 위에 올림)
   }
 
   // 확인 → 실제 저장
@@ -2377,80 +2379,79 @@ function BookingRequestSheet({
         />
       )}
 
-      {/* "이 일정으로 예약할까요?" 확인 모달 */}
-      {confirmStep === "confirm" && selectedDate && startTime && endTime && createPortal(
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setConfirmStep(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <p className="text-center text-lg font-bold text-slate-900">이 일정으로 예약할까요?</p>
-            <div className="mt-4 space-y-2.5 rounded-xl bg-slate-50 p-4 text-sm">
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 text-slate-400">📌</span>
-                <div><span className="text-slate-500">일정</span> <span className="ml-1 font-semibold text-slate-900">{title.trim()}</span></div>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 text-slate-400">📍</span>
-                <div><span className="text-slate-500">장소</span> <span className="ml-1 font-semibold text-slate-900">{location || "스튜디오 얼라이브"}</span></div>
-              </div>
+      {/* "이 일정으로 예약할까요?" 확인 바텀시트 (예약 신청 시트 위에 겹침) */}
+      <BottomSheet open={confirmStep === "confirm" && !!selectedDate && !!startTime && !!endTime} title="이 일정으로 예약할까요?" onClose={() => setConfirmStep(null)}>
+        <div className="space-y-4 pb-4">
+          <div className="space-y-2.5 rounded-xl bg-slate-50 p-4 text-sm">
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-slate-400">📌</span>
+              <div><span className="text-slate-500">일정</span> <span className="ml-1 font-semibold text-slate-900">{title.trim()}</span></div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-slate-400">📍</span>
+              <div><span className="text-slate-500">장소</span> <span className="ml-1 font-semibold text-slate-900">{location || "스튜디오 얼라이브"}</span></div>
+            </div>
+            {selectedDate && (
               <div className="flex items-start gap-2">
                 <span className="shrink-0 text-slate-400">📅</span>
                 <div><span className="text-slate-500">날짜</span> <span className="ml-1 font-semibold text-slate-900">{fullDateLabel(selectedDate)}</span></div>
               </div>
+            )}
+            {startTime && endTime && (
               <div className="flex items-start gap-2">
                 <span className="shrink-0 text-slate-400">⏰</span>
                 <div><span className="text-slate-500">시간</span> <span className="ml-1 font-semibold text-slate-900">{ampmTimeKo(startTime)} ~ {ampmTimeKo(endTime, false)}</span></div>
               </div>
-              {audienceMode === "individual" && selectedParticipantUids.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <span className="shrink-0 text-slate-400">👥</span>
-                  <div><span className="text-slate-500">대상</span> <span className="ml-1 font-semibold text-slate-900">{selectedParticipantUids.length}명</span></div>
-                </div>
-              )}
-            </div>
-            <div className="mt-5 flex gap-2">
-              <button
-                onClick={() => setConfirmStep(null)}
-                className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-              >
-                아니오
-              </button>
-              <button
-                onClick={doSubmit}
-                disabled={submitting}
-                className="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition active:brightness-90 disabled:opacity-50"
-                style={{ backgroundColor: "rgb(var(--accent))" }}
-              >
-                {submitting ? "신청 중…" : "네"}
-              </button>
-            </div>
+            )}
+            {audienceMode === "individual" && selectedParticipantUids.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="shrink-0 text-slate-400">👥</span>
+                <div><span className="text-slate-500">대상</span> <span className="ml-1 font-semibold text-slate-900">{selectedParticipantUids.length}명</span></div>
+              </div>
+            )}
           </div>
-        </div>,
-        document.body,
-      )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmStep(null)}
+              className="flex-1 rounded-xl border border-slate-200 py-3.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            >
+              아니오
+            </button>
+            <button
+              onClick={doSubmit}
+              disabled={submitting}
+              className="flex-1 rounded-xl py-3.5 text-sm font-semibold text-white transition active:brightness-90 disabled:opacity-50"
+              style={{ backgroundColor: "rgb(var(--accent))" }}
+            >
+              {submitting ? "신청 중…" : "네, 예약할게요"}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
 
-      {/* "예약이 신청되었습니다!" 성공 모달 */}
-      {confirmStep === "success" && createPortal(
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl text-center">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500">
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9">
-                <path d="M4 13l5 5L20 7" />
-              </svg>
-            </span>
-            <p className="mt-4 text-xl font-bold text-slate-900">예약이 신청되었습니다!</p>
+      {/* "예약이 신청되었습니다!" 성공 바텀시트 */}
+      <BottomSheet open={confirmStep === "success"} onClose={closeAll}>
+        <div className="space-y-4 pb-4 text-center">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9">
+              <path d="M4 13l5 5L20 7" />
+            </svg>
+          </span>
+          <div>
+            <p className="text-xl font-bold text-slate-900">예약이 신청되었습니다!</p>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">
               관리자가 <strong className="text-slate-700">예약을 확정하는 대로<br />알림</strong>으로 알려드릴게요.
             </p>
-            <button
-              onClick={closeAll}
-              className="mt-6 w-full rounded-xl py-3 text-sm font-semibold text-white transition active:brightness-90"
-              style={{ backgroundColor: "rgb(var(--accent))" }}
-            >
-              확인
-            </button>
           </div>
-        </div>,
-        document.body,
-      )}
+          <button
+            onClick={closeAll}
+            className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition active:brightness-90"
+            style={{ backgroundColor: "rgb(var(--accent))" }}
+          >
+            확인
+          </button>
+        </div>
+      </BottomSheet>
     </BottomSheet>
   );
 }
