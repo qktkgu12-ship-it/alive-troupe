@@ -59,6 +59,15 @@ export function ddayLabel(dateStr: string) {
   return `D+${-diff}`;
 }
 
+// "HH:mm" → { time: "H:MM", ampm: "AM"|"PM" } — 일정 목록 카드의 왼쪽 시간칸용
+function formatTimeParts(t: string | undefined): { time: string; ampm: string } {
+  if (!t) return { time: "—", ampm: "" };
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h < 12 ? "AM" : "PM";
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return { time: `${hour}:${String(m).padStart(2, "0")}`, ampm };
+}
+
 // 카드에 쓰는 최소 프로필 (publicProfiles)
 export type Member = { uid: string; name: string; avatar?: string; team?: string };
 
@@ -117,6 +126,8 @@ export default function EventCard({
   onDelete,
   dimmed = false,
   badge,
+  titlePrefix,
+  variant = "carousel",
   wrapperClassName = "",
   wrapperStyle,
 }: {
@@ -140,6 +151,14 @@ export default function EventCard({
   dimmed?: boolean;
   /** 제목 옆 배지 (숨김/지남 등) */
   badge?: React.ReactNode;
+  /** 제목 앞 배지 (팀 칩 등) — list 변형에서만 */
+  titlePrefix?: React.ReactNode;
+  /**
+   * carousel = 홈 캐러셀용 큰 카드 (D-day·제목 2줄칸·아바타 줄)
+   * list     = 일정 페이지 목록용 한 줄 카드 (왼쪽 시간칸 + 색 바 + 제목)
+   * 접힘 모습만 다르고, 펼친 상세는 둘이 똑같다.
+   */
+  variant?: "carousel" | "list";
   wrapperClassName?: string;
   wrapperStyle?: React.CSSProperties;
 }) {
@@ -231,21 +250,27 @@ export default function EventCard({
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
     : "시간 미정";
 
-  return (
-    <div
-      className={`overflow-hidden rounded-3xl bg-white shadow-[0_4px_18px_-8px_rgba(16,24,40,0.22)] ${
-        dimmed ? "opacity-60" : ""
-      } ${wrapperClassName}`}
-      style={wrapperStyle}
+  // 펼치기 화살표 — 두 변형이 같이 쓴다
+  const chevron = (
+    <span
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full"
+      style={{ backgroundColor: tint, color }}
     >
-      <div className="flex">
-        {/* 왼쪽 팀색 바 */}
-        <div className="w-[5px] shrink-0 self-stretch" style={{ backgroundColor: color }} />
+      <svg
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}
+        strokeLinecap="round" strokeLinejoin="round"
+        className="h-[15px] w-[15px]"
+        style={{ transform: open ? "rotate(180deg)" : "none", transition: `transform ${EXPAND}` }}
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </span>
+  );
 
-        <div className="min-w-0 flex-1">
-          {/* ===== 머리 — 항상 보이는 부분 =====
-               D-day줄·제목칸(2줄 고정)·하단바 자리를 전부 못박아 뒀다.
-               제목 길이에 따라 위 아래가 밀리지 않는다. */}
+  // ===== 접힘 머리 ① 홈 캐러셀 =====
+  // D-day줄·제목칸(2줄 고정)·하단바 자리를 전부 못박아 뒀다.
+  // 제목 길이에 따라 위 아래가 밀리지 않는다.
+  const carouselHead = (
           <button
             onClick={onToggle}
             aria-expanded={open}
@@ -278,19 +303,7 @@ export default function EventCard({
             </div>
 
             {/* 펼치기 화살표 — 우상단 고정 */}
-            <span
-              className="absolute right-4 top-3.5 grid h-7 w-7 shrink-0 place-items-center rounded-full"
-              style={{ backgroundColor: tint, color }}
-            >
-              <svg
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}
-                strokeLinecap="round" strokeLinejoin="round"
-                className="h-[15px] w-[15px]"
-                style={{ transform: open ? "rotate(180deg)" : "none", transition: `transform ${EXPAND}` }}
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </span>
+            <span className="absolute right-4 top-3.5">{chevron}</span>
 
             {/* 하단 바 — 접힘 전용. absolute로 카드 전체 폭 사용 → 아바타가 오른쪽 끝에 딱 붙는다 */}
             <span
@@ -308,8 +321,60 @@ export default function EventCard({
               {going.length > 0 && <AvatarStack members={going} max={3} />}
             </span>
           </button>
+  );
 
-          {/* ===== 펼친 상세 ===== */}
+  // ===== 접힘 머리 ② 일정 페이지 목록 =====
+  // 예전 한 줄 카드 그대로 — 왼쪽 시간칸 / 색 바 / 제목·장소 — 에 펼치기 화살표만 붙였다.
+  const listHead = (
+    <button onClick={onToggle} aria-expanded={open} className="flex w-full items-center text-left">
+      {/* 시간 */}
+      <div className="flex w-[72px] shrink-0 flex-col justify-center px-3 py-3">
+        {(() => {
+          const sp = formatTimeParts(e.startTime);
+          return (
+            <p className={`whitespace-nowrap text-[17px] font-bold leading-tight tracking-tighter ${
+              dimmed ? "text-slate-400 line-through" : "text-slate-900"
+            }`}>
+              {sp.time}
+              <span className="ml-[3px] text-[10px] font-semibold tracking-normal">{sp.ampm}</span>
+            </p>
+          );
+        })()}
+        {e.endTime && (() => {
+          const ep = formatTimeParts(e.endTime);
+          return (
+            <p className="mt-0.5 whitespace-nowrap text-[12px] font-medium tracking-tighter text-slate-400">
+              {ep.time}
+              <span className="ml-[3px] text-[9px] tracking-normal">{ep.ampm}</span>
+            </p>
+          );
+        })()}
+      </div>
+      {/* 컬러 바 — 세로 여백 + 둥근 모서리 */}
+      <div className="flex self-stretch py-3">
+        <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+      </div>
+      {/* 내용 */}
+      <div className="min-w-0 flex-1 py-3 pl-3 pr-2">
+        <p className="flex items-center gap-1.5 text-[17px] font-bold tracking-tighter text-slate-900">
+          {titlePrefix}
+          <span className={`min-w-0 truncate ${dimmed ? "text-slate-400 line-through" : ""}`}>
+            {e.title}
+          </span>
+          {badge}
+        </p>
+        {(e.location || e.memo) && (
+          <p className={`mt-0.5 line-clamp-1 text-[11px] tracking-tighter text-slate-400 ${dimmed ? "line-through" : ""}`}>
+            {[e.location, e.memo].filter(Boolean).join(" · ")}
+          </p>
+        )}
+      </div>
+      <span className="mr-3">{chevron}</span>
+    </button>
+  );
+
+  // ===== 펼친 상세 — 두 변형이 똑같이 쓴다 =====
+  const detail = (
           <div
             className="overflow-hidden"
             style={{
@@ -439,8 +504,32 @@ export default function EventCard({
               )}
             </div>
           </div>
+  );
+
+  return (
+    <div
+      className={`overflow-hidden bg-white ${
+        variant === "list"
+          ? "rounded-2xl shadow-sm"
+          : "rounded-3xl shadow-[0_4px_18px_-8px_rgba(16,24,40,0.22)]"
+      } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
+      style={wrapperStyle}
+    >
+      {variant === "list" ? (
+        <>
+          {listHead}
+          {detail}
+        </>
+      ) : (
+        <div className="flex">
+          {/* 왼쪽 팀색 바 */}
+          <div className="w-[5px] shrink-0 self-stretch" style={{ backgroundColor: color }} />
+          <div className="min-w-0 flex-1">
+            {carouselHead}
+            {detail}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 참석·불참 명단 — 2열 그리드로 이름과 얼굴을 한눈에 */}
       <BottomSheet open={rosterSheet} title="참여 인원" onClose={() => setRosterSheet(false)}>

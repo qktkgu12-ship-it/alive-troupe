@@ -3461,8 +3461,9 @@ function EventsSection({
                 return (
                   <div key={e.id} id={`ev-${e.id}`} className="scroll-mt-24">
                     <EventCard
+                      variant="list"
                       e={e}
-                      color={dimmed ? "#94a3b8" : eventColor(e, teams)}
+                      color={dimmed ? "#cbd5e1" : eventColor(e, teams)}
                       open={openCardId === e.id}
                       onToggle={() => setOpenCardId((prev) => (prev === e.id ? null : e.id))}
                       members={cardMembers}
@@ -3474,9 +3475,10 @@ function EventsSection({
                       onEdit={isAdmin && !past ? () => setEditEvent(e) : undefined}
                       onDelete={(isAdmin || mine) && !past ? () => removeEvent(e.id) : undefined}
                       dimmed={dimmed}
+                      titlePrefix={<TeamBadge team={e.team} />}
                       badge={
                         (isHidden || past) ? (
-                          <span className="ml-1.5 mt-1 shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
+                          <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
                             {isHidden ? "숨김" : "지남"}
                           </span>
                         ) : undefined
