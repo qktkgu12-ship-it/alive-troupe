@@ -445,21 +445,25 @@ function EventCard({
               <div
                 className="overflow-hidden"
                 style={{
-                  maxHeight: open ? 0 : 64,
+                  maxHeight: open ? 0 : 80,
                   opacity: open ? 0 : 1,
                   transition: `max-height ${EXPAND}, opacity 180ms ease`,
                 }}
               >
-                <div className="mt-2.5 flex items-end justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
+                <div className="mt-3.5 flex items-center justify-between gap-3 pb-0.5">
+                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
                     <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-400" />
-                    <span className="truncate">
+                    <span>
                       {e.startTime
                         ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
                         : "시간 미정"}
                     </span>
                   </span>
-                  {going.length > 0 && <AvatarStack members={going} />}
+                  {going.length > 0 && (
+                    <span className="shrink-0">
+                      <AvatarStack members={going} max={3} />
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
