@@ -33,12 +33,15 @@ const COLORS = {
   all: "rgb(var(--accent))", // 전체 일정 — 극단 브랜드 색(accent)
   teamA: "#19BDA4", // 첫 번째 팀 — 달력 민트를 어둡게
   teamB: "#7A2FF2", // 두 번째 팀
-  naver: "#2F9E44", // 네이버 예약
+  naver: "#03C75A", // 네이버 예약 — 네이버 공식 초록 (관리 버튼과 동일)
+  individual: "#16a34a", // 개별 지정 일정 — 초록 강조
 } as const;
 
 /** 일정 하나가 어떤 색을 쓸지 */
 export function eventColor(e: ScheduleEvent, teams: string[]): string {
   if (e.source === "naver") return COLORS.naver;
+  // 개별 지정 일정은 초록으로 구분 (팀 지정과 시각적으로 다름을 알림)
+  if (e.participantUids && e.participantUids.length > 0) return COLORS.individual;
   if (!e.team) return COLORS.all;
   const i = teams.indexOf(e.team);
   if (i === 0) return COLORS.teamA;
@@ -424,10 +427,8 @@ function EventCard({
             aria-expanded={open}
             className="relative w-full px-4 pt-3.5 text-left"
             style={{
-              // 접힘: 제목 영역(최소 72px) + 하단바 영역(56px)
-              // 펼침: 제목 영역만 (하단바가 사라지므로 padding 축소)
-              paddingBottom: open ? 12 : 56,
-              minHeight: open ? 0 : 170,
+              paddingBottom: open ? 12 : 52,
+              minHeight: open ? 0 : 148,
             }}
           >
             {/* D-day + 날짜 */}

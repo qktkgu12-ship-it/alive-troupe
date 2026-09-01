@@ -2646,7 +2646,7 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
       {/* 확정 후 네이버 예약관리 바텀시트 */}
       <BottomSheet open={naverSheet} onClose={() => setNaverSheet(false)} title="네이버 예약 차단">
         <div className="space-y-4 pb-2">
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-center text-sm leading-relaxed text-slate-600">
             외부 손님이 같은 시간을 예약하지 못하도록<br />
             네이버 예약 관리에서 해당 시간을 차단해주세요.
           </p>
