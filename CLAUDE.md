@@ -2,7 +2,7 @@
 
 Next.js 15 + Firebase(Firestore/FCM). 단원/관리자 역할. 브랜드색 `#e53535`.
 
-**개발 브랜치**: `claude/pc-to-mobile-continuity-rd9ize` → push 후 main에 반영.
+**개발 브랜치**: `claude/pc-to-mobile-continuity-rd9ize` (프리뷰 전용 — main 병합은 사용자 승인 후).
 
 ## 핵심 파일
 - `app/schedule/page.tsx` — 일정(예약·확정 탭)
