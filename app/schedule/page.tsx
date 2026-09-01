@@ -27,7 +27,7 @@ import { pushToAdmins, pushToAll, pushToUsers } from "@/lib/push";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
-import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PinIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, BookingRequest, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
   ampmTimeKo,
@@ -2388,53 +2388,133 @@ function BookingRequestSheet({
       )}
 
       {/* "이 일정으로 예약할까요?" 확인 바텀시트 (예약 신청 시트 위에 겹침) */}
-      <BottomSheet open={confirmStep === "confirm" && !!selectedDate && !!startTime && !!endTime} title="이 일정으로 예약할까요?" onClose={() => setConfirmStep(null)}>
-        <div className="space-y-4 pb-4">
-          <div className="space-y-2.5 rounded-xl bg-slate-50 p-4 text-sm">
-            <div className="flex items-start gap-2">
-              <span className="shrink-0 text-slate-400">📌</span>
-              <div><span className="text-slate-500">일정</span> <span className="ml-1 font-semibold text-slate-900">{title.trim()}</span></div>
+      <BottomSheet open={confirmStep === "confirm" && !!selectedDate && !!startTime && !!endTime} onClose={() => setConfirmStep(null)}>
+        {(() => {
+          /* 타임바: 0~24시 중 선택 구간을 accent 색으로 채운다 */
+          const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+          const startMin = startTime ? toMin(startTime) : 0;
+          const endMin = endTime ? toMin(endTime) : 0;
+          const leftPct = (startMin / 1440) * 100;
+          const widthPct = ((endMin - startMin) / 1440) * 100;
+
+          /* 아이콘 원형 배경 */
+          const IconCircle = ({ children }: { children: React.ReactNode }) => (
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ backgroundColor: "rgba(var(--accent),0.1)" }}>
+              {children}
+            </span>
+          );
+          const iconCls = "h-5 w-5 text-accent";
+
+          /* 대상 텍스트 */
+          const audienceLabel =
+            audienceMode === "individual" && selectedParticipantUids.length > 0
+              ? `${selectedParticipantUids.length}명 선택`
+              : myTeam
+              ? `${myTeam} 전체`
+              : "전체";
+
+          return (
+            <div className="pb-4">
+              {/* 제목 */}
+              <p className="mb-5 text-center text-[18px] font-extrabold text-slate-900">
+                이 일정으로 예약할까요?
+              </p>
+
+              <div className="space-y-2.5">
+                {/* 대상 */}
+                <div className="flex items-center gap-3.5 rounded-2xl bg-slate-50 px-4 py-3">
+                  <IconCircle>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={iconCls}>
+                      <path d="M16 20v-1.6a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/>
+                      <circle cx="9" cy="7.5" r="3.5"/>
+                      <path d="M22 20v-1.6a4 4 0 0 0-3-3.87M16.5 4.13a4 4 0 0 1 0 6.74"/>
+                    </svg>
+                  </IconCircle>
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-400">대상</p>
+                    <p className="mt-0.5 text-[15px] font-bold text-slate-900">{audienceLabel}</p>
+                  </div>
+                </div>
+
+                {/* 장소 */}
+                <div className="flex items-center gap-3.5 rounded-2xl bg-slate-50 px-4 py-3">
+                  <IconCircle>
+                    <PinIcon className={iconCls} />
+                  </IconCircle>
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-400">장소</p>
+                    <p className="mt-0.5 text-[15px] font-bold text-slate-900">{location.trim() || "스튜디오 얼라이브"}</p>
+                  </div>
+                </div>
+
+                {/* 날짜 */}
+                {selectedDate && (
+                  <div className="flex items-center gap-3.5 rounded-2xl bg-slate-50 px-4 py-3">
+                    <IconCircle>
+                      <CalendarIcon className={iconCls} />
+                    </IconCircle>
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-400">날짜</p>
+                      <p className="mt-0.5 text-[15px] font-bold text-slate-900">{fullDateLabel(selectedDate)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 시간 + 미니 타임바 */}
+                {startTime && endTime && (
+                  <div className="flex items-center gap-3.5 rounded-2xl bg-slate-50 px-4 py-3">
+                    <IconCircle>
+                      <ClockIcon className={iconCls} />
+                    </IconCircle>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold text-slate-400">시간</p>
+                      <p className="mt-0.5 text-[15px] font-bold text-slate-900">
+                        {ampmTimeKo(startTime)} ~ {ampmTimeKo(endTime, false)}
+                      </p>
+                      {/* 미니 타임바 */}
+                      <div className="mt-2 space-y-0.5">
+                        <div className="relative h-2 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="absolute top-0 h-full rounded-full"
+                            style={{
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                              backgroundColor: "rgb(var(--accent))",
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400">
+                          <span>오전 12시</span>
+                          <span>정오</span>
+                          <span>자정</span>
+                        </div>
+                        <p className="text-right text-[11px] font-medium text-slate-400">탭해서 직접 변경</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 버튼 */}
+              <div className="mt-5 flex gap-2">
+                <button
+                  onClick={() => setConfirmStep(null)}
+                  className="flex-1 rounded-2xl border border-slate-200 py-4 text-[15px] font-bold text-slate-500 transition hover:bg-slate-50"
+                >
+                  아니오
+                </button>
+                <button
+                  onClick={doSubmit}
+                  disabled={submitting}
+                  className="flex-[2] rounded-2xl py-4 text-[15px] font-bold text-white transition active:brightness-90 disabled:opacity-50"
+                  style={{ backgroundColor: "rgb(var(--accent))", boxShadow: "0 6px 18px -6px rgba(var(--accent),0.55)" }}
+                >
+                  {submitting ? "신청 중…" : "네"}
+                </button>
+              </div>
             </div>
-            <div className="flex items-start gap-2">
-              <span className="shrink-0 text-slate-400">📍</span>
-              <div><span className="text-slate-500">장소</span> <span className="ml-1 font-semibold text-slate-900">{location || "스튜디오 얼라이브"}</span></div>
-            </div>
-            {selectedDate && (
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 text-slate-400">📅</span>
-                <div><span className="text-slate-500">날짜</span> <span className="ml-1 font-semibold text-slate-900">{fullDateLabel(selectedDate)}</span></div>
-              </div>
-            )}
-            {startTime && endTime && (
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 text-slate-400">⏰</span>
-                <div><span className="text-slate-500">시간</span> <span className="ml-1 font-semibold text-slate-900">{ampmTimeKo(startTime)} ~ {ampmTimeKo(endTime, false)}</span></div>
-              </div>
-            )}
-            {audienceMode === "individual" && selectedParticipantUids.length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 text-slate-400">👥</span>
-                <div><span className="text-slate-500">대상</span> <span className="ml-1 font-semibold text-slate-900">{selectedParticipantUids.length}명</span></div>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setConfirmStep(null)}
-              className="flex-1 rounded-xl border border-slate-200 py-3.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-            >
-              아니오
-            </button>
-            <button
-              onClick={doSubmit}
-              disabled={submitting}
-              className="flex-1 rounded-xl py-3.5 text-sm font-semibold text-white transition active:brightness-90 disabled:opacity-50"
-              style={{ backgroundColor: "rgb(var(--accent))" }}
-            >
-              {submitting ? "신청 중…" : "네, 예약할게요"}
-            </button>
-          </div>
-        </div>
+          );
+        })()}
       </BottomSheet>
 
       {/* "예약이 신청되었습니다!" 성공 바텀시트 */}
