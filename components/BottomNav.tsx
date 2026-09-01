@@ -158,8 +158,8 @@ export default function BottomNav() {
           backdropFilter: "blur(20px) saturate(180%)",
           WebkitBackdropFilter: "blur(20px) saturate(180%)",
           boxShadow: "0 8px 30px -6px rgba(16,24,40,0.18), 0 2px 8px -2px rgba(16,24,40,0.08)",
-          // 아래로 스크롤 → 바닥에 붙은 채로 62%까지 줄어든다
-          transform: shrunk ? "scale(0.62)" : "scale(1)",
+          // 아래로 스크롤 → 바닥에 붙은 채로 85%까지 줄어든다
+          transform: shrunk ? "scale(0.85)" : "scale(1)",
           transformOrigin: "bottom center",
           transition: "transform 280ms cubic-bezier(0.32, 0.72, 0.28, 1)",
         }}

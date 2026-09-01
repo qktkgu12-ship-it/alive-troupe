@@ -350,9 +350,9 @@ export default function EventCard({
           );
         })()}
       </div>
-      {/* 컬러 바 — 세로 여백 + 둥근 모서리 */}
-      <div className="flex self-stretch py-3">
-        <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+      {/* 컬러 바 — 두툼한 알약 (홈 캐러셀 카드와 같은 모양) */}
+      <div className="flex self-stretch py-2">
+        <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
       </div>
       {/* 내용 */}
       <div className="min-w-0 flex-1 py-3 pl-3 pr-2">
@@ -521,10 +521,10 @@ export default function EventCard({
           {detail}
         </>
       ) : (
-        <div className="flex pl-2">
-          {/* 왼쪽 팀색 바 — 일정 목록 카드와 같은 모양 (세로 여백 + 둥근 끝) */}
-          <div className="flex shrink-0 self-stretch py-3.5">
-            <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+        <div className="flex">
+          {/* 왼쪽 팀색 바 — 카드 왼쪽 끝에 붙는 두툼한 알약 */}
+          <div className="flex shrink-0 self-stretch py-2">
+            <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
           </div>
           <div className="min-w-0 flex-1">
             {carouselHead}
