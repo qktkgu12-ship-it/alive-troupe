@@ -2497,7 +2497,7 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
       endTime: r.endTime,
       location: r.location ?? "",
       memo: "",
-      team: r.team || undefined,
+      ...(r.team ? { team: r.team } : {}),
       createdAt: Date.now(),
     } satisfies Omit<ScheduleEvent, "id">);
     // 신청 문서 삭제
@@ -2521,53 +2521,100 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
     await load();
   }
 
-  if (requests.length === 0) return null;
-
   return (
     <>
-      <div className="rounded-2xl border border-accent/20 bg-accent-soft/40 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{requests.length}</span>
-          <p className="text-[13px] font-semibold text-accent">승인 대기</p>
+      <div className="space-y-2.5">
+        {/* 섹션 헤더 */}
+        <div className="flex items-center gap-1.5 px-0.5">
+          <span className="h-2 w-2 rounded-full bg-yellow-400 shrink-0" />
+          <span className="text-[15px] font-extrabold text-slate-900">승인 대기</span>
+          {requests.length > 0 && (
+            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-yellow-400 px-1.5 text-[12px] font-extrabold text-white">
+              {requests.length}
+            </span>
+          )}
         </div>
+
+        {/* 대기 없음 */}
+        {requests.length === 0 && (
+          <div className="flex items-center gap-2 rounded-2xl border border-green-100 bg-green-50 px-4 py-3.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <circle cx="12" cy="12" r="9"/><polyline points="8.5 12 11 14.5 15.5 9.5"/>
+            </svg>
+            <span className="text-[14px] font-semibold text-green-700">대기 중인 신청이 없어요</span>
+          </div>
+        )}
+
+        {/* 카드 목록 */}
         {requests.map((r) => {
           const expanded = expandedId === r.id;
+          const initial = r.requesterName?.[0] ?? "?";
           return (
-            <div key={r.id} className="rounded-xl bg-white shadow-sm overflow-hidden">
-              {/* 상단: 신청자 + 내용 */}
+            <div
+              key={r.id}
+              className="overflow-hidden rounded-2xl bg-white"
+              style={{
+                border: `1px solid ${expanded ? "#f5cf7a" : "#f0f0f2"}`,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                transition: "border 0.15s",
+              }}
+            >
+              {/* 상단: 신청자 정보 */}
               <button
                 onClick={() => setExpandedId(expanded ? null : r.id)}
-                className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-slate-50"
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
               >
-                <ProfileAvatar uid={r.requesterUid} name={r.requesterName} avatar={r.requesterAvatar} className="h-9 w-9 text-xs shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{r.requesterName}</p>
-                    {r.team && <TeamBadge team={r.team} />}
-                    <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold text-accent" style={{ backgroundColor: "rgb(var(--accent) / 0.08)" }}>신청</span>
-                  </div>
-                  <p className="text-sm text-slate-700 truncate mt-0.5">{r.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{bookingWhenLabel(r.date, r.startTime, r.endTime)}</p>
+                {/* 이니셜 아바타 */}
+                <div
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-bold"
+                  style={{ backgroundColor: "#fff0f0", color: "#e53535" }}
+                >
+                  {initial}
                 </div>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 shrink-0 text-slate-400 transition ${expanded ? "rotate-180" : ""}`}>
-                  <path d="M6 9l6 6 6-6" />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[15px] font-bold text-slate-900">{r.requesterName}</span>
+                    <span className="text-[12px] text-slate-400">신청</span>
+                  </div>
+                  <p className="mt-0.5 text-[13.5px] text-slate-600">
+                    {r.title}
+                    {(r.team || r.participantLabel) && (
+                      <> · <span>{r.team || r.participantLabel}</span></>
+                    )}
+                  </p>
+                  <p className="mt-0.5 text-[13.5px] font-semibold" style={{ color: "#e53535" }}>
+                    {bookingWhenLabel(r.date, r.startTime, r.endTime)}
+                  </p>
+                </div>
+
+                <svg
+                  viewBox="0 0 24 24" fill="none" stroke="#c7c7cc" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"
+                  className="h-4 w-4 shrink-0 transition-transform"
+                  style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                >
+                  <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
 
-              {/* 펼침: 확정 / 거절 */}
+              {/* 펼침: 거절 / 확정 */}
               {expanded && (
-                <div className="border-t border-slate-100 p-3 flex gap-2">
+                <div className="flex gap-2 px-4 pb-3.5">
                   <button
                     onClick={() => reject(r)}
-                    className="flex-1 rounded-lg border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                    className="flex-1 rounded-xl py-3 text-[15px] font-bold text-slate-400 transition hover:bg-slate-50"
+                    style={{ border: "1.5px solid #e5e5ea", background: "#fff" }}
                   >
                     거절
                   </button>
                   <button
                     onClick={() => approve(r)}
-                    className="flex-1 rounded-lg py-2.5 text-xs font-semibold text-white transition active:brightness-90"
-                    style={{ backgroundColor: "rgb(var(--accent))" }}
+                    className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl py-3 text-[15px] font-extrabold text-white transition active:brightness-90"
+                    style={{ background: "#e53535", boxShadow: "0 4px 12px -3px rgba(229,53,53,0.55)" }}
                   >
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
                     확정
                   </button>
                 </div>
@@ -2579,8 +2626,8 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
 
       {/* 확정 후 네이버 예약관리 바텀시트 */}
       <BottomSheet open={naverSheet} onClose={() => setNaverSheet(false)} title="네이버 예약 차단">
-        <div className="px-4 pb-6 space-y-4">
-          <p className="text-sm text-slate-600 leading-relaxed">
+        <div className="space-y-4 pb-2">
+          <p className="text-sm leading-relaxed text-slate-600">
             외부 손님이 같은 시간을 예약하지 못하도록<br />
             네이버 예약 관리에서 해당 시간을 차단해주세요.
           </p>
@@ -2588,8 +2635,8 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
             href={NAVER_MANAGE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition active:brightness-90"
-            style={{ backgroundColor: "#03C75A" }}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[15px] font-bold text-white transition active:brightness-90"
+            style={{ backgroundColor: "#03C75A", boxShadow: "0 6px 18px -6px rgba(3,199,90,0.6)" }}
             onClick={() => setNaverSheet(false)}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
@@ -2599,7 +2646,7 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
           </a>
           <button
             onClick={() => setNaverSheet(false)}
-            className="w-full rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-500"
+            className="w-full rounded-2xl border border-slate-200 py-3.5 text-[15px] font-medium text-slate-400"
           >
             나중에
           </button>
@@ -3335,17 +3382,6 @@ function EventsSection({
         return (
           <div className="space-y-2">
             {cardList}
-            {/* + 새로운 확정일정 버튼 — 슬라이드 애니메이션 (페이드 없음) */}
-            {isAdmin && (
-              <button
-                onClick={() => { openNewForm(selectedDate ?? `${yearMonth}-01`); }}
-                className="flex w-full items-center gap-2 rounded-2xl bg-accent px-4 py-3.5 text-[14px] font-bold text-accent-fg hover:brightness-110 active:scale-[0.99]"
-                style={{ animation: "slide-in-btn 480ms cubic-bezier(0.32,0.72,0,1) both" }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                새로운 확정 일정
-              </button>
-            )}
           </div>
         );
       })()}
