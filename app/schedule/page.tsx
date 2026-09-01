@@ -687,13 +687,13 @@ function CoordSection({
         💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
       </p>
 
-      {/* 만들기 버튼 */}
+      {/* 만들기 버튼 — +원배경 */}
       <button
         onClick={() => setShowCreate(true)}
-        className="sticky bottom-4 z-30 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-4 text-[15px] font-bold text-accent-fg shadow-[0_10px_24px_-10px_rgba(0,0,0,0.3)] transition hover:brightness-110 active:scale-[0.99]"
+        aria-label="일정방 만들기"
+        className="fixed bottom-20 right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-accent text-accent-fg shadow-[0_6px_18px_-4px_rgba(0,0,0,0.35)] transition hover:brightness-110 active:scale-[0.97]"
       >
-        <PlusIcon className="h-5 w-5" />
-        일정방 만들기
+        <PlusIcon className="h-6 w-6" />
       </button>
 
       {/* 방 목록 */}
@@ -1963,6 +1963,50 @@ function BookingRequestSheet({
   const [submitting, setSubmitting] = useState(false);
   const [conflictDate, setConflictDate] = useState<string | null>(null);
 
+  // 참여인원
+  const [audienceMode, setAudienceMode] = useState<"team" | "individual">("team");
+  const [selectedParticipantUids, setSelectedParticipantUids] = useState<string[]>([]);
+  const [members, setMembers] = useState<{ uid: string; name: string; avatar?: string; team?: string }[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const { settings } = useTheme();
+  const currentProductionId = settings.currentProductionId ?? "";
+
+  useEffect(() => {
+    if (audienceMode !== "individual" || members.length > 0) return;
+    setMembersLoading(true);
+    (async () => {
+      const snap = await getDocs(collection(db, "publicProfiles"));
+      const all = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }));
+      let filtered = all;
+      if (currentProductionId) {
+        const psnap = await getDoc(doc(db, "productions", currentProductionId));
+        const parts = (psnap.data()?.participants as string[] | undefined) ?? [];
+        if (parts.length > 0) {
+          const partsSet = new Set(parts);
+          filtered = all.filter((m) => partsSet.has(m.uid));
+        }
+      }
+      setMembers(filtered.sort((a, b) => a.name.localeCompare(b.name, "ko")));
+      setMembersLoading(false);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audienceMode, members.length]);
+
+  // 개별 모드 전환 시 본인 자동 선택
+  useEffect(() => {
+    if (audienceMode === "individual" && uid && !selectedParticipantUids.includes(uid)) {
+      setSelectedParticipantUids((prev) => [...prev, uid]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audienceMode]);
+
+  function toggleParticipant(memberId: string) {
+    if (memberId === uid) return; // 본인은 항상 포함
+    setSelectedParticipantUids((prev) =>
+      prev.includes(memberId) ? prev.filter((u) => u !== memberId) : [...prev, memberId]
+    );
+  }
+
   // 달력
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
@@ -1990,6 +2034,8 @@ function BookingRequestSheet({
       setSelectedDate(null);
       setMySlots([]);
       setRangeAnchor(null);
+      setAudienceMode("team");
+      setSelectedParticipantUids([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialDate]);
@@ -2064,6 +2110,9 @@ function BookingRequestSheet({
         startTime,
         endTime,
         team: myTeam || undefined,
+        ...(audienceMode === "individual" && selectedParticipantUids.length > 0
+          ? { participantUids: selectedParticipantUids, participantLabel: `${selectedParticipantUids.length}명` }
+          : {}),
         createdAt: Date.now(),
       };
       await setDoc(ref, req);
@@ -2079,6 +2128,8 @@ function BookingRequestSheet({
       setSubmitting(false);
     }
   }
+
+  const teams = settings.teams ?? [];
 
   return (
     <BottomSheet open={open} onClose={onClose} title="스튜디오 예약 신청" onConfirm={handleSubmit}>
@@ -2198,6 +2249,82 @@ function BookingRequestSheet({
             </div>
           )}
         </div>
+
+        {/* 참여 인원 */}
+        <div className="card !p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="px-1 text-xs font-semibold text-slate-500">참여 인원</p>
+            <div className="flex gap-0.5 rounded-lg bg-surface p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAudienceMode("team")}
+                className={`rounded-md px-2.5 py-1 transition ${audienceMode === "team" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+              >
+                팀
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudienceMode("individual")}
+                className={`rounded-md px-2.5 py-1 transition ${audienceMode === "individual" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+              >
+                개별
+              </button>
+            </div>
+          </div>
+
+          {audienceMode === "team" ? (
+            <div className="flex flex-wrap gap-1.5 px-1">
+              <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500">
+                {myTeam || "전체"}
+              </span>
+            </div>
+          ) : membersLoading ? (
+            <div className="flex justify-center py-4"><Spinner /></div>
+          ) : (
+            <>
+              <div className="max-h-56 space-y-0.5 overflow-y-auto">
+                {members.map((m) => {
+                  const isMe = m.uid === uid;
+                  const on = selectedParticipantUids.includes(m.uid);
+                  return (
+                    <button
+                      key={m.uid}
+                      type="button"
+                      onClick={() => toggleParticipant(m.uid)}
+                      className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-slate-50 ${isMe ? "opacity-70" : ""}`}
+                    >
+                      <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                        {m.name}{isMe ? " (나)" : ""}
+                      </span>
+                      {m.team && <TeamBadge team={m.team} />}
+                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
+                        {on && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                            <path d="M4 13l5 5L20 7" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedParticipantUids.length > 0 && (
+                <p className="mt-1.5 px-1 text-xs font-semibold text-accent">{selectedParticipantUids.length}명 선택됨</p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* 신청 버튼 */}
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !title.trim() || !selectedDate || !startTime}
+          className="w-full rounded-2xl py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_-4px_rgba(0,0,0,0.25)] transition disabled:opacity-40 active:brightness-90"
+          style={{ backgroundColor: "rgb(var(--accent))" }}
+        >
+          {submitting ? "신청 중…" : "예약 신청하기"}
+        </button>
       </div>
 
       {/* 겹치는 일정 있는 날짜 선택 시 경고 모달 */}
@@ -2735,22 +2862,11 @@ function EventsSection({
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 + 예약 신청 버튼 */}
+      {/* 헤더: 월 이동 */}
       <div className="flex items-center gap-1">
         <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
         <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
-        <div className="flex-1" />
-        {!isAdmin && (
-          <button
-            onClick={() => setShowBookingSheet(true)}
-            className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
-            style={{ backgroundColor: "rgb(var(--accent))" }}
-          >
-            <PlusIcon className="h-3.5 w-3.5 shrink-0" />
-            <span className="leading-none translate-y-[0.5px]">예약 신청</span>
-          </button>
-        )}
       </div>
 
       {/* 관리자: 승인 대기 목록 */}
@@ -2769,43 +2885,55 @@ function EventsSection({
         initialDate={bookingInitialDate}
       />
 
-      {/* 팀 필터 */}
-      {teams.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
-            const isAll = val === "";
-            const teamC = !isAll ? getTeamColor(val, teams) : null;
-            const isActive = evTeam === val;
-            let chipStyle: React.CSSProperties = {};
-            let chipClass = "rounded-full border px-2.5 py-1 text-xs font-medium transition ";
-            if (isAll) {
-              chipClass += isActive
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-slate-200 text-slate-500 hover:bg-slate-50";
-            } else if (teamC) {
-              if (isActive) {
-                chipStyle = { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color };
+      {/* 팀 필터 + 예약 신청 버튼 (같은 줄) */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {teams.length > 0 && (
+          <>
+            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
+              const isAll = val === "";
+              const teamC = !isAll ? getTeamColor(val, teams) : null;
+              const isActive = evTeam === val;
+              let chipStyle: React.CSSProperties = {};
+              let chipClass = "rounded-full border px-2.5 py-1 text-xs font-medium transition ";
+              if (isAll) {
+                chipClass += isActive
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50";
+              } else if (teamC) {
+                if (isActive) {
+                  chipStyle = { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color };
+                } else {
+                  chipClass += "border-slate-200 text-slate-500 hover:bg-slate-50";
+                }
               } else {
-                chipClass += "border-slate-200 text-slate-500 hover:bg-slate-50";
+                chipClass += isActive
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50";
               }
-            } else {
-              chipClass += isActive
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-slate-200 text-slate-500 hover:bg-slate-50";
-            }
-            return (
-              <button
-                key={val || "all"}
-                onClick={() => setEvTeam(val)}
-                style={chipStyle}
-                className={chipClass}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+              return (
+                <button
+                  key={val || "all"}
+                  onClick={() => setEvTeam(val)}
+                  style={chipStyle}
+                  className={chipClass}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </>
+        )}
+        {!isAdmin && (
+          <button
+            onClick={() => setShowBookingSheet(true)}
+            className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-full text-accent-fg transition active:brightness-90"
+            style={{ backgroundColor: "rgb(var(--accent))" }}
+            aria-label="예약 신청"
+          >
+            <PlusIcon className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       {isAdmin && (
         <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)} onConfirm={() => newEventRef.current?.()}>
