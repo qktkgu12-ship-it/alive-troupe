@@ -682,19 +682,19 @@ function CoordSection({
 
   return (
     <div ref={coordSectionTopRef} className="space-y-4">
-      {/* 안내 */}
-      <p className="text-xs leading-relaxed text-slate-400">
-        💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
-      </p>
-
-      {/* 만들기 버튼 — +원배경 */}
-      <button
-        onClick={() => setShowCreate(true)}
-        aria-label="일정방 만들기"
-        className="fixed bottom-20 right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-accent text-accent-fg shadow-[0_6px_18px_-4px_rgba(0,0,0,0.35)] transition hover:brightness-110 active:scale-[0.97]"
-      >
-        <PlusIcon className="h-6 w-6" />
-      </button>
+      {/* 헤더: 안내 + 만들기 버튼 */}
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-xs leading-relaxed text-slate-400">
+          💡 단원들이 가능한 날짜를 고르는 링크를 만들고, 응답 현황을 확인해요.
+        </p>
+        <button
+          onClick={() => setShowCreate(true)}
+          aria-label="일정방 만들기"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110 active:scale-[0.97]"
+        >
+          <PlusIcon className="h-5 w-5" />
+        </button>
+      </div>
 
       {/* 방 목록 */}
       {loading ? (
@@ -2160,6 +2160,88 @@ function BookingRequestSheet({
           </div>
         </div>
 
+        {/* 참여 인원 */}
+        <div className="card !p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="px-1 text-xs font-semibold text-slate-500">참여 인원</p>
+            <div className="flex gap-0.5 rounded-lg bg-surface p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAudienceMode("team")}
+                className={`rounded-md px-2.5 py-1 transition ${audienceMode === "team" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+              >
+                팀
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudienceMode("individual")}
+                className={`rounded-md px-2.5 py-1 transition ${audienceMode === "individual" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
+              >
+                개별
+              </button>
+            </div>
+          </div>
+
+          {audienceMode === "team" ? (
+            <div className="flex flex-wrap gap-1.5 px-1">
+              {teams.length > 0 ? (
+                ([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
+                  const isActive = (val === "" ? !myTeam : val === myTeam);
+                  return (
+                    <span
+                      key={val || "all"}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                        isActive ? "border-slate-800 bg-slate-800 text-white" : "border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500">
+                  {myTeam || "전체"}
+                </span>
+              )}
+            </div>
+          ) : membersLoading ? (
+            <div className="flex justify-center py-4"><Spinner /></div>
+          ) : (
+            <>
+              <div className="max-h-56 space-y-0.5 overflow-y-auto">
+                {members.map((m) => {
+                  const isMe = m.uid === uid;
+                  const on = selectedParticipantUids.includes(m.uid);
+                  return (
+                    <button
+                      key={m.uid}
+                      type="button"
+                      onClick={() => toggleParticipant(m.uid)}
+                      className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-slate-50 ${isMe ? "opacity-70" : ""}`}
+                    >
+                      <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                        {m.name}{isMe ? " (나)" : ""}
+                      </span>
+                      {m.team && <TeamBadge team={m.team} />}
+                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
+                        {on && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                            <path d="M4 13l5 5L20 7" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedParticipantUids.length > 0 && (
+                <p className="mt-1.5 px-1 text-xs font-semibold text-accent">{selectedParticipantUids.length}명 선택됨</p>
+              )}
+            </>
+          )}
+        </div>
+
         {/* 달력 — 날짜 1개 선택 */}
         <div className="card">
           <p className="font-bold text-slate-900">예약 날짜</p>
@@ -2247,72 +2329,6 @@ function BookingRequestSheet({
                 disabledSlots={disabledSlots}
               />
             </div>
-          )}
-        </div>
-
-        {/* 참여 인원 */}
-        <div className="card !p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="px-1 text-xs font-semibold text-slate-500">참여 인원</p>
-            <div className="flex gap-0.5 rounded-lg bg-surface p-0.5 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setAudienceMode("team")}
-                className={`rounded-md px-2.5 py-1 transition ${audienceMode === "team" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-              >
-                팀
-              </button>
-              <button
-                type="button"
-                onClick={() => setAudienceMode("individual")}
-                className={`rounded-md px-2.5 py-1 transition ${audienceMode === "individual" ? "bg-white text-accent shadow-sm" : "text-slate-500"}`}
-              >
-                개별
-              </button>
-            </div>
-          </div>
-
-          {audienceMode === "team" ? (
-            <div className="flex flex-wrap gap-1.5 px-1">
-              <span className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500">
-                {myTeam || "전체"}
-              </span>
-            </div>
-          ) : membersLoading ? (
-            <div className="flex justify-center py-4"><Spinner /></div>
-          ) : (
-            <>
-              <div className="max-h-56 space-y-0.5 overflow-y-auto">
-                {members.map((m) => {
-                  const isMe = m.uid === uid;
-                  const on = selectedParticipantUids.includes(m.uid);
-                  return (
-                    <button
-                      key={m.uid}
-                      type="button"
-                      onClick={() => toggleParticipant(m.uid)}
-                      className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-slate-50 ${isMe ? "opacity-70" : ""}`}
-                    >
-                      <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
-                        {m.name}{isMe ? " (나)" : ""}
-                      </span>
-                      {m.team && <TeamBadge team={m.team} />}
-                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
-                        {on && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
-                            <path d="M4 13l5 5L20 7" />
-                          </svg>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {selectedParticipantUids.length > 0 && (
-                <p className="mt-1.5 px-1 text-xs font-semibold text-accent">{selectedParticipantUids.length}명 선택됨</p>
-              )}
-            </>
           )}
         </div>
 
@@ -2885,7 +2901,7 @@ function EventsSection({
         initialDate={bookingInitialDate}
       />
 
-      {/* 팀 필터 + 예약 신청 버튼 (같은 줄) */}
+      {/* 팀 필터 + 예약신청/일정등록 버튼 (같은 줄) */}
       <div className="flex flex-wrap items-center gap-1.5">
         {teams.length > 0 && (
           <>
@@ -2923,14 +2939,23 @@ function EventsSection({
             })}
           </>
         )}
-        {!isAdmin && (
+        {/* 예약 신청 (단원) / 일정 등록 (관리자) — 아카이브 등록 버튼과 동일 h-9 w-9 원형 */}
+        {!isAdmin ? (
           <button
             onClick={() => setShowBookingSheet(true)}
-            className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-full text-accent-fg transition active:brightness-90"
+            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full text-accent-fg transition hover:brightness-110 active:brightness-90"
             style={{ backgroundColor: "rgb(var(--accent))" }}
             aria-label="예약 신청"
           >
-            <PlusIcon className="h-4 w-4" />
+            <PlusIcon className="h-5 w-5" />
+          </button>
+        ) : (
+          <button
+            onClick={() => openNewForm(`${yearMonth}-01`)}
+            className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg transition hover:brightness-110 active:brightness-90"
+            aria-label="확정 일정 등록"
+          >
+            <PlusIcon className="h-5 w-5" />
           </button>
         )}
       </div>
