@@ -3104,6 +3104,17 @@ function EventsSection({
 
   // 펼쳐진 카드 (한 번에 한 장만)
   const [openCardId, setOpenCardId] = useState<string | null>(null);
+  // 펼치면 카드가 길어지므로, 늘어난 뒤에 화면 안으로 데려온다.
+  // block:"nearest" = 이미 다 보이면 안 움직이고, 삐져나갈 때만 최소한으로 민다.
+  // (scroll-mt/mb로 헤더·하단 내비 높이만큼 여유를 둔다)
+  function openCard(id: string) {
+    const opening = openCardId !== id;
+    setOpenCardId(opening ? id : null);
+    if (!opening) return;
+    setTimeout(() => {
+      document.getElementById(`ev-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 380);
+  }
 
   // 전 단원 명단 — 카드의 참여인원 계산용 (홈 캐러셀과 같은 방식)
   const [cardMembers, setCardMembers] = useState<CardMember[]>([]);
@@ -3459,13 +3470,13 @@ function EventsSection({
                 // 본인이 예약 신청해서 확정된 일정은 본인도 지울 수 있다
                 const mine = !!uid && e.createdBy === uid;
                 return (
-                  <div key={e.id} id={`ev-${e.id}`} className="scroll-mt-24">
+                  <div key={e.id} id={`ev-${e.id}`} className="scroll-mt-24 scroll-mb-28">
                     <EventCard
                       variant="list"
                       e={e}
                       color={dimmed ? "#cbd5e1" : eventColor(e, teams)}
                       open={openCardId === e.id}
-                      onToggle={() => setOpenCardId((prev) => (prev === e.id ? null : e.id))}
+                      onToggle={() => openCard(e.id)}
                       members={cardMembers}
                       absences={absences[e.id] ?? []}
                       extraUids={attendees[e.id] ?? []}

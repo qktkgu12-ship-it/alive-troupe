@@ -104,6 +104,31 @@ export default function BottomNav() {
     // 로그인·경로에 따라 다시 마운트되므로 의존성은 없어도 된다
   }, [loading, user, role, pathname]);
 
+  // 아래로 내리면 바가 자리는 그대로 둔 채 작아지고, 위로 올리면 되돌아온다.
+  // 바닥을 기준으로 축소하므로(transform-origin: bottom) 바가 위아래로 움직이지 않는다.
+  const [shrunk, setShrunk] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const dy = y - last;
+        // 손가락 떨림·바운스로 방향이 깜빡이지 않게 문턱을 둔다
+        if (Math.abs(dy) < 8) return;
+        last = y;
+        // 맨 위에서는 항상 원래 크기
+        setShrunk(y > 48 && dy > 0);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
   // 로그인 전·승인 대기 중에는 띄우지 않는다
   if (loading || !user || role === "guest") return null;
   if (HIDDEN.some((h) => pathname === h || pathname.startsWith(h + "/"))) return null;
@@ -133,6 +158,10 @@ export default function BottomNav() {
           backdropFilter: "blur(20px) saturate(180%)",
           WebkitBackdropFilter: "blur(20px) saturate(180%)",
           boxShadow: "0 8px 30px -6px rgba(16,24,40,0.18), 0 2px 8px -2px rgba(16,24,40,0.08)",
+          // 아래로 스크롤 → 바닥에 붙은 채로 62%까지 줄어든다
+          transform: shrunk ? "scale(0.62)" : "scale(1)",
+          transformOrigin: "bottom center",
+          transition: "transform 280ms cubic-bezier(0.32, 0.72, 0.28, 1)",
         }}
       >
         {/* 미끄러지는 회색 알약 — 칸 하나 너비만큼 이동한다 */}

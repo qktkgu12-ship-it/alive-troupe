@@ -274,7 +274,7 @@ export default function EventCard({
           <button
             onClick={onToggle}
             aria-expanded={open}
-            className="relative w-full px-4 pt-3.5 text-left"
+            className="relative w-full px-3.5 pt-3.5 text-left"
             style={{ paddingBottom: open ? 12 : 52 }}
           >
             {/* D-day + 날짜 */}
@@ -303,11 +303,11 @@ export default function EventCard({
             </div>
 
             {/* 펼치기 화살표 — 우상단 고정 */}
-            <span className="absolute right-4 top-3.5">{chevron}</span>
+            <span className="absolute right-3.5 top-3.5">{chevron}</span>
 
             {/* 하단 바 — 접힘 전용. absolute로 카드 전체 폭 사용 → 아바타가 오른쪽 끝에 딱 붙는다 */}
             <span
-              className="absolute bottom-4 left-4 right-4 flex items-center justify-between"
+              className="absolute bottom-4 left-3.5 right-3.5 flex items-center justify-between"
               style={{
                 opacity: open ? 0 : 1,
                 pointerEvents: open ? "none" : "auto",
@@ -383,7 +383,7 @@ export default function EventCard({
               transition: `max-height ${EXPAND}, opacity 220ms ease`,
             }}
           >
-            <div className="px-4 pb-4">
+            <div className={`pb-4 ${variant === "list" ? "px-4" : "px-3.5"}`}>
               <div className="space-y-2.5 rounded-2xl bg-slate-50 p-3.5">
                 {/* 시간 */}
                 <div className="flex items-center gap-2.5">
@@ -521,9 +521,11 @@ export default function EventCard({
           {detail}
         </>
       ) : (
-        <div className="flex">
-          {/* 왼쪽 팀색 바 */}
-          <div className="w-[5px] shrink-0 self-stretch" style={{ backgroundColor: color }} />
+        <div className="flex pl-2">
+          {/* 왼쪽 팀색 바 — 일정 목록 카드와 같은 모양 (세로 여백 + 둥근 끝) */}
+          <div className="flex shrink-0 self-stretch py-3.5">
+            <div className="w-[4px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+          </div>
           <div className="min-w-0 flex-1">
             {carouselHead}
             {detail}
