@@ -23,13 +23,15 @@ import Guard from "@/components/Guard";
 import BottomSheet from "@/components/BottomSheet";
 import EventForm from "@/components/forms/EventForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
-import { pushToAll, pushToUsers } from "@/lib/push";
+import { pushToAdmins, pushToAll, pushToUsers } from "@/lib/push";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import EventMeta from "@/components/EventMeta";
 import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
-import type { Absence, Availability, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
+import type { Absence, Availability, BookingRequest, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
+  ampmTimeKo,
+  bookingWhenLabel,
   buildMonthGrid,
   slotEnd,
   TIME_SLOTS,
@@ -331,6 +333,9 @@ function ScheduleInner() {
           myTeam={myTeam}
           openNew={openNewEvent}
           onNewHandled={() => setOpenNewEvent(false)}
+          uid={user?.uid ?? ""}
+          myName={profile?.name || profile?.displayName || ""}
+          myAvatar={profile?.avatar}
         />
       )}
 
@@ -1926,6 +1931,251 @@ function CoordDetail({
 }
 
 /* =========================================================================
+   단원 예약 신청 시트
+   ========================================================================= */
+function BookingRequestSheet({
+  open,
+  onClose,
+  uid,
+  myName,
+  myAvatar,
+  myTeam,
+  onSubmitted,
+}: {
+  open: boolean;
+  onClose: () => void;
+  uid: string;
+  myName: string;
+  myAvatar?: string;
+  myTeam: string;
+  onSubmitted: () => void;
+}) {
+  const todayStr = toDateStr(new Date());
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(todayStr);
+  const [startTime, setStartTime] = useState("10:00");
+  const [endTime, setEndTime] = useState("12:00");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit() {
+    if (!title.trim() || !date || !startTime || !endTime) return;
+    setSubmitting(true);
+    try {
+      const ref = doc(collection(db, "bookingRequests"));
+      const whenLabel = bookingWhenLabel(date, startTime, endTime);
+      const req: Omit<BookingRequest, "id"> = {
+        requesterUid: uid,
+        requesterName: myName,
+        requesterAvatar: myAvatar,
+        title: title.trim(),
+        date,
+        startTime,
+        endTime,
+        team: myTeam || undefined,
+        createdAt: Date.now(),
+      };
+      await setDoc(ref, req);
+      // 관리자에게 푸시
+      await pushToAdmins({
+        title: `[예약신청] ${whenLabel}`,
+        body: `${myName}님의 예약 신청이 접수되었습니다!`,
+        href: "/schedule?tab=events",
+        tag: "booking-request",
+      });
+      onSubmitted();
+      onClose();
+      setTitle("");
+      setDate(todayStr);
+      setStartTime("10:00");
+      setEndTime("12:00");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const timeOptions = TIME_SLOTS;
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="스튜디오 예약 신청">
+      <div className="space-y-4 px-4 pb-6">
+        {/* 제목 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">용도</label>
+          <input
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+            placeholder="예: 합창 연습, 개인 연습"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        {/* 날짜 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">날짜</label>
+          <input
+            type="date"
+            min={todayStr}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        {/* 시간 */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="mb-1 block text-sm font-medium text-slate-700">시작</label>
+            <select
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            >
+              {timeOptions.map((t) => (
+                <option key={t} value={t}>{ampmTimeKo(t)}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-sm font-medium text-slate-700">종료</label>
+            <select
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            >
+              {timeOptions.map((t) => (
+                <option key={t} value={t}>{ampmTimeKo(t)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !title.trim() || !date}
+          className="w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:opacity-40"
+          style={{ backgroundColor: "rgb(var(--accent))" }}
+        >
+          {submitting ? "신청 중…" : "예약 신청하기"}
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+/* =========================================================================
+   관리자 예약 승인 패널
+   ========================================================================= */
+const NAVER_MANAGE_URL = "https://m-partner.booking.naver.com/bizes/1715363/biz-items/7953780/schedules";
+
+function PendingApprovals({ onApproved }: { onApproved: () => void }) {
+  const [requests, setRequests] = useState<BookingRequest[]>([]);
+  const [naverSheet, setNaverSheet] = useState(false);
+
+  const load = useCallback(async () => {
+    const snap = await getDocs(query(collection(db, "bookingRequests"), orderBy("createdAt", "asc")));
+    setRequests(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) })));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function approve(r: BookingRequest) {
+    // events 컬렉션에 확정 일정 생성
+    const ref = doc(collection(db, "events"));
+    await setDoc(ref, {
+      title: r.title,
+      date: r.date,
+      startTime: r.startTime,
+      endTime: r.endTime,
+      location: "",
+      memo: "",
+      team: r.team || undefined,
+      createdAt: Date.now(),
+    } satisfies Omit<ScheduleEvent, "id">);
+    // 신청 문서 삭제
+    await deleteDoc(doc(db, "bookingRequests", r.id));
+    // 신청 단원에게 확정 알림
+    const whenLabel = bookingWhenLabel(r.date, r.startTime, r.endTime);
+    await pushToUsers([r.requesterUid], {
+      title: `[예약확정] ${whenLabel}`,
+      body: "예약이 확정되었습니다!",
+      href: "/schedule?tab=events",
+      tag: "booking-confirmed",
+    });
+    await load();
+    onApproved();
+    setNaverSheet(true);
+  }
+
+  async function reject(r: BookingRequest) {
+    if (!confirm(`"${r.title}" 신청을 거절할까요?`)) return;
+    await deleteDoc(doc(db, "bookingRequests", r.id));
+    await load();
+  }
+
+  if (requests.length === 0) return null;
+
+  return (
+    <>
+      <div className="rounded-2xl border border-[rgb(var(--accent))/20] bg-[rgb(var(--accent))/4] p-4 space-y-3">
+        <p className="text-[13px] font-semibold text-[rgb(var(--accent))]">예약 신청 {requests.length}건</p>
+        {requests.map((r) => (
+          <div key={r.id} className="rounded-xl bg-white p-3 shadow-sm space-y-2">
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">{r.title}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{bookingWhenLabel(r.date, r.startTime, r.endTime)}</p>
+                <p className="text-xs text-slate-400">{r.requesterName}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => approve(r)}
+                className="flex-1 rounded-lg py-2 text-xs font-semibold text-white transition active:brightness-90"
+                style={{ backgroundColor: "rgb(var(--accent))" }}
+              >
+                확정
+              </button>
+              <button
+                onClick={() => reject(r)}
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                거절
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 확정 후 네이버 예약관리 바텀시트 */}
+      <BottomSheet open={naverSheet} onClose={() => setNaverSheet(false)} title="네이버 예약 차단">
+        <div className="px-4 pb-6 space-y-4">
+          <p className="text-sm text-slate-600 leading-relaxed">
+            외부 손님이 같은 시간을 예약하지 못하도록<br />
+            네이버 예약 관리에서 해당 시간을 차단해주세요.
+          </p>
+          <a
+            href={NAVER_MANAGE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition active:brightness-90"
+            style={{ backgroundColor: "#03C75A" }}
+            onClick={() => setNaverSheet(false)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
+              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+            </svg>
+            네이버 예약 관리 열기
+          </a>
+          <button
+            onClick={() => setNaverSheet(false)}
+            className="w-full rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-500"
+          >
+            나중에
+          </button>
+        </div>
+      </BottomSheet>
+    </>
+  );
+}
+
+/* =========================================================================
    확정 확인 시트 내용
    ========================================================================= */
 const NAVER_BOOKING_URL = "https://m.booking.naver.com/booking/10/bizes/1715363/items/7953786?";
@@ -2175,6 +2425,9 @@ function EventsSection({
   myTeam,
   openNew = false,
   onNewHandled,
+  uid,
+  myName,
+  myAvatar,
 }: {
   monthLabel: string;
   onPrev: () => void;
@@ -2189,8 +2442,12 @@ function EventsSection({
   myTeam: string;
   openNew?: boolean;
   onNewHandled?: () => void;
+  uid: string;
+  myName: string;
+  myAvatar?: string;
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [showBookingSheet, setShowBookingSheet] = useState(false);
   const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
   // 보는 달이 바뀌거나, 홈·알림에서 넘어와 highlightDate가 들어오면 선택 날짜를 맞춤
   // (highlightDate는 부모가 URL 파라미터를 읽은 뒤 = 첫 렌더 이후에 도착하므로 반드시 deps에 있어야 함)
@@ -2301,25 +2558,37 @@ function EventsSection({
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 + 네이버 예약 버튼 */}
+      {/* 헤더: 월 이동 + 예약 신청 버튼 */}
       <div className="flex items-center gap-1">
         <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
         <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
         <div className="flex-1" />
-        <button
-          onClick={naver.openNaver}
-          className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
-          style={{ backgroundColor: "#03C75A" }}
-        >
-          {/* 네이버 N 아이콘 */}
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
-            <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
-          </svg>
-          <span className="leading-none translate-y-[2px]">예약하기</span>
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={() => setShowBookingSheet(true)}
+            className="flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition active:brightness-90"
+            style={{ backgroundColor: "rgb(var(--accent))" }}
+          >
+            <PlusIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="leading-none translate-y-[0.5px]">예약 신청</span>
+          </button>
+        )}
       </div>
-      <NaverNoticeModal open={naver.showNotice} onClose={naver.closeNotice} onConfirm={naver.confirmNotice} />
+
+      {/* 관리자: 승인 대기 목록 */}
+      {isAdmin && <PendingApprovals onApproved={onChanged} />}
+
+      {/* 단원: 예약 신청 시트 */}
+      <BookingRequestSheet
+        open={showBookingSheet}
+        onClose={() => setShowBookingSheet(false)}
+        uid={uid}
+        myName={myName}
+        myAvatar={myAvatar}
+        myTeam={myTeam}
+        onSubmitted={onChanged}
+      />
 
       {/* 팀 필터 */}
       {teams.length > 0 && (

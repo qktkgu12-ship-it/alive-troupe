@@ -129,6 +129,31 @@ export const TIME_SLOTS: string[] = (() => {
   return out;
 })();
 
+const WEEKDAY_KO = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** "14:00" → "오후 2:00", "09:30" → "오전 9:30" */
+export function ampmTimeKo(time: string, withAmPm = true): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time ?? "");
+  if (!m) return time ?? "";
+  const h = Number(m[1]);
+  const mm = m[2];
+  const ampm = h < 12 ? "오전" : "오후";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return withAmPm ? `${ampm} ${h12}:${mm}` : `${h12}:${mm}`;
+}
+
+/** 예약 알림·카드용 라벨 → "8월 23일 (토) 오후 2:00 ~ 5:00" */
+export function bookingWhenLabel(date: string, start: string, end: string): string {
+  const md = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
+  const head = md
+    ? `${Number(md[2])}월 ${Number(md[3])}일 (${WEEKDAY_KO[new Date(`${date}T00:00:00`).getDay()]})`
+    : date ?? "";
+  const startL = start ? ampmTimeKo(start) : "";
+  const endL = end ? ampmTimeKo(end, false) : "";
+  const timeL = startL && endL ? `${startL} ~ ${endL}` : startL || "";
+  return timeL ? `${head} ${timeL}` : head;
+}
+
 // 슬롯 시작시간 → 끝시간 (+30분)
 export function slotEnd(slot: string): string {
   const [h, m] = slot.split(":").map(Number);

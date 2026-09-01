@@ -107,12 +107,15 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
   let href = clip(payload.href, 300) || "/";
   const tag = clip(payload.tag, 40) || "alive";
 
-  // 가입 신청 알림만 예외적으로 승인 대기(guest)도 보낼 수 있다.
-  // 대신 문구를 서버가 정해, 아무 내용이나 관리자에게 밀어 넣지 못하게 한다.
+  // 관리자에게 보내는 알림:
+  //  - 정단원 이상이 보낼 땐 커스텀 문구를 허용 (예약 신청 알림 등)
+  //  - 그 외(guest의 가입 신청)는 서버가 문구를 고정해 임의 내용 주입을 막는다
   if (audience === "admins") {
-    title = "새 가입 신청";
-    body = "승인을 기다리는 단원이 있어요.";
-    href = "/admin";
+    if (!isMember || !title) {
+      title = "새 가입 신청";
+      body = "승인을 기다리는 단원이 있어요.";
+      href = "/admin";
+    }
   } else if (audience === "self") {
     title = "테스트 알림";
     body = "이 알림이 보이면 설정이 잘 된 거예요 🎉";

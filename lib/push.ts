@@ -152,6 +152,19 @@ export async function pushSignupRequest(): Promise<void> {
 }
 
 /**
+ * 관리자 전체에게 커스텀 문구로 알린다 (예약 신청 접수 등).
+ * 정단원 이상만 문구가 반영되고, 그 외에는 서버가 가입 신청 문구로 대체한다.
+ */
+export async function pushToAdmins(msg: {
+  title: string;
+  body: string;
+  href?: string;
+  tag?: string;
+}): Promise<void> {
+  await send({ ...msg, audience: "admins" });
+}
+
+/**
  * 서비스 워커에게 푸시 준비 상태를 물어본다.
  * gstatic에서 firebase 스크립트를 못 받아오면 백그라운드 알림이 조용히 죽으므로,
  * 그 경우를 구분하기 위해 필요하다.

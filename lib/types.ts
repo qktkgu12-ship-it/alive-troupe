@@ -93,6 +93,22 @@ export interface ScheduleEvent {
   createdAt: number;
 }
 
+// 단원 스튜디오 예약 신청 (관리자 승인 전 임시 보관)
+export interface BookingRequest {
+  id: string;
+  requesterUid: string;
+  requesterName: string;
+  requesterAvatar?: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  team?: string;
+  participantUids?: string[];
+  participantLabel?: string;
+  createdAt: number;
+}
+
 // 외부 손님 예약 (Apps Script가 네이버 예약 메일에서 파싱해 넣음)
 // 예약상품이 '극단 얼라이브 소속 회원 예약'이 아닌 경우 → 확정 일정에는 안 뜨지만
 // 일정방에서 스튜디오가 이미 잡혀 있다는 걸 알 수 있게 날짜·시간만 보관한다.
