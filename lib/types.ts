@@ -103,6 +103,7 @@ export interface BookingRequest {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
+  location?: string;
   team?: string;
   participantUids?: string[];
   participantLabel?: string;

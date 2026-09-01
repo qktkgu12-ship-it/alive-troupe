@@ -2036,6 +2036,7 @@ function BookingRequestSheet({
       setRangeAnchor(null);
       setAudienceMode("team");
       setSelectedParticipantUids([]);
+      setConfirmStep(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialDate]);
@@ -2093,10 +2094,20 @@ function BookingRequestSheet({
     }
   }
 
-  async function handleSubmit() {
+  // 확인 · 성공 단계
+  const [confirmStep, setConfirmStep] = useState<null | "confirm" | "success">(null);
+
+  // 유효성 검사 후 "이 일정으로 예약할까요?" 확인 단계로
+  function requestConfirm() {
     if (!title.trim()) { alert("일정 이름을 입력해 주세요."); return; }
     if (!selectedDate) { alert("날짜를 선택해 주세요."); return; }
     if (!startTime || !endTime) { alert("시간을 선택해 주세요. 시간바에서 시작과 끝 지점을 터치해 주세요."); return; }
+    setConfirmStep("confirm");
+  }
+
+  // 확인 → 실제 저장
+  async function doSubmit() {
+    if (!selectedDate || !startTime || !endTime) return;
     setSubmitting(true);
     try {
       const ref = doc(collection(db, "bookingRequests"));
@@ -2109,6 +2120,7 @@ function BookingRequestSheet({
         date: selectedDate,
         startTime,
         endTime,
+        location: location.trim() || "스튜디오 얼라이브",
         team: myTeam || undefined,
         ...(audienceMode === "individual" && selectedParticipantUids.length > 0
           ? { participantUids: selectedParticipantUids, participantLabel: `${selectedParticipantUids.length}명` }
@@ -2123,16 +2135,25 @@ function BookingRequestSheet({
         tag: "booking-request",
       });
       onSubmitted();
-      onClose();
+      setConfirmStep("success");
+    } catch (err) {
+      console.error("[예약신청] 저장 실패:", err);
+      alert("예약 신청에 실패했어요. 다시 시도해 주세요.");
+      setConfirmStep(null);
     } finally {
       setSubmitting(false);
     }
   }
 
+  function closeAll() {
+    setConfirmStep(null);
+    onClose();
+  }
+
   const teams = settings.teams ?? [];
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="스튜디오 예약 신청" onConfirm={handleSubmit}>
+    <BottomSheet open={open} onClose={closeAll} title="스튜디오 예약 신청" onConfirm={requestConfirm}>
       <div className="space-y-3 pb-4">
         {/* 일정 이름 + 장소 — CoordCreateForm과 동일 */}
         <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
@@ -2334,12 +2355,12 @@ function BookingRequestSheet({
 
         {/* 신청 버튼 */}
         <button
-          onClick={handleSubmit}
+          onClick={requestConfirm}
           disabled={submitting || !title.trim() || !selectedDate || !startTime}
           className="w-full rounded-2xl py-3.5 text-[15px] font-bold text-white shadow-[0_4px_12px_-4px_rgba(0,0,0,0.25)] transition disabled:opacity-40 active:brightness-90"
           style={{ backgroundColor: "rgb(var(--accent))" }}
         >
-          {submitting ? "신청 중…" : "예약 신청하기"}
+          이 일정으로 예약하기
         </button>
       </div>
 
@@ -2355,6 +2376,81 @@ function BookingRequestSheet({
           }}
         />
       )}
+
+      {/* "이 일정으로 예약할까요?" 확인 모달 */}
+      {confirmStep === "confirm" && selectedDate && startTime && endTime && createPortal(
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onClick={() => setConfirmStep(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <p className="text-center text-lg font-bold text-slate-900">이 일정으로 예약할까요?</p>
+            <div className="mt-4 space-y-2.5 rounded-xl bg-slate-50 p-4 text-sm">
+              <div className="flex items-start gap-2">
+                <span className="shrink-0 text-slate-400">📌</span>
+                <div><span className="text-slate-500">일정</span> <span className="ml-1 font-semibold text-slate-900">{title.trim()}</span></div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="shrink-0 text-slate-400">📍</span>
+                <div><span className="text-slate-500">장소</span> <span className="ml-1 font-semibold text-slate-900">{location || "스튜디오 얼라이브"}</span></div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="shrink-0 text-slate-400">📅</span>
+                <div><span className="text-slate-500">날짜</span> <span className="ml-1 font-semibold text-slate-900">{fullDateLabel(selectedDate)}</span></div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="shrink-0 text-slate-400">⏰</span>
+                <div><span className="text-slate-500">시간</span> <span className="ml-1 font-semibold text-slate-900">{ampmTimeKo(startTime)} ~ {ampmTimeKo(endTime, false)}</span></div>
+              </div>
+              {audienceMode === "individual" && selectedParticipantUids.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="shrink-0 text-slate-400">👥</span>
+                  <div><span className="text-slate-500">대상</span> <span className="ml-1 font-semibold text-slate-900">{selectedParticipantUids.length}명</span></div>
+                </div>
+              )}
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setConfirmStep(null)}
+                className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                아니오
+              </button>
+              <button
+                onClick={doSubmit}
+                disabled={submitting}
+                className="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition active:brightness-90 disabled:opacity-50"
+                style={{ backgroundColor: "rgb(var(--accent))" }}
+              >
+                {submitting ? "신청 중…" : "네"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* "예약이 신청되었습니다!" 성공 모달 */}
+      {confirmStep === "success" && createPortal(
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl text-center">
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9">
+                <path d="M4 13l5 5L20 7" />
+              </svg>
+            </span>
+            <p className="mt-4 text-xl font-bold text-slate-900">예약이 신청되었습니다!</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              관리자가 <strong className="text-slate-700">예약을 확정하는 대로<br />알림</strong>으로 알려드릴게요.
+            </p>
+            <button
+              onClick={closeAll}
+              className="mt-6 w-full rounded-xl py-3 text-sm font-semibold text-white transition active:brightness-90"
+              style={{ backgroundColor: "rgb(var(--accent))" }}
+            >
+              확인
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </BottomSheet>
   );
 }
@@ -2368,10 +2464,24 @@ const NAVER_MANAGE_URL = "https://m-partner.booking.naver.com/bizes/1715363/biz-
 function PendingApprovals({ onApproved }: { onApproved: () => void }) {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [naverSheet, setNaverSheet] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const snap = await getDocs(query(collection(db, "bookingRequests"), orderBy("createdAt", "asc")));
-    setRequests(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) })));
+    try {
+      const snap = await getDocs(query(collection(db, "bookingRequests"), orderBy("createdAt", "asc")));
+      setRequests(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) })));
+    } catch (err) {
+      console.error("[PendingApprovals] bookingRequests 로드 실패:", err);
+      // orderBy 인덱스 없이 시도
+      try {
+        const snap = await getDocs(collection(db, "bookingRequests"));
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BookingRequest, "id">) }));
+        list.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+        setRequests(list);
+      } catch (err2) {
+        console.error("[PendingApprovals] 재시도도 실패:", err2);
+      }
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -2384,7 +2494,7 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
       date: r.date,
       startTime: r.startTime,
       endTime: r.endTime,
-      location: "",
+      location: r.location ?? "",
       memo: "",
       team: r.team || undefined,
       createdAt: Date.now(),
@@ -2414,34 +2524,56 @@ function PendingApprovals({ onApproved }: { onApproved: () => void }) {
 
   return (
     <>
-      <div className="rounded-2xl border border-[rgb(var(--accent))/20] bg-[rgb(var(--accent))/4] p-4 space-y-3">
-        <p className="text-[13px] font-semibold text-[rgb(var(--accent))]">예약 신청 {requests.length}건</p>
-        {requests.map((r) => (
-          <div key={r.id} className="rounded-xl bg-white p-3 shadow-sm space-y-2">
-            <div className="flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">{r.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{bookingWhenLabel(r.date, r.startTime, r.endTime)}</p>
-                <p className="text-xs text-slate-400">{r.requesterName}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
+      <div className="rounded-2xl border border-accent/20 bg-accent-soft/40 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{requests.length}</span>
+          <p className="text-[13px] font-semibold text-accent">승인 대기</p>
+        </div>
+        {requests.map((r) => {
+          const expanded = expandedId === r.id;
+          return (
+            <div key={r.id} className="rounded-xl bg-white shadow-sm overflow-hidden">
+              {/* 상단: 신청자 + 내용 */}
               <button
-                onClick={() => approve(r)}
-                className="flex-1 rounded-lg py-2 text-xs font-semibold text-white transition active:brightness-90"
-                style={{ backgroundColor: "rgb(var(--accent))" }}
+                onClick={() => setExpandedId(expanded ? null : r.id)}
+                className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-slate-50"
               >
-                확정
+                <ProfileAvatar uid={r.requesterUid} name={r.requesterName} avatar={r.requesterAvatar} className="h-9 w-9 text-xs shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{r.requesterName}</p>
+                    {r.team && <TeamBadge team={r.team} />}
+                    <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold text-accent" style={{ backgroundColor: "rgb(var(--accent) / 0.08)" }}>신청</span>
+                  </div>
+                  <p className="text-sm text-slate-700 truncate mt-0.5">{r.title}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{bookingWhenLabel(r.date, r.startTime, r.endTime)}</p>
+                </div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 shrink-0 text-slate-400 transition ${expanded ? "rotate-180" : ""}`}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
               </button>
-              <button
-                onClick={() => reject(r)}
-                className="flex-1 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-              >
-                거절
-              </button>
+
+              {/* 펼침: 확정 / 거절 */}
+              {expanded && (
+                <div className="border-t border-slate-100 p-3 flex gap-2">
+                  <button
+                    onClick={() => reject(r)}
+                    className="flex-1 rounded-lg border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    거절
+                  </button>
+                  <button
+                    onClick={() => approve(r)}
+                    className="flex-1 rounded-lg py-2.5 text-xs font-semibold text-white transition active:brightness-90"
+                    style={{ backgroundColor: "rgb(var(--accent))" }}
+                  >
+                    확정
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 확정 후 네이버 예약관리 바텀시트 */}
