@@ -5,7 +5,7 @@
 // 게시판 글쓰기는 에디터가 커서 기존처럼 /board/write 페이지로 이동.
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { collection, doc, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";

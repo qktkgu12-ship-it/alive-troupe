@@ -17,7 +17,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
-import { BoardIcon, CommentIcon, EyeIcon, HeartIcon, PencilIcon } from "@/components/Icons";
+import { BoardIcon, EyeIcon, HeartIcon, PencilIcon } from "@/components/Icons";
 import { usePostEditor } from "@/lib/post-editor-context";
 import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";

@@ -18,6 +18,7 @@ import {
   ampmTimeKo,
 } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
+import { getMembers } from "@/lib/members";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
 import { CalendarIcon } from "@/components/Icons";
@@ -421,8 +422,7 @@ export default function EventForm({
     setMembersLoading(true);
     (async () => {
       try {
-        const snap = await getDocs(collection(db, "publicProfiles"));
-        const all = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }));
+        const all = await getMembers();   // 이름순 정렬은 캐시가 이미 해 둔다
         let filtered = all;
         if (currentProductionId) {
           const psnap = await getDoc(doc(db, "productions", currentProductionId));
@@ -432,7 +432,7 @@ export default function EventForm({
             filtered = all.filter((m) => set.has(m.uid));
           }
         }
-        setMembers(filtered.sort((a, b) => a.name.localeCompare(b.name, "ko")));
+        setMembers(filtered);
       } finally {
         setMembersLoading(false);
       }

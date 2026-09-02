@@ -24,11 +24,11 @@ import BottomSheet from "@/components/BottomSheet";
 import EventForm from "@/components/forms/EventForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
 import { pushToAdmins, pushToAll, pushToUsers } from "@/lib/push";
+import { getMembers } from "@/lib/members";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
-import EventMeta from "@/components/EventMeta";
 import EventCard, { eventColor, type Member as CardMember } from "@/components/EventCard";
-import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PencilIcon, PinIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { CalendarIcon, ClockIcon, EyeOffIcon, EyeIcon, PinIcon, PlusIcon, ShareIcon, TrashIcon, XIcon } from "@/components/Icons";
 import type { Absence, Availability, BookingRequest, Coordination, ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 import {
   ampmTimeKo,
@@ -134,14 +134,6 @@ function getEventColor(e: { team?: string; source?: string; participantUids?: st
   return null;
 }
 
-// 팀별 달력 칩 색상 (배경 채우기 — 전체 일정과 동일한 방식, 팀 파스텔 색으로)
-function teamChipStyle(team: string | undefined, teams: string[], passed = false): React.CSSProperties {
-  if (passed || !team) return {};
-  const c = getTeamColor(team, teams);
-  if (!c) return {};
-  return { backgroundColor: c.bg, color: c.color };
-}
-
 // "HH:mm" → { time: "H:MM", ampm: "AM"|"PM" }
 function formatTimeParts(t: string | undefined): { time: string; ampm: string } {
   if (!t) return { time: "—", ampm: "" };
@@ -149,21 +141,6 @@ function formatTimeParts(t: string | undefined): { time: string; ampm: string } 
   const ampm = h < 12 ? "AM" : "PM";
   const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return { time: `${hour}:${String(m).padStart(2, "0")}`, ampm };
-}
-
-// "HH:mm" → "H:MM AM/PM"
-function formatTime(t: string | undefined) {
-  if (!t) return "";
-  const p = formatTimeParts(t);
-  return `${p.time} ${p.ampm}`;
-}
-
-// 슬롯 "HH:mm" → "H:mm" 표기 (오전/오후 생략)
-function fmtTime(s: string) {
-  const [h, m] = s.split(":").map(Number);
-  if (h >= 24) return "24:00";
-  const disp = h === 12 ? 12 : h % 12;
-  return `${disp}:${String(m).padStart(2, "0")}`;
 }
 
 // 휴대폰 공유창 (미지원 브라우저는 링크 복사로 대체)
@@ -233,15 +210,12 @@ function ScheduleInner() {
   // 팀별 단원 수(응답 진행률의 분모) — publicProfiles 1회 집계
   const [memberStat, setMemberStat] = useState<{ total: number; byTeam: Record<string, number> }>({ total: 0, byTeam: {} });
   const loadMemberStat = useCallback(async () => {
-    const snap = await getDocs(collection(db, "publicProfiles"));
+    const list = await getMembers();
     const byTeam: Record<string, number> = {};
-    let total = 0;
-    snap.forEach((d) => {
-      total++;
-      const p = d.data() as PublicProfile;
+    for (const p of list) {
       if (p.team) byTeam[p.team] = (byTeam[p.team] ?? 0) + 1;
-    });
-    setMemberStat({ total, byTeam });
+    }
+    setMemberStat({ total: list.length, byTeam });
   }, []);
   useEffect(() => {
     loadMemberStat();
@@ -914,9 +888,8 @@ function CoordCreateForm({
     if (audienceMode !== "individual" || members.length > 0) return;
     setMembersLoading(true);
     (async () => {
-      // 공개 프로필 전체
-      const snap = await getDocs(collection(db, "publicProfiles"));
-      const all = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }));
+      // 공개 프로필 전체 (캐시 — 여러 시트가 같은 명단을 쓴다)
+      const all = await getMembers();
 
       // 현재 진행 작품의 participants 로 필터
       let filtered = all;
@@ -929,7 +902,7 @@ function CoordCreateForm({
         }
       }
 
-      setMembers(filtered.sort((a, b) => a.name.localeCompare(b.name, "ko")));
+      setMembers(filtered);
       setMembersLoading(false);
     })();
   }, [audienceMode, members.length]);
@@ -1473,19 +1446,6 @@ function CoordDetail({
     return set;
   }, [activeDate, eventsByDate]);
 
-  // ----- 내 가능 날짜 편집 (후보 날짜 중에서만) -----
-  function toggleMyDate(ds: string) {
-    if (locked || !isParticipant || !candidates.includes(ds)) return;
-    setMyDates((prev) => (prev.includes(ds) ? prev.filter((d) => d !== ds) : [...prev, ds].sort()));
-    setSlotsByDate((s) => {
-      if (!myDates.includes(ds)) return s;
-      const n = { ...s };
-      delete n[ds];
-      return n;
-    });
-    setDirty(true);
-  }
-
   // 타임바 범위 선택: 1탭=시작, 2탭=끝(채우기+리셋), 3탭=전체초기화+새시작, 4탭=끝(채우기+리셋) …
   function tapSlot(slot: string) {
     if (!activeDate || locked || !isParticipant || disabledSlots.has(slot)) return;
@@ -1566,14 +1526,9 @@ function CoordDetail({
       if (coord.participantUids && coord.participantUids.length > 0) {
         targets = coord.participantUids;
       } else {
-        const snap = await getDocs(collection(db, "publicProfiles"));
-        targets = snap.docs
-          .filter((d) => {
-            const p = d.data() as PublicProfile;
-            if (p.role === "guest") return false;
-            return !coord.team || p.team === coord.team;
-          })
-          .map((d) => d.id);
+        targets = (await getMembers())
+          .filter((p) => p.role !== "guest" && (!coord.team || p.team === coord.team))
+          .map((p) => p.uid);
       }
       const to = targets.filter((u) => u && !submitted.has(u) && u !== uid);
       if (to.length === 0) {
@@ -2048,8 +2003,7 @@ function BookingRequestSheet({
     if (audienceMode !== "individual" || members.length > 0) return;
     setMembersLoading(true);
     (async () => {
-      const snap = await getDocs(collection(db, "publicProfiles"));
-      const all = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as PublicProfile) }));
+      const all = await getMembers();
       let filtered = all;
       if (currentProductionId) {
         const psnap = await getDoc(doc(db, "productions", currentProductionId));
@@ -2059,7 +2013,7 @@ function BookingRequestSheet({
           filtered = all.filter((m) => partsSet.has(m.uid));
         }
       }
-      setMembers(filtered.sort((a, b) => a.name.localeCompare(b.name, "ko")));
+      setMembers(filtered);
       setMembersLoading(false);
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3198,14 +3152,9 @@ function EventsSection({
   // 전 단원 명단 — 카드의 참여인원 계산용 (홈 캐러셀과 같은 방식)
   const [cardMembers, setCardMembers] = useState<CardMember[]>([]);
   useEffect(() => {
-    getDocs(collection(db, "publicProfiles"))
-      .then((snap) =>
-        setCardMembers(
-          snap.docs.map((d) => {
-            const p = d.data() as PublicProfile;
-            return { uid: d.id, name: p.name ?? "", avatar: p.avatar, team: p.team };
-          })
-        )
+    getMembers()
+      .then((list) =>
+        setCardMembers(list.map((p) => ({ uid: p.uid, name: p.name ?? "", avatar: p.avatar, team: p.team })))
       )
       .catch(() => setCardMembers([]));
   }, []);

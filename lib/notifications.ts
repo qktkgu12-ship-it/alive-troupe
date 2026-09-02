@@ -9,7 +9,6 @@ import {
   type AudioTrack,
   type Comment,
   type Post,
-  type Production,
   type ScheduleEvent,
   type UserProfile,
 } from "./types";

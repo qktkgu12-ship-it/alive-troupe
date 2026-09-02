@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { getMembers } from "@/lib/members";
 import EventCard, { EXPAND, eventColor, type Member } from "@/components/EventCard";
 import type { ScheduleEvent } from "@/lib/types";
 
@@ -34,14 +35,9 @@ export default function ScheduleCarousel({
   // 전 단원 명단 (아바타·팀) — 참여인원 계산에 쓴다
   const [members, setMembers] = useState<Member[]>([]);
   useEffect(() => {
-    getDocs(collection(db, "publicProfiles"))
-      .then((snap) =>
-        setMembers(
-          snap.docs.map((d) => {
-            const p = d.data() as { name?: string; avatar?: string; team?: string };
-            return { uid: d.id, name: p.name ?? "", avatar: p.avatar, team: p.team };
-          })
-        )
+    getMembers()
+      .then((list) =>
+        setMembers(list.map((m) => ({ uid: m.uid, name: m.name ?? "", avatar: m.avatar, team: m.team })))
       )
       .catch(() => setMembers([]));
   }, []);

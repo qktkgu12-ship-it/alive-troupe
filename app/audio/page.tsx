@@ -9,7 +9,6 @@ import {
   getDocs,
   orderBy,
   query,
-  setDoc,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";

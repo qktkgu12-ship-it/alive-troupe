@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useTheme } from "@/lib/theme-context";
 
 export default function LoginPage() {
   const { user, role, loading, signIn } = useAuth();
-  const { settings } = useTheme();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

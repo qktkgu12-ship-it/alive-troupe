@@ -14,7 +14,6 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
@@ -37,7 +36,6 @@ import {
 } from "@/components/Icons";
 import {
   ARCHIVE_KIND_EMOJI,
-  ARCHIVE_KIND_LABEL,
   type ArchiveClip,
   type ArchiveItem,
   type ArchiveKind,

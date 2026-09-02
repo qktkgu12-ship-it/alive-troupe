@@ -21,7 +21,7 @@ import { relativeTime } from "@/lib/utils";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { clearSearchCache } from "@/lib/search";
 import { pushToUsers } from "@/lib/push";
-import { boardCategoryLabel, type Comment, type Post, type PostMedia, type PollVote } from "@/lib/types";
+import { boardCategoryLabel, type Comment, type Post, type PollVote } from "@/lib/types";
 
 const MAX_DOC_BYTES = 950_000;
 
