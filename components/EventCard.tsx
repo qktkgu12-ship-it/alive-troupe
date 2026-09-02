@@ -317,8 +317,12 @@ export default function EventCard({
           <button
             onClick={onToggle}
             aria-expanded={open}
-            // 접힘일 때 남는 높이를 이 버튼이 다 먹어야 하단 줄이 카드 바닥에 앉는다
-            className={`relative w-full px-3.5 pt-3.5 text-left ${open ? "" : "flex-1"}`}
+            // 접힘일 때 남는 높이를 이 버튼이 다 먹어야 하단 줄이 카드 바닥에 앉는다.
+            // button은 내용을 세로 가운데로 모으는 성질이 있어서, 늘어나면
+            // D-day·날짜·제목이 카드 한가운데로 밀린다 → flex-col + 위 정렬로 못 박는다.
+            className={`relative w-full px-3.5 pt-3.5 text-left ${
+              open ? "" : "flex flex-1 flex-col justify-start"
+            }`}
             style={{ paddingBottom: open ? 12 : 52 }}
           >
             {/* D-day + 날짜 */}

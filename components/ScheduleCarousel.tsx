@@ -161,9 +161,9 @@ export default function ScheduleCarousel({
                 // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다
                 width: open ? "calc(100vw - 32px)" : "78%",
                 maxWidth: open ? 520 : 330,
-                // 접힘: 가로는 그대로 두고 4:3 비율로 높이를 잡는다.
+                // 접힘: 가로는 그대로 두고 3:2 비율로 높이를 잡는다.
                 // 펼치면 내용만큼 늘어나야 하므로 비율을 풀어 준다.
-                ...(open ? {} : { aspectRatio: "4 / 3" }),
+                ...(open ? {} : { aspectRatio: "3 / 2" }),
                 transition: `width ${EXPAND}, max-width ${EXPAND}`,
               }}
             />
