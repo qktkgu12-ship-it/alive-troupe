@@ -47,7 +47,7 @@ function eventPassed(e: ScheduleEvent, nowMs: number) {
 function CardHead({ title, href, label }: { title: string; href: string; label: string }) {
   return (
     <Link href={href} aria-label={label} className="flex items-center justify-between px-4 pb-1 pt-4">
-      <h2 className="text-[17px] font-bold tracking-tight text-slate-900">{title}</h2>
+      <h2 className="text-[17px] font-semibold tracking-tight text-slate-900">{title}</h2>
       <span className="grid h-6 w-6 place-items-center rounded-full text-slate-300 transition hover:text-accent">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
       </span>

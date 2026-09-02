@@ -2,7 +2,8 @@
 
 // 홈 상단 — 다가오는 확정 일정을 '펼쳐지는' 카드 캐러셀로 보여준다.
 // 카드 한 장의 생김새·동작은 일정 페이지 목록과 공용이다 (components/EventCard).
-// 여기선 가로 스크롤·스냅·점 표시와, 펼쳤을 때 카드가 화면을 꽉 채우는 것만 맡는다.
+// 여기선 가로 스크롤·스냅과, 펼쳤을 때 카드가 화면을 꽉 채우는 것만 맡는다.
+// dot 인디케이터는 제거됨 — peek(옆 카드 삐침)이 슬라이드 가능성을 충분히 전달한다.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,9 +17,6 @@ import type { ScheduleEvent } from "@/lib/types";
 
 export { eventColor };
 
-// 카드가 미끄러지는 느낌 — 점 애니메이션도 이 값을 그대로 쓴다
-const SLIDE = "420ms cubic-bezier(0.34, 1.36, 0.4, 1)";
-
 export default function ScheduleCarousel({
   events,
   teams,
@@ -29,7 +27,6 @@ export default function ScheduleCarousel({
   const router = useRouter();
   const { user, profile } = useAuth();
   const trackRef = useRef<HTMLDivElement>(null);
-  const [idx, setIdx] = useState(0);
   const [openId, setOpenId] = useState<string | null>(null);
 
   // 전 단원 명단 (아바타·팀) — 참여인원 계산에 쓴다
@@ -67,58 +64,6 @@ export default function ScheduleCarousel({
     loadAttendance();
   }, [loadAttendance]);
 
-  // 스크롤이 멈춘 자리에서 가장 가까운 카드를 '보고 있는 카드'로 친다.
-  const sync = useCallback(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    const kids = Array.from(el.children) as HTMLElement[];
-    if (kids.length === 0) return;
-    // 카드마다 서는 자리가 다르므로(왼쪽 / 가운데) 왼쪽 끝이 아니라
-    // '카드 한가운데가 화면 한가운데에 가장 가까운 것'으로 고른다.
-    const r = el.getBoundingClientRect();
-    const mid = r.left + r.width / 2;
-    let best = 0;
-    let min = Infinity;
-    kids.forEach((k, i) => {
-      const kr = k.getBoundingClientRect();
-      const d = Math.abs(kr.left + kr.width / 2 - mid);
-      if (d < min) {
-        min = d;
-        best = i;
-      }
-    });
-    setIdx(best);
-  }, [events.length]);
-
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(sync);
-    };
-    // scrollend — 스냅이 끝난 뒤 최종 위치를 확실히 잡는다.
-    // scroll 이벤트만으로는 스냅 애니메이션 도중 끊겨 마지막 자리를 놓칠 수 있다.
-    const onEnd = () => sync();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    el.addEventListener("scrollend", onEnd, { passive: true });
-    // scrollend를 지원하지 않는 브라우저 폴백 — 스크롤이 멈춘 뒤 150ms 뒤 동기화
-    let timer = 0;
-    const onScrollFallback = () => {
-      clearTimeout(timer);
-      timer = window.setTimeout(sync, 150);
-    };
-    el.addEventListener("scroll", onScrollFallback, { passive: true });
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(timer);
-      el.removeEventListener("scroll", onScroll);
-      el.removeEventListener("scrollend", onEnd);
-      el.removeEventListener("scroll", onScrollFallback);
-    };
-  }, [sync]);
-
   // 펼칠 때 그 카드를 화면 안으로 데려온다 (옆 카드가 안 보이므로 자리를 맞춰 준다)
   function toggle(i: number, id: string) {
     const next = openId === id ? null : id;
@@ -146,7 +91,7 @@ export default function ScheduleCarousel({
         aria-label="전체 일정 보기"
         className="mb-2.5 flex items-center justify-between"
       >
-        <h2 className="text-[18px] font-bold tracking-tight text-slate-900">다가오는 일정</h2>
+        <h2 className="text-[22px] font-bold tracking-tight text-slate-900">다가오는 일정</h2>
         <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
         </span>
@@ -194,35 +139,9 @@ export default function ScheduleCarousel({
         })}
       </div>
 
-      {/* 점 — 보고 있는 카드 자리에서 그 색 알약으로 늘어난다 */}
-      <div className="mt-3 flex items-center justify-center gap-1.5">
-        {events.map((e, i) => {
-          const on = i === idx;
-          return (
-            <button
-              key={e.id}
-              type="button"
-              aria-label={`${i + 1}번째 일정 보기`}
-              aria-current={on ? "true" : undefined}
-              onClick={() => {
-                // 그 카드가 원래 서는 자리(왼쪽 / 가운데)로 보낸다.
-                // scroll-padding은 브라우저가 알아서 지켜 준다.
-                const kid = trackRef.current?.children[i] as HTMLElement | undefined;
-                const inline = i === 0 || i === events.length - 1 ? "start" : "center";
-                kid?.scrollIntoView({ inline, block: "nearest", behavior: "smooth" });
-              }}
-              className="h-1.5 rounded-full"
-              style={{
-                width: on ? 14 : 6,
-                // 일정별 강조색을 쓰면 로고(빨강)와 부딪히고, 색이 무슨 뜻인지도 알 수 없다.
-                // 위치만 알려주면 되는 요소라 무채색으로 둔다.
-                backgroundColor: on ? "rgb(100 116 139)" : "rgb(203 213 225)",
-                transition: `width ${SLIDE}, background-color 260ms ease`,
-              }}
-            />
-          );
-        })}
-      </div>
+      {/* dot 인디케이터 제거 — 카드가 옆으로 삐져나오는(peek) 것만으로
+          슬라이드가 있다는 걸 충분히 전달한다. dot이 없으면
+          캐러셀↔아카이브 사이가 깔끔하게 비워져 시각적 위계도 좋아진다. */}
     </div>
   );
 }
