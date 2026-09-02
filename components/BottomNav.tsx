@@ -114,6 +114,15 @@ export default function BottomNav() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const y = window.scrollY;
+        // 페이지 끝에 닿으면 축소한 채로 둔다.
+        // 바닥에서 튕길 때(rubber-band) 스크롤이 잠깐 위로 잡혀서
+        // 바가 도로 커졌다 작아지는 깜빡임이 생기기 때문이다.
+        const doc = document.documentElement;
+        if (y + window.innerHeight >= doc.scrollHeight - 8) {
+          last = y;
+          setShrunk(true);
+          return;
+        }
         const dy = y - last;
         // 손가락 떨림·바운스로 방향이 깜빡이지 않게 문턱을 둔다
         if (Math.abs(dy) < 8) return;

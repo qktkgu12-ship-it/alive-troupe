@@ -128,8 +128,6 @@ export default function ScheduleCarousel({
     );
   }
 
-  const dotColor = eventColor(events[Math.min(idx, events.length - 1)], teams);
-
   return (
     <div>
       {/* 카드 줄 — 손으로 밀면 한 장씩 딱딱 맞춰 선다 */}
@@ -163,6 +161,9 @@ export default function ScheduleCarousel({
                 // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다
                 width: open ? "calc(100vw - 32px)" : "78%",
                 maxWidth: open ? 520 : 330,
+                // 접힘: 가로는 그대로 두고 4:3 비율로 높이를 잡는다.
+                // 펼치면 내용만큼 늘어나야 하므로 비율을 풀어 준다.
+                ...(open ? {} : { aspectRatio: "4 / 3" }),
                 transition: `width ${EXPAND}, max-width ${EXPAND}`,
               }}
             />
@@ -202,8 +203,10 @@ export default function ScheduleCarousel({
               }}
               className="h-1.5 rounded-full"
               style={{
-                width: on ? 20 : 6,
-                backgroundColor: on ? dotColor : "rgb(203 213 225)",
+                width: on ? 14 : 6,
+                // 일정별 강조색을 쓰면 로고(빨강)와 부딪히고, 색이 무슨 뜻인지도 알 수 없다.
+                // 위치만 알려주면 되는 요소라 무채색으로 둔다.
+                backgroundColor: on ? "rgb(100 116 139)" : "rgb(203 213 225)",
                 transition: `width ${SLIDE}, background-color 260ms ease`,
               }}
             />

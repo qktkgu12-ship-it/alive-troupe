@@ -317,7 +317,8 @@ export default function EventCard({
           <button
             onClick={onToggle}
             aria-expanded={open}
-            className="relative w-full px-3.5 pt-3.5 text-left"
+            // 접힘일 때 남는 높이를 이 버튼이 다 먹어야 하단 줄이 카드 바닥에 앉는다
+            className={`relative w-full px-3.5 pt-3.5 text-left ${open ? "" : "flex-1"}`}
             style={{ paddingBottom: open ? 12 : 52 }}
           >
             {/* D-day + 날짜 */}
@@ -571,12 +572,14 @@ export default function EventCard({
           {detail}
         </>
       ) : (
-        <div className="flex">
+        // 카드가 4:3 비율로 높이를 갖는다 → 안쪽도 그 높이를 이어받아야
+        // 시간·아바타 줄이 카드 바닥에 붙는다 (안 그러면 내용이 위에만 뭉친다)
+        <div className="flex h-full">
           {/* 왼쪽 팀색 바 — 카드 왼쪽 끝에 붙는 두툼한 알약 */}
           <div className="flex shrink-0 self-stretch py-2">
             <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
             {carouselHead}
             {detail}
           </div>
