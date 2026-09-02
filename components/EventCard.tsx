@@ -288,15 +288,6 @@ export default function EventCard({
   // 색은 hex일 수도, rgb(var(--accent))일 수도 있어서 hex 알파(#RRGGBBAA)를 못 쓴다.
   // color-mix로 어떤 형식이든 같은 농도의 연한 배경을 만든다.
   const tint = `color-mix(in srgb, ${color} 10%, transparent)`;
-  // 홈 캐러셀 카드 바탕.
-  // oklch에서 섞으면 밝기만 올라가고 채도(선명함)는 남는다 → 브랜드 색과 같은 계열로 읽힌다.
-  // 위가 밝고 아래가 진한 그라데이션 — 흰 폰트가 자연스럽게 어울리는 명도.
-  const mix = (pct: number) => `color-mix(in oklch, ${color} ${pct}%, white)`;
-  const cardBg = `linear-gradient(to bottom, ${mix(62)} 0%, ${mix(80)} 100%)`;
-  // 펼친 상세 — 진한 카드 위에서 반투명 흰 면으로 읽기 편하게.
-  const panelBg = variant === "carousel" ? "rgba(255,255,255,0.85)" : "rgb(248 250 252)";
-  const segBg = variant === "carousel" ? "rgba(255,255,255,0.45)" : "rgb(241 245 249)";
-  const chipBg = variant === "carousel" ? "rgba(255,255,255,0.3)" : tint;
 
   const timeLabel = e.startTime
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
@@ -306,11 +297,7 @@ export default function EventCard({
   const chevron = (
     <span
       className="grid h-7 w-7 shrink-0 place-items-center rounded-full"
-      style={
-        variant === "carousel"
-          ? { color: "rgba(255,255,255,0.9)" }
-          : { backgroundColor: chipBg, color }
-      }
+      style={{ backgroundColor: tint, color }}
     >
       <svg
         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}
@@ -342,15 +329,11 @@ export default function EventCard({
             <div className="flex h-5 items-center gap-1.5 pr-10">
               <span
                 className="rounded-full px-2 py-[2px] text-[11px] font-extrabold"
-                style={
-                  variant === "carousel"
-                    ? { backgroundColor: "rgba(255,255,255,0.25)", color: "#fff" }
-                    : { backgroundColor: chipBg, color }
-                }
+                style={{ backgroundColor: tint, color }}
               >
                 {ddayLabel(e.date)}
               </span>
-              <span className={variant === "carousel" ? "text-[12.5px] font-semibold text-white/70" : "text-[12.5px] font-medium text-slate-400"}>
+              <span className="text-[12.5px] font-medium text-slate-400">
                 {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
               </span>
             </div>
@@ -359,9 +342,7 @@ export default function EventCard({
             <div className="mt-1.5 flex h-[46px] items-start pr-10">
               <h3
                 className={`line-clamp-2 text-[18px] font-extrabold leading-[23px] tracking-tight ${
-                  dimmed
-                    ? "text-slate-400 line-through"
-                    : variant === "carousel" ? "text-white" : "text-slate-900"
+                  dimmed ? "text-slate-400 line-through" : "text-slate-900"
                 }`}
               >
                 {e.title}
@@ -381,11 +362,8 @@ export default function EventCard({
                 transition: "opacity 180ms ease",
               }}
             >
-              <span className={variant === "carousel"
-                ? "flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-white/80"
-                : "flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500"
-              }>
-                <ClockIcon className={variant === "carousel" ? "h-[15px] w-[15px] shrink-0 text-white/60" : "h-[15px] w-[15px] shrink-0 text-slate-400"} />
+              <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
+                <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-400" />
                 {timeLabel}
               </span>
               {going.length > 0 && <AvatarStack members={going} max={3} />}
@@ -454,7 +432,7 @@ export default function EventCard({
             }}
           >
             <div className={`pb-4 ${variant === "list" ? "px-4" : "px-3.5"}`}>
-              <div className="space-y-2.5 rounded-2xl p-3.5" style={{ backgroundColor: panelBg }}>
+              <div className="space-y-2.5 rounded-2xl bg-slate-50 p-3.5">
                 {/* 시간 */}
                 <div className="flex items-center gap-2.5">
                   <ClockIcon className="h-[17px] w-[17px] shrink-0 text-slate-400" />
@@ -507,7 +485,7 @@ export default function EventCard({
                   <p className="mb-1.5 mt-3.5 px-0.5 text-[12px] font-semibold text-slate-400">
                     내 참석 여부
                   </p>
-                  <div className="flex gap-1.5 rounded-2xl p-1" style={{ backgroundColor: segBg }}>
+                  <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1">
                     <button
                       onClick={setAttend}
                       disabled={busy}
@@ -585,12 +563,12 @@ export default function EventCard({
 
   return (
     <div
-      className={`overflow-hidden ${
+      className={`overflow-hidden bg-white ${
         variant === "list"
-          ? "rounded-2xl bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
-          : "rounded-3xl bg-white shadow-[0_2px_10px_-6px_rgba(16,24,40,0.12)]"
+          ? "rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
+          : "rounded-3xl shadow-[0_2px_10px_-6px_rgba(16,24,40,0.16)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
-      style={variant === "list" ? wrapperStyle : { background: cardBg, ...wrapperStyle }}
+      style={wrapperStyle}
     >
       {variant === "list" ? (
         <>
@@ -600,10 +578,15 @@ export default function EventCard({
       ) : (
         // 카드가 4:3 비율로 높이를 갖는다 → 안쪽도 그 높이를 이어받아야
         // 시간·아바타 줄이 카드 바닥에 붙는다 (안 그러면 내용이 위에만 뭉친다)
-        // 왼쪽 색 바는 뺐다 — 카드 바탕색이 이미 같은 일을 한다.
-        <div className="flex h-full flex-col">
-          {carouselHead}
-          {detail}
+        <div className="flex h-full">
+          {/* 왼쪽 팀색 바 — 카드 왼쪽 끝에 붙는 두툼한 알약 */}
+          <div className="flex shrink-0 self-stretch py-2">
+            <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            {carouselHead}
+            {detail}
+          </div>
         </div>
       )}
 
