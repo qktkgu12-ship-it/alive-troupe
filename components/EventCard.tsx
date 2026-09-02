@@ -289,17 +289,14 @@ export default function EventCard({
   // color-mix로 어떤 형식이든 같은 농도의 연한 배경을 만든다.
   const tint = `color-mix(in srgb, ${color} 10%, transparent)`;
   // 홈 캐러셀 카드 바탕.
-  // srgb에서 흰색을 섞으면 색이 '뿌옇게' 바래 브랜드 색과 다른 색처럼 보인다.
   // oklch에서 섞으면 밝기만 올라가고 채도(선명함)는 남는다 → 브랜드 색과 같은 계열로 읽힌다.
-  // 위가 진하고 아래로 옅어지는 완만한 그라데이션 — 한 가지 색으로 꽉 찬 면보다 눈이 덜 피로하다.
+  // 위가 밝고 아래가 진한 그라데이션 — 흰 폰트가 자연스럽게 어울리는 명도.
   const mix = (pct: number) => `color-mix(in oklch, ${color} ${pct}%, white)`;
-  const cardBg = `linear-gradient(160deg, ${mix(30)} 0%, ${mix(14)} 100%)`;
-  // 펼친 상세 — 색 카드 위에서는 회색 면이 탁해 보인다. 흰 면으로 띄우고,
-  // 세그먼트 토글만 카드보다 한 단계 진한 색 면으로 눌러 준다.
-  const panelBg = variant === "carousel" ? "rgba(255,255,255,0.72)" : "rgb(248 250 252)";
-  const segBg = variant === "carousel" ? mix(34) : "rgb(241 245 249)";
-  // 그 바탕 위에서는 10% 칩이 묻혀 안 보인다 → 칩·화살표는 흰 면으로 띄운다.
-  const chipBg = variant === "carousel" ? "#ffffff" : tint;
+  const cardBg = `linear-gradient(to bottom, ${mix(62)} 0%, ${mix(80)} 100%)`;
+  // 펼친 상세 — 진한 카드 위에서 반투명 흰 면으로 읽기 편하게.
+  const panelBg = variant === "carousel" ? "rgba(255,255,255,0.85)" : "rgb(248 250 252)";
+  const segBg = variant === "carousel" ? "rgba(255,255,255,0.45)" : "rgb(241 245 249)";
+  const chipBg = variant === "carousel" ? "rgba(255,255,255,0.3)" : tint;
 
   const timeLabel = e.startTime
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
@@ -309,11 +306,9 @@ export default function EventCard({
   const chevron = (
     <span
       className="grid h-7 w-7 shrink-0 place-items-center rounded-full"
-      // 캐러셀은 색 바탕이라 원 배경까지 있으면 요소가 하나 더 얹힌 것처럼 시끄럽다.
-      // 아이콘만 진하게 남긴다.
       style={
         variant === "carousel"
-          ? { color: "rgb(15 23 42)" }
+          ? { color: "rgba(255,255,255,0.9)" }
           : { backgroundColor: chipBg, color }
       }
     >
@@ -347,11 +342,15 @@ export default function EventCard({
             <div className="flex h-5 items-center gap-1.5 pr-10">
               <span
                 className="rounded-full px-2 py-[2px] text-[11px] font-extrabold"
-                style={{ backgroundColor: chipBg, color }}
+                style={
+                  variant === "carousel"
+                    ? { backgroundColor: "rgba(255,255,255,0.25)", color: "#fff" }
+                    : { backgroundColor: chipBg, color }
+                }
               >
                 {ddayLabel(e.date)}
               </span>
-              <span className="text-[12.5px] font-semibold text-slate-600">
+              <span className={variant === "carousel" ? "text-[12.5px] font-semibold text-white/70" : "text-[12.5px] font-medium text-slate-400"}>
                 {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
               </span>
             </div>
@@ -360,7 +359,9 @@ export default function EventCard({
             <div className="mt-1.5 flex h-[46px] items-start pr-10">
               <h3
                 className={`line-clamp-2 text-[18px] font-extrabold leading-[23px] tracking-tight ${
-                  dimmed ? "text-slate-400 line-through" : "text-slate-900"
+                  dimmed
+                    ? "text-slate-400 line-through"
+                    : variant === "carousel" ? "text-white" : "text-slate-900"
                 }`}
               >
                 {e.title}
@@ -380,8 +381,11 @@ export default function EventCard({
                 transition: "opacity 180ms ease",
               }}
             >
-              <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-700">
-                <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-600" />
+              <span className={variant === "carousel"
+                ? "flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-white/80"
+                : "flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500"
+              }>
+                <ClockIcon className={variant === "carousel" ? "h-[15px] w-[15px] shrink-0 text-white/60" : "h-[15px] w-[15px] shrink-0 text-slate-400"} />
                 {timeLabel}
               </span>
               {going.length > 0 && <AvatarStack members={going} max={3} />}

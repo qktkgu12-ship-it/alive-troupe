@@ -88,7 +88,7 @@ export default function ScheduleCarousel({
       }
     });
     setIdx(best);
-  }, []);
+  }, [events.length]);
 
   useEffect(() => {
     const el = trackRef.current;
@@ -98,10 +98,24 @@ export default function ScheduleCarousel({
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(sync);
     };
+    // scrollend — 스냅이 끝난 뒤 최종 위치를 확실히 잡는다.
+    // scroll 이벤트만으로는 스냅 애니메이션 도중 끊겨 마지막 자리를 놓칠 수 있다.
+    const onEnd = () => sync();
     el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("scrollend", onEnd, { passive: true });
+    // scrollend를 지원하지 않는 브라우저 폴백 — 스크롤이 멈춘 뒤 150ms 뒤 동기화
+    let timer = 0;
+    const onScrollFallback = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(sync, 150);
+    };
+    el.addEventListener("scroll", onScrollFallback, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(timer);
       el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("scrollend", onEnd);
+      el.removeEventListener("scroll", onScrollFallback);
     };
   }, [sync]);
 
@@ -175,7 +189,7 @@ export default function ScheduleCarousel({
                 // 펼치면 내용만큼 늘어나야 하므로 높이를 풀어 준다.
                 // 접힘 높이는 고정값 — 비율로 잡으면 넓은 기기에서 카드가 같이 커진다.
                 // 제목칸이 2줄 고정이라, 높이가 크면 한 줄짜리 제목일 때 아래가 텅 빈다.
-                ...(open ? {} : { height: 164 }),
+                ...(open ? {} : { height: 152 }),
                 transition: `width ${EXPAND}, max-width ${EXPAND}`,
               }}
             />
