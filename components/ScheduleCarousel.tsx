@@ -184,9 +184,9 @@ export default function ScheduleCarousel({
                 // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다.
                 width: open ? "calc(100vw - 32px)" : "78%",
                 maxWidth: open ? 520 : 330,
-                // 제목 + 하단(아바타·날짜)만 보이는 컴팩트 레이아웃.
-                // 제목 2줄 + 하단바가 들어갈 최소 높이.
-                ...(open ? {} : { height: 120 }),
+                // 상단 14 + 제목칸 44 + 날짜줄 22 = 80, 아바타 24 + 바닥 12 = 36.
+                // 116이 최소치라 숨 쉴 틈을 더해 128로 잡았다.
+                ...(open ? {} : { height: 128 }),
                 transition: `width ${EXPAND}, max-width ${EXPAND}`,
               }}
             />

@@ -296,16 +296,22 @@ export default function EventCard({
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
     : "시간 미정";
 
-  // 펼치기 화살표 — 두 변형이 같이 쓴다
+  // 펼치기 화살표.
+  // 캐러셀은 배경 없이 아이콘만 — 원 배경이 있으면 작은 카드에서 요소가 하나 더 얹힌 것처럼 무겁다.
+  // 목록(일정 페이지)은 기존 색 원을 그대로 쓴다.
   const chevron = (
     <span
-      className="grid h-7 w-7 shrink-0 place-items-center rounded-full"
-      style={{ backgroundColor: tint, color }}
+      className={
+        variant === "carousel"
+          ? "grid h-5 w-5 shrink-0 place-items-center text-slate-300"
+          : "grid h-7 w-7 shrink-0 place-items-center rounded-full"
+      }
+      style={variant === "carousel" ? undefined : { backgroundColor: tint, color }}
     >
       <svg
         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}
         strokeLinecap="round" strokeLinejoin="round"
-        className="h-[15px] w-[15px]"
+        className={variant === "carousel" ? "h-4 w-4" : "h-[15px] w-[15px]"}
         style={{ transform: open ? "rotate(180deg)" : "none", transition: `transform ${EXPAND}` }}
       >
         <polyline points="6 9 12 15 18 9" />
@@ -317,18 +323,19 @@ export default function EventCard({
   const dateCompact = `${dt.getMonth() + 1}.${String(dt.getDate()).padStart(2, "0")} (${WEEKDAYS_KO[dt.getDay()]})`;
 
   // ===== 접힘 머리 ① 홈 캐러셀 =====
-  // 레퍼런스 스타일: 제목이 맨 위, 아바타+날짜·시간이 바닥.
+  // 읽는 순서: 무슨 일정(제목) → 언제(날짜·시간) → 누가(아바타).
+  // 제목칸은 2줄 높이로 못 박아 뒀다 — 제목이 한 줄이어도 아래 날짜줄 위치가 카드마다 같다.
   const carouselHead = (
           <button
             onClick={onToggle}
             aria-expanded={open}
-            className={`relative w-full pl-3.5 pr-3 pt-3 text-left ${
+            className={`relative w-full pl-2 pr-3 pt-3.5 text-left ${
               open ? "" : "flex flex-1 flex-col justify-start"
             }`}
             style={{ paddingBottom: open ? 12 : 0 }}
           >
             {/* 제목 — 카드에서 가장 먼저 읽힌다 */}
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex h-[44px] items-start justify-between gap-2">
               <h3
                 className={`line-clamp-2 text-[17px] font-extrabold leading-[22px] tracking-tight ${
                   dimmed ? "text-slate-400 line-through" : "text-slate-900"
@@ -341,20 +348,26 @@ export default function EventCard({
               {chevron}
             </div>
 
-            {/* 하단 바 — 접힘 전용. 아바타(왼) + 날짜·시간(오른) */}
+            {/* 날짜·시간 — 제목 바로 아래. 일정 앱에서 두 번째로 중요한 정보라
+                회색으로 흘리지 않고 slate-600 굵은 글씨로 세워 둔다. */}
+            <div className="mt-1 flex items-center gap-1.5">
+              <ClockIcon className="h-[14px] w-[14px] shrink-0 text-slate-400" />
+              <span className="truncate text-[13px] font-semibold text-slate-600">
+                {dateCompact}
+                {e.startTime ? ` · ${ampmTimeKo(e.startTime)}` : ""}
+              </span>
+            </div>
+
+            {/* 아바타 — 카드 바닥. 접힘 전용 (펼치면 상세에 참여인원이 따로 나온다) */}
             <span
-              className="absolute bottom-3 left-3.5 right-3 flex items-center justify-between"
+              className="absolute bottom-3 left-2 flex items-center"
               style={{
                 opacity: open ? 0 : 1,
                 pointerEvents: open ? "none" : "auto",
                 transition: "opacity 180ms ease",
               }}
             >
-              {going.length > 0 && <AvatarStack members={going} max={4} size="h-6 w-6" overlap={-11} />}
-              <span className="flex shrink-0 items-center gap-1 text-[11.5px] font-semibold text-slate-400">
-                <ClockIcon className="h-[13px] w-[13px] shrink-0 text-slate-300" />
-                {dateCompact}{e.startTime ? ` ${ampmTimeKo(e.startTime)}` : ""}
-              </span>
+              {going.length > 0 && <AvatarStack members={going} max={5} size="h-6 w-6" overlap={-11} />}
             </span>
           </button>
   );
@@ -419,7 +432,8 @@ export default function EventCard({
               transition: `max-height ${EXPAND}, opacity 220ms ease`,
             }}
           >
-            <div className={`pb-4 ${variant === "list" ? "px-4" : "px-3.5"}`}>
+            {/* 캐러셀은 왼쪽 컬러바 칸만큼 이미 들여쓰였으므로 머리(pl-2 pr-3)와 같은 값을 쓴다 */}
+            <div className={`pb-4 ${variant === "list" ? "px-4" : "pl-2 pr-3"}`}>
               <div className="space-y-2.5 rounded-2xl bg-slate-50 p-3.5">
                 {/* 시간 */}
                 <div className="flex items-center gap-2.5">
@@ -567,9 +581,11 @@ export default function EventCard({
         // 카드가 4:3 비율로 높이를 갖는다 → 안쪽도 그 높이를 이어받아야
         // 시간·아바타 줄이 카드 바닥에 붙는다 (안 그러면 내용이 위에만 뭉친다)
         <div className="flex h-full">
-          {/* 왼쪽 팀색 바 — 자그맣게 */}
-          <div className="flex shrink-0 self-stretch py-2.5">
-            <div className="w-[3px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+          {/* 왼쪽 팀색 바 — 제목 첫 줄 높이만큼 짧게, 위쪽에 붙는다.
+              카드 높이를 다 채우면 색이 '테두리'처럼 읽혀 무거워진다.
+              pl-2.5 : 카드 모서리 곡선(rounded-3xl)에 바가 깎이지 않을 만큼만 안쪽으로. */}
+          <div className="shrink-0 pl-2.5 pt-4">
+            <div className="h-7 w-[3px] rounded-full" style={{ backgroundColor: color }} />
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
             {carouselHead}
