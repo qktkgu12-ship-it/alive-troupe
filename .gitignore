@@ -34,3 +34,7 @@ next-env.d.ts
 
 # 팜플렛 작업용 폴더(원본 PNG 백업·공유용 단일파일) — 배포본은 public/pamphlet/ 에 있음
 /pamphlet/
+
+# 로컬 백업 파일
+CLAUDE.md.local.bak
+*.local.bak
