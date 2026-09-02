@@ -40,15 +40,16 @@ function eventPassed(e: ScheduleEvent, nowMs: number) {
   return dt.getTime() < nowMs;
 }
 
-// 섹션 머리 — 제목과 '전체 보기' 화살표. 카드 '밖' 위에 놓는다.
-// 카드 안에 있으면 제목이 목록의 첫 줄처럼 읽힌다. 밖으로 빼면 제목은 이름표,
-// 카드는 내용 — 역할이 갈리고 캐러셀의 '다가오는 일정'과도 문법이 같아진다.
-function SectionHead({ title, href, label }: { title: string; href: string; label: string }) {
+// 콘텐츠 카드 머리 — 제목과 '전체 보기' 화살표를 카드 안에 놓는다.
+// 제목 + 리스트가 하나의 카드로 묶여야 같은 덩어리로 읽힌다.
+// 일정 캐러셀의 '다가오는 일정'은 카드 밖(ScheduleCarousel)에 두어
+// 일정 카드(주인공)와 콘텐츠 카드(보조)의 위계가 달라진다.
+function CardHead({ title, href, label }: { title: string; href: string; label: string }) {
   return (
-    <Link href={href} aria-label={label} className="mb-2.5 flex items-center justify-between">
-      <h2 className="text-[18px] font-bold tracking-tight text-slate-900">{title}</h2>
-      <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    <Link href={href} aria-label={label} className="flex items-center justify-between px-4 pb-1 pt-4">
+      <h2 className="text-[17px] font-bold tracking-tight text-slate-900">{title}</h2>
+      <span className="grid h-6 w-6 place-items-center rounded-full text-slate-300 transition hover:text-accent">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
       </span>
     </Link>
   );
@@ -195,14 +196,14 @@ function HomeInner() {
         <ScheduleCarousel events={shownEvents} teams={teams} />
       </section>
 
-      {/* 아카이브 — 최신 3개 */}
+      {/* 아카이브 — 최신 3개. 제목 + 리스트를 하나의 카드로 묶는다. */}
       <section>
-        <SectionHead title="아카이브" href="/archive" label="아카이브 전체 보기" />
-        <div className="card overflow-hidden !p-0">
+        <div className="content-card overflow-hidden">
+          <CardHead title="아카이브" href="/archive" label="아카이브 전체 보기" />
           {recentArchives.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-400">아직 등록된 자료가 없습니다.</p>
           ) : (
-            <div className="py-2">
+            <div className="pb-2">
               {recentArchives.map((a) => (
                 <MediaRow
                   key={a.id}
@@ -218,18 +219,17 @@ function HomeInner() {
         </div>
       </section>
 
-      {/* 자료실 — 최신 3개 */}
+      {/* 자료실 — 최신 3개. 제목 + 리스트를 하나의 카드로 묶는다. */}
       <section>
-        <SectionHead title="자료실" href="/audio" label="자료실 전체 보기" />
-        <div className="card overflow-hidden !p-0">
+        <div className="content-card overflow-hidden">
+          <CardHead title="자료실" href="/audio" label="자료실 전체 보기" />
           {recentAudio.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-400">아직 등록된 자료가 없습니다.</p>
           ) : (
-            <div className="py-2">
+            <div className="pb-2">
               {recentAudio.map((t) => (
                 <MediaRow
                   key={t.id}
-                  // 자료실은 작품별로 나뉘어 있어 어느 탭인지도 함께 알려 준다
                   href={`/audio?item=${t.id}&pid=${t.productionId}`}
                   title={t.title || t.song || "제목 없음"}
                   author={t.addedByName}
@@ -242,14 +242,14 @@ function HomeInner() {
         </div>
       </section>
 
-      {/* 전체글 (모든 게시판 최신글) */}
+      {/* 전체글 (모든 게시판 최신글). 제목 + 리스트를 하나의 카드로 묶는다. */}
       <section>
-        <SectionHead title="전체글" href="/board" label="게시판 전체 보기" />
-        <div className="card overflow-hidden !p-0">
+        <div className="content-card overflow-hidden">
+          <CardHead title="전체글" href="/board" label="게시판 전체 보기" />
           {recentPosts.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">아직 작성된 글이 없습니다.</p>
           ) : (
-            <ul className="py-2">
+            <ul className="pb-2">
               {recentPosts.map((p) => (
                 <li key={p.id}>
                   <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-2 transition hover:bg-slate-50">

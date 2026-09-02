@@ -568,7 +568,7 @@ export default function EventCard({
       className={`overflow-hidden bg-white ${
         variant === "list"
           ? "rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
-          : "rounded-3xl shadow-[0_2px_10px_-6px_rgba(16,24,40,0.16)]"
+          : "rounded-3xl shadow-[0_2px_4px_rgba(16,24,40,0.04),0_8px_24px_-8px_rgba(16,24,40,0.12)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
       style={wrapperStyle}
     >
