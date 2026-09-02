@@ -20,7 +20,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files (비밀 키가 들어가므로 절대 커밋 금지)
-.env*.local
+# .env*.local만 막으면 .env / .env.production은 그대로 올라간다 — 전부 막는다
+.env
+.env.*
+# 예시 파일은 실제 키가 없으므로 저장소에 둔다
+!.env.local.example
 
 # typescript
 *.tsbuildinfo
