@@ -148,6 +148,7 @@ export default function ScheduleCarousel({
         className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto scroll-smooth px-4"
       >
         {events.map((e, i) => {
+          const edge = i === 0 || i === events.length - 1;
           const open = openId === e.id;
           return (
             <EventCard
@@ -163,15 +164,19 @@ export default function ScheduleCarousel({
               myName={profile?.name || profile?.displayName || ""}
               onChanged={loadAttendance}
               onOpenDetail={() => router.push(`/schedule?tab=events&event=${e.id}&date=${e.date}`)}
-              wrapperClassName="shrink-0 snap-start"
+              wrapperClassName={`shrink-0 ${edge ? "snap-start" : "snap-center"}`}
               wrapperStyle={{
-                // 옆 카드를 살짝 보여 주던 peek을 없앴다 — 아래 섹션 카드와 좌우 폭이
-                // 어긋나 '정렬이 깨진 화면'처럼 보이던 원인이었다. 이제 한 장이 꽉 찬다.
-                width: "100%",
+                // 옆 카드가 살짝 보이는 peek — 밀 수 있는 줄이라는 걸 알려 주는 장치라 유지한다.
+                // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다.
+                width: open ? "calc(100vw - 32px)" : "78%",
+                maxWidth: open ? 520 : 330,
                 // 접힘: 가로 폭과 무관하게 높이를 160px로 고정한다.
                 // (비율로 잡으면 화면이 넓을수록 카드가 같이 높아져 커 보인다)
                 // 펼치면 내용만큼 늘어나야 하므로 높이를 풀어 준다.
-                ...(open ? {} : { height: 160 }),
+                // 접힘 높이는 고정값. 레퍼런스 카드의 가로:세로(약 1.65:1)를
+                // 우리 카드 폭(최대 330)에 대입한 값이다.
+                // 비율(aspect-ratio)로 잡으면 넓은 기기에서 카드가 같이 커진다.
+                ...(open ? {} : { height: 184 }),
                 transition: `width ${EXPAND}, max-width ${EXPAND}`,
               }}
             />
@@ -193,7 +198,8 @@ export default function ScheduleCarousel({
                 // 그 카드가 원래 서는 자리(왼쪽 / 가운데)로 보낸다.
                 // scroll-padding은 브라우저가 알아서 지켜 준다.
                 const kid = trackRef.current?.children[i] as HTMLElement | undefined;
-                kid?.scrollIntoView({ inline: "start", block: "nearest", behavior: "smooth" });
+                const inline = i === 0 || i === events.length - 1 ? "start" : "center";
+                kid?.scrollIntoView({ inline, block: "nearest", behavior: "smooth" });
               }}
               className="h-1.5 rounded-full"
               style={{

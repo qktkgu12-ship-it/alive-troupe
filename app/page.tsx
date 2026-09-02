@@ -40,15 +40,12 @@ function eventPassed(e: ScheduleEvent, nowMs: number) {
   return dt.getTime() < nowMs;
 }
 
-// 카드 머리 — 제목과 '전체 보기' 화살표를 카드 안에 넣는다
-function CardHead({ title, href, label }: { title: string; href: string; label: string }) {
+// 섹션 머리 — 제목과 '전체 보기' 화살표. 카드 '밖' 위에 놓는다.
+// 카드 안에 있으면 제목이 목록의 첫 줄처럼 읽힌다. 밖으로 빼면 제목은 이름표,
+// 카드는 내용 — 역할이 갈리고 캐러셀의 '다가오는 일정'과도 문법이 같아진다.
+function SectionHead({ title, href, label }: { title: string; href: string; label: string }) {
   return (
-    <Link
-      href={href}
-      aria-label={label}
-      className="flex items-center justify-between px-4 pb-2 pt-4 transition hover:bg-slate-50"
-    >
-      {/* 섹션 제목은 이 카드에서 가장 강한 목소리 — 아래 항목들과 확실히 벌린다 */}
+    <Link href={href} aria-label={label} className="mb-2.5 flex items-center justify-between">
       <h2 className="text-[18px] font-bold tracking-tight text-slate-900">{title}</h2>
       <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
@@ -193,14 +190,6 @@ function HomeInner() {
     // 카드 사이(space-y)는 넓히고 카드 안쪽 padding은 줄였다 —
     // 여백이 '박스 안'이 아니라 '정보 사이'에 있어야 숨통이 트인다.
     <div className="-mt-3 space-y-6">
-      {/* 인사 — 담백하게 */}
-      <header className="pt-1 pb-1">
-        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
-          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
-        </h1>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today, Here, Right now!</p>
-      </header>
-
       {/* 다가오는 확정 일정 — 컬러 카드 캐러셀 */}
       <section>
         <ScheduleCarousel events={shownEvents} teams={teams} />
@@ -208,12 +197,12 @@ function HomeInner() {
 
       {/* 아카이브 — 최신 3개 */}
       <section>
+        <SectionHead title="아카이브" href="/archive" label="아카이브 전체 보기" />
         <div className="card overflow-hidden !p-0">
-          <CardHead title="아카이브" href="/archive" label="아카이브 전체 보기" />
           {recentArchives.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-400">아직 등록된 자료가 없습니다.</p>
           ) : (
-            <div className="pb-2">
+            <div className="py-2">
               {recentArchives.map((a) => (
                 <MediaRow
                   key={a.id}
@@ -231,12 +220,12 @@ function HomeInner() {
 
       {/* 자료실 — 최신 3개 */}
       <section>
+        <SectionHead title="자료실" href="/audio" label="자료실 전체 보기" />
         <div className="card overflow-hidden !p-0">
-          <CardHead title="자료실" href="/audio" label="자료실 전체 보기" />
           {recentAudio.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-400">아직 등록된 자료가 없습니다.</p>
           ) : (
-            <div className="pb-2">
+            <div className="py-2">
               {recentAudio.map((t) => (
                 <MediaRow
                   key={t.id}
@@ -255,12 +244,12 @@ function HomeInner() {
 
       {/* 전체글 (모든 게시판 최신글) */}
       <section>
+        <SectionHead title="전체글" href="/board" label="게시판 전체 보기" />
         <div className="card overflow-hidden !p-0">
-          <CardHead title="전체글" href="/board" label="게시판 전체 보기" />
           {recentPosts.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">아직 작성된 글이 없습니다.</p>
           ) : (
-            <ul className="pb-2">
+            <ul className="py-2">
               {recentPosts.map((p) => (
                 <li key={p.id}>
                   <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-2 transition hover:bg-slate-50">

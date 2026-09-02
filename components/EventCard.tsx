@@ -288,11 +288,14 @@ export default function EventCard({
   // 색은 hex일 수도, rgb(var(--accent))일 수도 있어서 hex 알파(#RRGGBBAA)를 못 쓴다.
   // color-mix로 어떤 형식이든 같은 농도의 연한 배경을 만든다.
   const tint = `color-mix(in srgb, ${color} 10%, transparent)`;
-  // 홈 캐러셀 카드는 바탕 자체를 그 일정 색의 아주 연한 면으로 칠한다.
-  // 8%보다 진해지면 색이 4종(빨강·민트·보라·초록)이라 옆으로 밀 때 알록달록해진다.
-  const cardBg = `color-mix(in srgb, ${color} 8%, white)`;
+  // 홈 캐러셀 카드는 바탕 자체를 그 일정 색의 연한 면으로 칠한다.
+  const cardBg = `color-mix(in srgb, ${color} 16%, white)`;
+  // 펼친 상세 — 색 카드 위에서는 회색 면이 탁해 보인다. 흰 면으로 띄우고,
+  // 세그먼트 토글만 카드보다 한 단계 진한 색 면으로 눌러 준다.
+  const panelBg = variant === "carousel" ? "#ffffff" : "rgb(248 250 252)";
+  const segBg = variant === "carousel" ? `color-mix(in srgb, ${color} 26%, white)` : "rgb(241 245 249)";
   // 그 바탕 위에서는 10% 칩이 묻혀 안 보인다 → 칩·화살표는 흰 면으로 띄운다.
-  const chipBg = variant === "carousel" ? "rgba(255,255,255,0.72)" : tint;
+  const chipBg = variant === "carousel" ? "#ffffff" : tint;
 
   const timeLabel = e.startTime
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
@@ -437,7 +440,7 @@ export default function EventCard({
             }}
           >
             <div className={`pb-4 ${variant === "list" ? "px-4" : "px-3.5"}`}>
-              <div className="space-y-2.5 rounded-2xl bg-slate-50 p-3.5">
+              <div className="space-y-2.5 rounded-2xl p-3.5" style={{ backgroundColor: panelBg }}>
                 {/* 시간 */}
                 <div className="flex items-center gap-2.5">
                   <ClockIcon className="h-[17px] w-[17px] shrink-0 text-slate-400" />
@@ -490,7 +493,7 @@ export default function EventCard({
                   <p className="mb-1.5 mt-3.5 px-0.5 text-[12px] font-semibold text-slate-400">
                     내 참석 여부
                   </p>
-                  <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1">
+                  <div className="flex gap-1.5 rounded-2xl p-1" style={{ backgroundColor: segBg }}>
                     <button
                       onClick={setAttend}
                       disabled={busy}
