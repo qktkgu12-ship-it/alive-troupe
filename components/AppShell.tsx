@@ -118,7 +118,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-[100svh] bg-canvas">
+    <div className="app-canvas min-h-[100svh]">
       {/* 헤더 */}
       <header
         className={`sticky top-0 z-30 transition-[background-color,box-shadow] duration-200 ${

@@ -77,6 +77,23 @@ body {
   }
 }
 
+/* 화면 맨 위 빛 번짐 — 상단이 휑해 보이던 걸 '색' 대신 '빛'으로 채운다.
+   인사말을 뺀 뒤 로고 줄과 첫 카드 사이에 시선이 걸릴 게 없어졌는데,
+   요소를 되살리는 대신 배경에 아주 옅은 깊이를 줘서 해결한다.
+
+   왼쪽 위 = 극단 색(--accent)이 8%로 번지고, 오른쪽 위 = 흰빛.
+   퍼센트가 아니라 background-size로 360px를 잡아 두는 게 핵심이다 —
+   퍼센트로 두면 페이지 전체 높이 기준이라 스크롤해도 색이 안 끝난다.
+   --accent를 그대로 쓰므로 극단 색을 바꾸면 이 번짐도 따라 바뀐다. */
+.app-canvas {
+  background-color: rgb(var(--bg));
+  background-image:
+    radial-gradient(85% 42% at 90% 0%, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(115% 55% at 4% 0%, rgb(var(--accent) / 0.12), rgb(var(--accent) / 0) 72%);
+  background-repeat: no-repeat;
+  background-size: 100% 340px;
+}
+
 /* 일정 카드 — 카드 폭을 기준으로 글자·여백이 따라 커지게 한다.
    (화면 폭이 아니라 '카드 폭' 기준이라 어느 기기에서도 같은 비율로 보인다) */
 .cq {
