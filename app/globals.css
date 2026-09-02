@@ -77,19 +77,27 @@ body {
   }
 }
 
-/* 화면 맨 위 빛 번짐 — 상단이 휑해 보이던 걸 '색' 대신 '빛'으로 채운다.
-   인사말을 뺀 뒤 로고 줄과 첫 카드 사이에 시선이 걸릴 게 없어졌는데,
-   요소를 되살리는 대신 배경에 아주 옅은 깊이를 줘서 해결한다.
+/* 홈 화면 맨 위 빛 번짐 — 상단이 휑해 보이던 걸 '색' 대신 '빛'으로 채운다.
+   홈에서만 쓴다 (AppShell이 경로를 보고 붙인다). 다른 화면은 .bg-canvas 그대로.
 
-   왼쪽 위 = 극단 색(--accent)이 8%로 번지고, 오른쪽 위 = 흰빛.
-   퍼센트가 아니라 background-size로 360px를 잡아 두는 게 핵심이다 —
-   퍼센트로 두면 페이지 전체 높이 기준이라 스크롤해도 색이 안 끝난다.
-   --accent를 그대로 쓰므로 극단 색을 바꾸면 이 번짐도 따라 바뀐다. */
+   ⚠️ 브랜드 빛은 반드시 '가로로 균일'해야 한다.
+   맨 윗줄(y=0)의 색이 좌우로 다르면 폰 상태바 색(theme-color)은 단색 하나뿐이라
+   어느 한쪽에 경계선이 생긴다. 그래서 브랜드 빛은 linear-gradient(세로)로 깔고,
+   입체감을 주는 흰빛 radial은 중심을 아래로 내려 y=46px 위로는 닿지 않게 했다.
+   → 맨 윗줄은 항상 '--accent 10% + 배경'이라 상태바와 정확히 이어진다.
+
+   background-size로 340px를 못 박는 게 핵심 — 퍼센트로 두면 페이지 전체 높이
+   기준이라 아무리 스크롤해도 색이 안 끝난다. */
 .app-canvas {
   background-color: rgb(var(--bg));
   background-image:
-    radial-gradient(85% 42% at 90% 0%, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0) 70%),
-    radial-gradient(115% 55% at 4% 0%, rgb(var(--accent) / 0.12), rgb(var(--accent) / 0) 72%);
+    radial-gradient(75% 34% at 92% 38%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 72%),
+    linear-gradient(
+      to bottom,
+      rgb(var(--accent) / 0.1) 0px,
+      rgb(var(--accent) / 0.06) 110px,
+      rgb(var(--accent) / 0) 300px
+    );
   background-repeat: no-repeat;
   background-size: 100% 340px;
 }

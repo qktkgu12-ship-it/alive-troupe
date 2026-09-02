@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import { AdminIcon, ArchiveIcon, BoardIcon, CalendarIcon, FolderIcon, MembersIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Avatar from "@/components/Avatar";
 import NotificationBell from "@/components/NotificationBell";
@@ -67,6 +68,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const createItems = CREATE_MENU.filter((c) => !c.admin || role === "admin");
   const { openCreate } = useCreateSheet();
   const { openWrite } = usePostEditor();
+  const { settings } = useTheme();
 
   // 검색 모드로 들어가면 입력창에 포커스
   useEffect(() => {
@@ -95,6 +97,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // 브랜드 빛 번짐은 홈에서만. 다른 화면은 원래 평면 캔버스 그대로 둔다.
+  const isHome = pathname === "/";
+
+  // 폰 상태바(시간·배터리) 색을 화면 맨 윗줄 색과 맞춘다.
+  //
+  // theme-color는 단색 하나뿐이라 페이지마다 값이 달라야 이어져 보인다:
+  //   홈      → 빛 번짐의 맨 윗줄 = 극단 색 10% + 캔버스
+  //   그 외    → 평면 캔버스색 그대로
+  // 색을 --accent에서 직접 계산하므로 극단 색을 바꾸면 상태바도 따라간다.
+  // (CSS의 linear-gradient 첫 정거장과 같은 식이라 두 값이 정확히 일치한다)
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    const root = getComputedStyle(document.documentElement);
+    const read = (name: string) => root.getPropertyValue(name).trim().split(/[\s,]+/).map(Number);
+    const bg = read("--bg");
+    if (bg.length < 3 || bg.some(Number.isNaN)) return;
+    let color = `rgb(${bg[0]} ${bg[1]} ${bg[2]})`;
+    if (isHome) {
+      const ac = read("--accent");
+      if (ac.length >= 3 && !ac.some(Number.isNaN)) {
+        // CSS의 rgb(var(--accent) / 0.1)을 캔버스 위에 올린 것과 같은 계산
+        const mix = (a: number, b: number) => Math.round(b * 0.9 + a * 0.1);
+        color = `rgb(${mix(ac[0], bg[0])} ${mix(ac[1], bg[1])} ${mix(ac[2], bg[2])})`;
+      }
+    }
+    meta.setAttribute("content", color);
+    // 극단 색은 설정이 늦게 로드되며 바뀔 수 있어 의존성에 둔다
+  }, [isHome, settings.accentColor]);
+
   // 현재 페이지 섹션은 '봤음'으로 기록 → NEW·빨간점 사라짐
   useEffect(() => {
     const sec = sectionOf(pathname);
@@ -118,7 +150,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="app-canvas min-h-[100svh]">
+    <div className={`min-h-[100svh] ${isHome ? "app-canvas" : "bg-canvas"}`}>
       {/* 헤더 */}
       <header
         className={`sticky top-0 z-30 transition-[background-color,box-shadow] duration-200 ${

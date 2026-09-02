@@ -21,7 +21,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#ffffff",
+  // 상태바 기본색 — 평면 캔버스와 같은 값. (흰색이면 어느 화면과도 안 맞아 경계선이 생긴다)
+  // 홈에서는 빛 번짐 맨 윗줄에 맞춰 AppShell이 이 값을 다시 칠한다.
+  themeColor: "#f7f8fa",
   colorScheme: "light", // 다크모드 기기의 '검은 로딩화면' 방지
 };
 
