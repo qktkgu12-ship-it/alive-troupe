@@ -85,6 +85,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // NEW 판단은 하단 바 빨간점과 같은 저장소를 쓴다
   const isNew = useNavNew();
 
+  // 상단바는 평소엔 배경 없이 캔버스 위에 '그냥 있는' 상태.
+  // 스크롤이 시작되면 그때만 반투명 배경 + blur를 켜 글자가 겹쳐 읽히는 걸 막는다.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // 현재 페이지 섹션은 '봤음'으로 기록 → NEW·빨간점 사라짐
   useEffect(() => {
     const sec = sectionOf(pathname);
@@ -110,7 +120,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100svh] bg-canvas">
       {/* 헤더 */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+      <header
+        className={`sticky top-0 z-30 transition-[background-color,box-shadow] duration-200 ${
+          scrolled || searchOpen
+            ? "bg-canvas/85 shadow-[0_1px_0_rgba(16,24,40,0.06)] backdrop-blur-md"
+            : "bg-transparent"
+        }`}
+      >
         <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 md:gap-4">
           {searchOpen ? (
             /* ===== 검색 모드: 로고 + 검색창 + 닫기 ===== */

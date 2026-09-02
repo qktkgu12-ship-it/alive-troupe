@@ -68,12 +68,10 @@ export default function ScheduleCarousel({
   }, [loadAttendance]);
 
   // 스크롤이 멈춘 자리에서 가장 가까운 카드를 '보고 있는 카드'로 친다.
-  // (줄 끝의 화살표 칸은 카드가 아니므로 셈에서 뺀다)
-  const count = events.length;
   const sync = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
-    const kids = Array.from(el.children).slice(0, count) as HTMLElement[];
+    const kids = Array.from(el.children) as HTMLElement[];
     if (kids.length === 0) return;
     // 카드마다 서는 자리가 다르므로(왼쪽 / 가운데) 왼쪽 끝이 아니라
     // '카드 한가운데가 화면 한가운데에 가장 가까운 것'으로 고른다.
@@ -90,7 +88,7 @@ export default function ScheduleCarousel({
       }
     });
     setIdx(best);
-  }, [count]);
+  }, []);
 
   useEffect(() => {
     const el = trackRef.current;
@@ -126,6 +124,20 @@ export default function ScheduleCarousel({
 
   return (
     <div>
+      {/* 섹션 제목 — 아카이브·자료실과 같은 '제목 >' 문법.
+          제일 중요한 일정만 제목이 없어 이름 없는 덩어리로 보이던 걸 맞췄다.
+          카드 밖에 두므로 아래 카드들과 왼쪽 끝이 정확히 맞는다. */}
+      <Link
+        href="/schedule"
+        aria-label="전체 일정 보기"
+        className="mb-2.5 flex items-center justify-between"
+      >
+        <h2 className="text-[18px] font-bold tracking-tight text-slate-900">다가오는 일정</h2>
+        <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </span>
+      </Link>
+
       {/* 카드 줄 — 손으로 밀면 한 장씩 딱딱 맞춰 선다 */}
       <div
         ref={trackRef}
@@ -136,7 +148,6 @@ export default function ScheduleCarousel({
         className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto scroll-smooth px-4"
       >
         {events.map((e, i) => {
-          const edge = i === 0 || i === events.length - 1;
           const open = openId === e.id;
           return (
             <EventCard
@@ -152,11 +163,11 @@ export default function ScheduleCarousel({
               myName={profile?.name || profile?.displayName || ""}
               onChanged={loadAttendance}
               onOpenDetail={() => router.push(`/schedule?tab=events&event=${e.id}&date=${e.date}`)}
-              wrapperClassName={`shrink-0 ${edge ? "snap-start" : "snap-center"}`}
+              wrapperClassName="shrink-0 snap-start"
               wrapperStyle={{
-                // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다
-                width: open ? "calc(100vw - 32px)" : "78%",
-                maxWidth: open ? 520 : 330,
+                // 옆 카드를 살짝 보여 주던 peek을 없앴다 — 아래 섹션 카드와 좌우 폭이
+                // 어긋나 '정렬이 깨진 화면'처럼 보이던 원인이었다. 이제 한 장이 꽉 찬다.
+                width: "100%",
                 // 접힘: 가로 폭과 무관하게 높이를 160px로 고정한다.
                 // (비율로 잡으면 화면이 넓을수록 카드가 같이 높아져 커 보인다)
                 // 펼치면 내용만큼 늘어나야 하므로 높이를 풀어 준다.
@@ -166,19 +177,6 @@ export default function ScheduleCarousel({
             />
           );
         })}
-
-        {/* 마지막 카드 오른쪽 여백 — 전체 일정으로 가는 화살표 */}
-        <div className="flex w-[22%] min-w-[72px] shrink-0 items-center justify-center self-stretch">
-          <Link
-            href="/schedule"
-            aria-label="전체 일정 보기"
-            className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-400 shadow-[0_2px_10px_-6px_rgba(16,24,40,0.18)] transition hover:text-accent active:scale-95"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </Link>
-        </div>
       </div>
 
       {/* 점 — 보고 있는 카드 자리에서 그 색 알약으로 늘어난다 */}
@@ -195,8 +193,7 @@ export default function ScheduleCarousel({
                 // 그 카드가 원래 서는 자리(왼쪽 / 가운데)로 보낸다.
                 // scroll-padding은 브라우저가 알아서 지켜 준다.
                 const kid = trackRef.current?.children[i] as HTMLElement | undefined;
-                const inline = i === 0 || i === events.length - 1 ? "start" : "center";
-                kid?.scrollIntoView({ inline, block: "nearest", behavior: "smooth" });
+                kid?.scrollIntoView({ inline: "start", block: "nearest", behavior: "smooth" });
               }}
               className="h-1.5 rounded-full"
               style={{

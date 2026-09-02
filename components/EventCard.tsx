@@ -288,6 +288,11 @@ export default function EventCard({
   // 색은 hex일 수도, rgb(var(--accent))일 수도 있어서 hex 알파(#RRGGBBAA)를 못 쓴다.
   // color-mix로 어떤 형식이든 같은 농도의 연한 배경을 만든다.
   const tint = `color-mix(in srgb, ${color} 10%, transparent)`;
+  // 홈 캐러셀 카드는 바탕 자체를 그 일정 색의 아주 연한 면으로 칠한다.
+  // 8%보다 진해지면 색이 4종(빨강·민트·보라·초록)이라 옆으로 밀 때 알록달록해진다.
+  const cardBg = `color-mix(in srgb, ${color} 8%, white)`;
+  // 그 바탕 위에서는 10% 칩이 묻혀 안 보인다 → 칩·화살표는 흰 면으로 띄운다.
+  const chipBg = variant === "carousel" ? "rgba(255,255,255,0.72)" : tint;
 
   const timeLabel = e.startTime
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
@@ -297,7 +302,7 @@ export default function EventCard({
   const chevron = (
     <span
       className="grid h-7 w-7 shrink-0 place-items-center rounded-full"
-      style={{ backgroundColor: tint, color }}
+      style={{ backgroundColor: chipBg, color }}
     >
       <svg
         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}
@@ -329,7 +334,7 @@ export default function EventCard({
             <div className="flex h-5 items-center gap-1.5 pr-10">
               <span
                 className="rounded-full px-2 py-[2px] text-[11px] font-extrabold"
-                style={{ backgroundColor: tint, color }}
+                style={{ backgroundColor: chipBg, color }}
               >
                 {ddayLabel(e.date)}
               </span>
@@ -563,12 +568,12 @@ export default function EventCard({
 
   return (
     <div
-      className={`overflow-hidden bg-white ${
+      className={`overflow-hidden ${
         variant === "list"
-          ? "rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
-          : "rounded-3xl shadow-[0_2px_10px_-6px_rgba(16,24,40,0.16)]"
+          ? "rounded-2xl bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
+          : "rounded-3xl shadow-[0_2px_10px_-6px_rgba(16,24,40,0.12)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
-      style={wrapperStyle}
+      style={variant === "list" ? wrapperStyle : { backgroundColor: cardBg, ...wrapperStyle }}
     >
       {variant === "list" ? (
         <>
@@ -578,15 +583,10 @@ export default function EventCard({
       ) : (
         // 카드가 4:3 비율로 높이를 갖는다 → 안쪽도 그 높이를 이어받아야
         // 시간·아바타 줄이 카드 바닥에 붙는다 (안 그러면 내용이 위에만 뭉친다)
-        <div className="flex h-full">
-          {/* 왼쪽 팀색 바 — 카드 왼쪽 끝에 붙는 두툼한 알약 */}
-          <div className="flex shrink-0 self-stretch py-2">
-            <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col">
-            {carouselHead}
-            {detail}
-          </div>
+        // 왼쪽 색 바는 뺐다 — 카드 바탕색이 이미 같은 일을 한다.
+        <div className="flex h-full flex-col">
+          {carouselHead}
+          {detail}
         </div>
       )}
 
