@@ -46,9 +46,10 @@ function CardHead({ title, href, label }: { title: string; href: string; label: 
     <Link
       href={href}
       aria-label={label}
-      className="flex items-center justify-between px-4 pb-1 pt-4 transition hover:bg-slate-50"
+      className="flex items-center justify-between px-4 pb-2 pt-4 transition hover:bg-slate-50"
     >
-      <h2 className="text-[17px] font-bold text-slate-900">{title}</h2>
+      {/* 섹션 제목은 이 카드에서 가장 강한 목소리 — 아래 항목들과 확실히 벌린다 */}
+      <h2 className="text-[18px] font-bold tracking-tight text-slate-900">{title}</h2>
       <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
       </span>
@@ -72,12 +73,15 @@ function MediaRow({
   emoji: string;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface text-xl leading-none">
+    <Link href={href} className="flex items-center gap-3 px-4 py-2 transition hover:bg-slate-50">
+      {/* 아이콘 배경은 이모지를 얹을 자리만 잡아 주면 된다 —
+          회색 면이 진하면 목록을 훑을 때 눈이 아이콘마다 걸린다 */}
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-50 text-lg leading-none">
         {emoji}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-slate-900">{title}</span>
+        {/* 섹션 제목보다 한 단계 낮게 — 굵기와 명도를 같이 낮춰야 계층이 생긴다 */}
+        <span className="block truncate text-[15px] font-medium text-slate-800">{title}</span>
         <span className="block truncate text-xs text-slate-400">
           {author || "－"} · {relativeTime(createdAt)}
         </span>
@@ -185,8 +189,10 @@ function HomeInner() {
     .slice(0, 5);
 
   return (
-    // 상단바와 인사말 사이는 조금 좁게 — 인사말이 헤더에 이어지는 느낌으로
-    <div className="-mt-3 space-y-4">
+    // 상단바와 인사말 사이는 조금 좁게 — 인사말이 헤더에 이어지는 느낌으로.
+    // 카드 사이(space-y)는 넓히고 카드 안쪽 padding은 줄였다 —
+    // 여백이 '박스 안'이 아니라 '정보 사이'에 있어야 숨통이 트인다.
+    <div className="-mt-3 space-y-6">
       {/* 인사 — 담백하게 */}
       <header className="pt-1 pb-1">
         <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
@@ -257,7 +263,7 @@ function HomeInner() {
             <ul className="pb-2">
               {recentPosts.map((p) => (
                 <li key={p.id}>
-                  <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-2.5 transition hover:bg-slate-50">
+                  <Link href={`/board/${p.id}`} className="flex items-center gap-2 px-4 py-2 transition hover:bg-slate-50">
                     {p.isNotice ? (
                       <span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">공지</span>
                     ) : (
@@ -265,7 +271,7 @@ function HomeInner() {
                         {boardCategoryLabel(p.board)}
                       </span>
                     )}
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{p.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-800">{p.title}</span>
                     {(p.commentCount ?? 0) > 0 && (
                       <span className="shrink-0 text-xs font-semibold text-accent">[{p.commentCount}]</span>
                     )}

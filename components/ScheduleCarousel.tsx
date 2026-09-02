@@ -175,7 +175,7 @@ export default function ScheduleCarousel({
           <Link
             href="/schedule"
             aria-label="전체 일정 보기"
-            className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-400 shadow-[0_4px_16px_-6px_rgba(16,24,40,0.28)] transition hover:text-accent active:scale-95"
+            className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-400 shadow-[0_2px_10px_-6px_rgba(16,24,40,0.18)] transition hover:text-accent active:scale-95"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 18l6-6-6-6" />
