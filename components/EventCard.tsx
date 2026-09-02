@@ -15,7 +15,8 @@ import { db } from "@/lib/firebase";
 import Avatar from "@/components/Avatar";
 import BottomSheet from "@/components/BottomSheet";
 import { ClockIcon, PinIcon } from "@/components/Icons";
-import { ampmTimeKo, WEEKDAYS_KO } from "@/lib/utils";
+import { ampmTimeKo, bookingWhenLabel, WEEKDAYS_KO } from "@/lib/utils";
+import { pushToAdmins } from "@/lib/push";
 import type { ScheduleEvent } from "@/lib/types";
 
 // 펼침/접힘 — 높이가 늘어나는 건 차분하게
@@ -234,6 +235,19 @@ export default function EventCard({
       });
       // 기본 명단 밖에서 참여했던 사람이면 추가참석 기록도 정리
       if (!iAmBase) await deleteDoc(doc(db, "events", e.id, "attendees", myUid)).catch(() => {});
+      // 관리자에게 불참을 알린다 — 안 그러면 일정 카드를 열어 봐야만 인원 파악이 된다
+      void pushToAdmins({
+        title: `[불참] ${e.title}`,
+        body: [
+          `${myName || "단원"}님이 불참을 알렸어요.`,
+          bookingWhenLabel(e.date, e.startTime ?? "", e.endTime ?? ""),
+          reason.trim() ? `사유: ${reason.trim()}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        href: `/schedule?tab=events&date=${e.date}`,
+        tag: `absence-${e.id}`,
+      });
       setReason("");
       setReasonSheet(false);
       onChanged();

@@ -2,17 +2,137 @@
 
 // 확정 일정 등록 폼 (일정 페이지 + 조율 확정 + 전역 바텀시트 공용)
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { pushToAll } from "@/lib/push";
-import { shortDateKo, shortTimeKo } from "@/lib/utils";
+import { pushToAll, pushToUsers } from "@/lib/push";
+import {
+  shortDateKo,
+  shortTimeKo,
+  buildMonthGrid,
+  toDateStr,
+  TIME_SLOTS,
+  slotEnd,
+  WEEKDAYS_KO,
+  ampmTimeKo,
+} from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
 import type { PublicProfile } from "@/lib/types";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
+
+// ---------- 인라인 달력 그리드 ----------
+function MiniCalendar({ grid, renderCell }: { grid: (Date | null)[]; renderCell: (d: Date) => React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 grid grid-cols-7 text-center text-xs font-semibold text-slate-400">
+        {WEEKDAYS_KO.map((w) => (
+          <div key={w}>{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {grid.map((d, i) => (
+          <div key={i} className="aspect-square">{d ? renderCell(d) : null}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------- 인라인 시간 타임바 (간소화: 히트맵 없음) ----------
+function SimpleTimeRangeBar({
+  mySlots,
+  anchor,
+  onTap,
+}: {
+  mySlots: string[];
+  anchor: string | null;
+  onTap: (slot: string) => void;
+}) {
+  const hours = useMemo(() => [...new Set(TIME_SLOTS.map((s) => s.slice(0, 2)))], []);
+
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 pb-4">
+      <div className="w-max">
+        {/* 시간 레이블 */}
+        <div className="relative flex h-5">
+          {hours.map((h, i) => {
+            const n = Number(h);
+            const disp = n === 12 ? 12 : n % 12;
+            const label = n === 12 ? "정오" : `${disp}시`;
+            return (
+              <div key={h} className="relative w-[52px] shrink-0">
+                <span className={`absolute bottom-0 whitespace-nowrap text-[11px] font-semibold text-slate-500 ${
+                  i === 0 ? "left-0" : "left-0 -translate-x-1/2"
+                }`}>
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+          <div className="relative w-0 shrink-0">
+            <span className="absolute bottom-0 left-0 -translate-x-full whitespace-nowrap text-[11px] font-semibold text-slate-500">
+              자정
+            </span>
+          </div>
+        </div>
+
+        {/* 막대 + 틱마크 */}
+        <div className="relative pt-[6px]">
+          <div className="flex h-10 overflow-hidden rounded-lg border border-slate-200">
+            {hours.map((h) => {
+              const s0 = `${h}:00`;
+              const s1 = `${h}:30`;
+              const on0 = mySlots.includes(s0);
+              const on1 = mySlots.includes(s1);
+              const isAnchor0 = anchor === s0;
+              const isAnchor1 = anchor === s1;
+              return (
+                <div key={h} className="flex h-full w-[52px] shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onTap(s0)}
+                    className={`h-full w-[26px] border-r border-dashed border-slate-200 transition ${
+                      on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onTap(s1)}
+                    className={`h-full w-[26px] transition ${
+                      on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
+                    }`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 시간 경계 틱마크 */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 flex">
+            {hours.map((h, i) =>
+              i === 0 ? (
+                <div key={h} className="w-[52px] shrink-0" />
+              ) : (
+                <div key={h} className="relative w-[52px] shrink-0">
+                  <div className="absolute bottom-0 left-[-1px] top-0 w-[2px] rounded-t-full bg-slate-400" />
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- 날짜 라벨 ----------
+function dateLabel(ds: string) {
+  const d = new Date(ds + "T00:00:00");
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS_KO[d.getDay()]})`;
+}
 
 export default function EventForm({
   eventId,
@@ -34,9 +154,6 @@ export default function EventForm({
   const { settings } = useTheme();
   const teams = settings.teams ?? [];
   const [title, setTitle] = useState(initial.title ?? "");
-  const [date, setDate] = useState(initial.date);
-  const [startTime, setStartTime] = useState(initial.startTime);
-  const [endTime, setEndTime] = useState(initial.endTime);
   const [location, setLocation] = useState(initial.location ?? "스튜디오 얼라이브");
   const locationRef = useRef<HTMLInputElement>(null);
   const [memo, setMemo] = useState(initial.memo ?? "");
@@ -44,8 +161,64 @@ export default function EventForm({
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // ---------- 달력 + 타임바 상태 ----------
+  const todayStr = toDateStr(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(initial.date || null);
+  const [cursor, setCursor] = useState(() => {
+    const d = initial.date ? new Date(initial.date + "T00:00:00") : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
+
+  // 시간바 슬롯
+  const [mySlots, setMySlots] = useState<string[]>(() => {
+    // 초기값이 있으면 슬롯으로 변환
+    if (initial.startTime && initial.endTime) {
+      const iA = TIME_SLOTS.indexOf(initial.startTime);
+      // endTime은 슬롯 끝이므로 한 칸 앞 슬롯까지 선택
+      const endSlotTime = initial.endTime;
+      const slots: string[] = [];
+      for (const s of TIME_SLOTS) {
+        if (s >= initial.startTime && slotEnd(s) <= endSlotTime) slots.push(s);
+      }
+      // 정확히 맞아떨어지지 않으면 startTime 한 칸만
+      return slots.length > 0 ? slots : iA >= 0 ? [initial.startTime] : [];
+    }
+    return [];
+  });
+  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+
+  // 슬롯 → startTime, endTime
+  const startTime = mySlots.length > 0 ? mySlots[0] : "";
+  const endTime = mySlots.length > 0 ? slotEnd(mySlots[mySlots.length - 1]) : "";
+
+  function tapSlot(slot: string) {
+    if (rangeAnchor === null) {
+      setMySlots([]);
+      setRangeAnchor(slot);
+    } else {
+      const iA = TIME_SLOTS.indexOf(rangeAnchor);
+      const iB = TIME_SLOTS.indexOf(slot);
+      const [lo, hi] = iA <= iB ? [iA, iB] : [iB, iA];
+      const range = TIME_SLOTS.slice(lo, hi + 1);
+      setMySlots(range);
+      setRangeAnchor(null);
+    }
+  }
+
+  function selectDate(ds: string) {
+    if (selectedDate === ds) {
+      setSelectedDate(null);
+      setMySlots([]);
+      setRangeAnchor(null);
+    } else {
+      setSelectedDate(ds);
+      setMySlots([]);
+      setRangeAnchor(null);
+    }
+  }
+
   // 참여 인원 — 예약 신청 시트와 같은 팀/개별 카드
-  // 개별 명단이 있으면 그게 대상이고, 없으면 위의 팀이 대상이다.
   const initialUids = initial.participantUids ?? [];
   const [audienceMode, setAudienceMode] = useState<"team" | "individual">(
     initialUids.length > 0 ? "individual" : "team"
@@ -55,7 +228,7 @@ export default function EventForm({
   const [membersLoading, setMembersLoading] = useState(false);
   const currentProductionId = settings.currentProductionId ?? "";
 
-  // 개별 탭을 처음 열 때만 명단을 받아 온다 (예약 신청 시트와 같은 범위)
+  // 개별 탭을 처음 열 때만 명단을 받아 온다
   useEffect(() => {
     if (audienceMode !== "individual" || members.length > 0) return;
     setMembersLoading(true);
@@ -84,10 +257,14 @@ export default function EventForm({
     setSelectedUids((prev) => (prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]));
   }
 
-  // 헤더 ✓ 버튼이 이 함수를 호출하도록 등록 (유효성 실패 시 false 반환 → 바텀시트 유지)
+  // 헤더 ✓ 버튼이 이 함수를 호출하도록 등록
   if (submitRef) submitRef.current = () => {
-    if (!title.trim() || !date) {
+    if (!title.trim() || !selectedDate) {
       alert("제목과 날짜는 필수예요.");
+      return false;
+    }
+    if (!startTime || !endTime) {
+      alert("시간을 선택해 주세요. 시간바에서 시작과 끝 지점을 터치해 주세요.");
       return false;
     }
     if (audienceMode === "individual" && selectedUids.length === 0) {
@@ -98,7 +275,8 @@ export default function EventForm({
   };
 
   async function save() {
-    if (!title.trim() || !date) return;
+    if (!title.trim() || !selectedDate) return;
+    if (!startTime || !endTime) return;
     if (audienceMode === "individual" && selectedUids.length === 0) return;
     setBusy(true);
     try {
@@ -106,42 +284,58 @@ export default function EventForm({
       const finalTeam = individual ? "" : teams.includes(team) ? team : "";
       const data = {
         title: title.trim(),
-        date,
+        date: selectedDate,
         startTime,
         endTime,
         location: location.trim(),
         memo: memo.trim(),
         team: finalTeam,
-        // 수정 시 개별 → 팀으로 되돌렸다면 빈 배열로 덮어써야 옛 명단이 안 남는다
         participantUids: individual ? selectedUids : [],
         participantLabel: individual ? `${selectedUids.length}명` : "",
       };
+      const when = [
+        shortDateKo(selectedDate),
+        [shortTimeKo(startTime), endTime ? shortTimeKo(endTime) : ""].filter(Boolean).join(" ~ "),
+      ]
+        .filter(Boolean)
+        .join(" ");
+
       if (eventId) {
         await updateDoc(doc(db, "events", eventId), data);
+        // 날짜·시간·장소가 바뀐 때만 알린다.
+        // (제목·메모만 고칠 때마다 울리면 피곤하다)
+        const movedDate  = initial.date      !== selectedDate;
+        const movedTime  = initial.startTime !== startTime || initial.endTime !== endTime;
+        const movedPlace = (initial.location ?? "") !== location.trim();
+        if (movedDate || movedTime || movedPlace) {
+          const changed = [
+            movedDate || movedTime ? "시간" : "",
+            movedPlace ? "장소" : "",
+          ].filter(Boolean).join("·");
+          const target = data.participantUids.length > 0 ? data.participantUids : null;
+          const msg = {
+            title: `일정 ${changed}이 변경됐어요`,
+            body: [data.title, when, data.location].filter(Boolean).join("\n"),
+            href: `/schedule?tab=events&date=${selectedDate}`,
+            tag: `event-changed-${eventId}`,
+          };
+          if (target) void pushToUsers(target, msg);
+          else void pushToAll(msg);
+        }
       } else {
         await setDoc(doc(db, "events", crypto.randomUUID()), { ...data, createdAt: Date.now() });
-        // 새 일정만 알린다 (수정할 때마다 울리면 피곤하다)
-        // 내용은 "일정 이름 / 8월 20일 19시 ~ 21시" 두 줄
-        const when = [
-          shortDateKo(date),
-          [shortTimeKo(startTime), endTime ? shortTimeKo(endTime) : ""].filter(Boolean).join(" ~ "),
-        ]
-          .filter(Boolean)
-          .join(" ");
         void pushToAll({
           title: "새 일정이 등록됐어요",
           body: [data.title, when].filter(Boolean).join("\n"),
-          href: `/schedule?tab=events&date=${date}`,
+          href: `/schedule?tab=events&date=${selectedDate}`,
           tag: "event",
         });
       }
-      onSaved({ date, startTime, endTime, title: title.trim(), team: finalTeam });
+      onSaved({ date: selectedDate, startTime, endTime, title: title.trim(), team: finalTeam });
     } finally {
       setBusy(false);
     }
   }
-
-  const chip = "field-chip";
 
   return (
     <div className="space-y-3">
@@ -252,20 +446,90 @@ export default function EventForm({
         )}
       </div>
 
-      {/* 날짜·시간 (한 카드, 줄마다 구분선) */}
-      <div className="card !p-0 overflow-hidden divide-y divide-slate-100">
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">날짜</span>
-          <input type="date" className={chip} value={date} onChange={(e) => setDate(e.target.value)} />
+      {/* 날짜 + 시간 — 달력 그리드 + 타임바 */}
+      <div className="card">
+        <p className="font-bold text-slate-900">날짜 및 시간</p>
+        <p className="mb-3 mt-0.5 text-xs leading-relaxed text-slate-400">
+          날짜를 선택하면 아래에 시간바가 나타나요.
+        </p>
+        {/* 월 이동 */}
+        <div className="mb-2 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
+            aria-label="이전 달"
+            className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+          >
+            ‹
+          </button>
+          <span className="text-sm font-bold text-slate-800">
+            {cursor.getFullYear()}년 {cursor.getMonth() + 1}월
+          </span>
+          <button
+            type="button"
+            onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
+            aria-label="다음 달"
+            className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+          >
+            ›
+          </button>
         </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">시작</span>
-          <input type="time" className={chip} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-        </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[15px] font-medium text-slate-700">종료</span>
-          <input type="time" className={chip} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-        </div>
+        <MiniCalendar
+          grid={grid}
+          renderCell={(d) => {
+            const ds = toDateStr(d);
+            const isPast = ds < todayStr;
+            const on = selectedDate === ds;
+            if (isPast) {
+              return (
+                <div className="flex h-full w-full items-center justify-center rounded-lg text-sm text-slate-300">
+                  {d.getDate()}
+                </div>
+              );
+            }
+            return (
+              <button
+                type="button"
+                onClick={() => selectDate(ds)}
+                className={`relative flex h-full w-full items-center justify-center rounded-lg text-sm transition ${
+                  on ? "bg-accent font-bold text-accent-fg" : "bg-surface text-slate-600 hover:bg-slate-200"
+                } ${!on && ds === todayStr ? "ring-1 ring-accent/50" : ""}`}
+              >
+                {d.getDate()}
+              </button>
+            );
+          }}
+        />
+
+        {/* 날짜 선택 시 시간바 표시 */}
+        {selectedDate && (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">{dateLabel(selectedDate)}</p>
+                {startTime && endTime && (
+                  <p className="text-[15px] font-bold text-slate-900 leading-snug">
+                    {ampmTimeKo(startTime)} ~ {ampmTimeKo(endTime, false)}
+                  </p>
+                )}
+              </div>
+              {mySlots.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setMySlots([]); setRangeAnchor(null); }}
+                  className="text-xs font-medium text-slate-400 hover:text-slate-600"
+                >
+                  초기화
+                </button>
+              )}
+            </div>
+            <SimpleTimeRangeBar
+              mySlots={mySlots}
+              anchor={rangeAnchor}
+              onTap={tapSlot}
+            />
+          </div>
+        )}
       </div>
 
       {/* 메모 (펼쳤을 때) */}

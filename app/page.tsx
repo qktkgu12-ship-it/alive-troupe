@@ -21,7 +21,7 @@ import {
   type Production,
   type ScheduleEvent,
 } from "@/lib/types";
-import { chunk, relativeTime, toDateStr, WEEKDAYS_KO } from "@/lib/utils";
+import { chunk, relativeTime, toDateStr } from "@/lib/utils";
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -95,8 +95,6 @@ function HomeInner() {
   const catEmojis = settings.resourceCategoryEmojis ?? {};
   const resourceEmoji = (cat: string) =>
     catEmojis[cat] ?? DEFAULT_RESOURCE_EMOJIS[cat] ?? FALLBACK_RESOURCE_EMOJI;
-  const now = new Date();
-  const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 (${WEEKDAYS_KO[now.getDay()]})`;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
   const [recentArchives, setRecentArchives] = useState<ArchiveItem[]>([]);
@@ -188,16 +186,6 @@ function HomeInner() {
 
   return (
     <div className="space-y-4">
-      {/* 인사 — 담백하게 */}
-      {/* 인사말만 카드보다 살짝 넉넉하게 띄운다 */}
-      <header className="pt-1 pb-1">
-        <p className="text-xs font-medium text-slate-400">{todayLabel}</p>
-        <h1 className="mt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
-          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
-        </h1>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today, Here, Right now!</p>
-      </header>
-
       {/* 다가오는 확정 일정 — 컬러 카드 캐러셀 */}
       <section>
         <ScheduleCarousel events={shownEvents} teams={teams} />

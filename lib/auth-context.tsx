@@ -15,6 +15,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider, ADMIN_EMAIL } from "./firebase";
+import { pushSignupRequest } from "./push";
 import type { Role, UserProfile } from "./types";
 
 interface AuthState {
@@ -97,6 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setDoc(ref, newProfile);
       setProfile(newProfile);
       syncPublicProfile(newProfile);
+      // 승인 대기가 생겼음을 관리자에게 알린다.
+      // (안 알리면 관리자가 관리자 페이지를 열어 볼 때까지 승인이 밀린다)
+      // 문구는 서버가 고정한다 — guest가 임의 내용을 주입하지 못하게 하기 위함.
+      if (!isAdmin) void pushSignupRequest();
       return;
     }
 

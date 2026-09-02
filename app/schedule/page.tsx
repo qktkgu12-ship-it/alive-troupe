@@ -1552,6 +1552,49 @@ function CoordDetail({
   const pct = denom > 0 ? Math.min(100, Math.round((submitters / denom) * 100)) : submitters > 0 ? 100 : 0;
   const remain = denom > 0 ? Math.max(0, denom - submitters) : 0;
 
+  // ----- 아직 안 낸 사람 재촉 (방장) -----
+  const [nudging, setNudging] = useState(false);
+  const [nudged, setNudged] = useState(false);
+
+  async function nudgeNonSubmitters() {
+    if (nudging) return;
+    setNudging(true);
+    try {
+      const submitted = new Set(allAvail.map((a) => a.uid).filter(Boolean));
+      // 대상 명단: 개별 지정이면 그 목록, 아니면 단원 전체(팀 지정이면 그 팀)에서 추린다
+      let targets: string[];
+      if (coord.participantUids && coord.participantUids.length > 0) {
+        targets = coord.participantUids;
+      } else {
+        const snap = await getDocs(collection(db, "publicProfiles"));
+        targets = snap.docs
+          .filter((d) => {
+            const p = d.data() as PublicProfile;
+            if (p.role === "guest") return false;
+            return !coord.team || p.team === coord.team;
+          })
+          .map((d) => d.id);
+      }
+      const to = targets.filter((u) => u && !submitted.has(u) && u !== uid);
+      if (to.length === 0) {
+        alert("모두 응답했어요. 재촉할 사람이 없습니다.");
+        return;
+      }
+      if (!confirm(`아직 안 낸 ${to.length}명에게 알림을 보낼까요?`)) return;
+      await pushToUsers(to, {
+        title: "가능한 날짜를 알려주세요",
+        body: [coord.title, coord.deadline ? `${deadlineLabel(coord.deadline)} 마감` : ""]
+          .filter(Boolean)
+          .join("\n"),
+        href: `/schedule?tab=coord&coord=${coord.id}`,
+        tag: `coord-nudge-${coord.id}`,
+      });
+      setNudged(true);
+    } finally {
+      setNudging(false);
+    }
+  }
+
   // 바텀시트 ✓ 버튼에 saveMine 연결
   if (saveRef) saveRef.current = () => { void saveMine(); };
 
@@ -1647,6 +1690,16 @@ function CoordDetail({
             </div>
             {coord.deadline && (
               <p className="text-[11px] text-slate-400">{closed ? "응답이 마감됐어요" : `${deadlineLabel(coord.deadline)} 마감`}</p>
+            )}
+            {/* 아직 안 낸 사람에게만 한 번 더 알림 */}
+            {!locked && remain > 0 && (
+              <button
+                onClick={() => void nudgeNonSubmitters()}
+                disabled={nudging || nudged}
+                className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                {nudged ? "알림을 보냈어요" : nudging ? "보내는 중…" : "아직 안 낸 단원 재촉하기"}
+              </button>
             )}
           </div>}
 
@@ -1919,6 +1972,23 @@ function CoordDetail({
                 confirmedAt: Date.now(),
                 confirmedEventId: eventId,
               }).catch(() => {});
+              // 3) 날짜를 내준 사람들에게 결과를 알린다.
+              //    (EventForm의 '새 일정' 알림은 전체에게 가므로 '내가 낸 일정방이 정해졌다'는 맥락이 없다)
+              {
+                const msg = {
+                  title: "일정방 날짜가 정해졌어요 🎉",
+                  body: [coord.title, bookingWhenLabel(confirmDraft.date, start, end)]
+                    .filter(Boolean)
+                    .join("\n"),
+                  href: `/schedule?tab=events&date=${confirmDraft.date}`,
+                  tag: `coord-done-${coord.id}`,
+                };
+                if (coord.participantUids && coord.participantUids.length > 0) {
+                  void pushToUsers(coord.participantUids, msg);
+                } else {
+                  void pushToAll(msg);
+                }
+              }
               onChanged();
               onConfirmed();
               setConfirmSuccess(true);
@@ -2621,7 +2691,19 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
 
   async function reject(r: BookingRequest) {
     if (!confirm(`"${r.title}" 신청을 거절할까요?`)) return;
+    // 사유는 선택 — 비워 두면 사유 없이 거절 알림만 간다
+    const reason = (prompt("거절 사유를 적어 주세요. (선택 — 비워 두고 확인을 눌러도 됩니다)") ?? "").trim();
     await deleteDoc(doc(db, "bookingRequests", r.id));
+    // 신청 단원에게 거절 알림 — 승인만 알리고 거절은 안 알리면 계속 기다리게 된다
+    const whenLabel = bookingWhenLabel(r.date, r.startTime, r.endTime);
+    await pushToUsers([r.requesterUid], {
+      title: `[예약거절] ${whenLabel}`,
+      body: reason
+        ? `${r.title}\n사유: ${reason}`
+        : `${r.title}\n예약이 어렵게 되었어요. 다른 시간으로 신청해 주세요.`,
+      href: "/schedule?tab=events",
+      tag: "booking-rejected",
+    });
     await load();
   }
 
@@ -3093,14 +3175,10 @@ function EventsSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNew, isAdmin]);
 
-  // 팀 필터 (기본: 전체). 빈값이면 전체
-  const [evTeam, setEvTeam] = useState("");
   const visibleEvents = events.filter((e) => {
     // 숨겨진 일정: 관리자만 볼 수 있음
     if (e.hidden && !isAdmin) return false;
-    if (teams.length === 0 || !evTeam) return true; // 전체 보기
-    if (e.source === 'naver') return false;          // 네이버 예약은 팀 필터 시 숨김
-    return !e.team || e.team === evTeam;
+    return true;
   });
 
   // 펼쳐진 카드 (한 번에 한 장만)
@@ -3162,7 +3240,24 @@ function EventsSection({
 
   async function removeEvent(id: string) {
     if (!confirm("이 일정을 삭제할까요?")) return;
+    const gone = events.find((e) => e.id === id);
     await deleteDoc(doc(db, "events", id));
+    // 취소를 모르면 헛걸음하게 된다 — 지난 일정은 알릴 필요 없음
+    if (gone && !eventPassed(gone)) {
+      const msg = {
+        title: "일정이 취소됐어요",
+        body: [gone.title, bookingWhenLabel(gone.date, gone.startTime ?? "", gone.endTime ?? "")]
+          .filter(Boolean)
+          .join("\n"),
+        href: "/schedule?tab=events",
+        tag: `event-cancelled-${id}`,
+      };
+      if (gone.participantUids && gone.participantUids.length > 0) {
+        void pushToUsers(gone.participantUids, msg);
+      } else {
+        void pushToAll(msg);
+      }
+    }
     setEditEvent(null);
     onChanged();
   }
@@ -3199,11 +3294,45 @@ function EventsSection({
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 월 이동 */}
+      {/* 헤더: 월 이동 + 승인대기 dot + 예약/등록 버튼 */}
       <div className="flex items-center gap-1">
         <button onClick={onPrev} aria-label="이전 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">‹</button>
         <span className="text-lg font-bold text-slate-900">{monthLabel}</span>
         <button onClick={onNext} aria-label="다음 달" className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">›</button>
+
+        <span className="flex-1" />
+
+        {/* 관리자: 승인 대기 dot — 클릭 시 아래 섹션으로 스크롤 */}
+        {isAdmin && pendingCount > 0 && (
+          <button
+            onClick={() => pendingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex items-center gap-1 rounded-full border border-yellow-200 bg-yellow-50 px-2 py-1 transition hover:bg-yellow-100"
+            aria-label="승인 대기 보기"
+          >
+            <span className="h-2 w-2 rounded-full bg-yellow-400 shrink-0" />
+            <span className="text-[11px] font-bold text-yellow-700">{pendingCount}</span>
+          </button>
+        )}
+
+        {/* 예약 신청 (단원) / 일정 등록 (관리자) */}
+        {!isAdmin ? (
+          <button
+            onClick={() => setShowBookingSheet(true)}
+            className="flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-accent-fg transition hover:brightness-110 active:brightness-90"
+            style={{ backgroundColor: "rgb(var(--accent))" }}
+          >
+            <PlusIcon className="h-4 w-4 shrink-0" />
+            예약하기
+          </button>
+        ) : (
+          <button
+            onClick={() => openNewForm(`${yearMonth}-01`)}
+            className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-sm font-semibold text-accent-fg transition hover:brightness-110 active:brightness-90"
+          >
+            <PlusIcon className="h-4 w-4 shrink-0" />
+            일정 등록
+          </button>
+        )}
       </div>
 
       {/* 단원: 예약 신청 시트 */}
@@ -3218,78 +3347,6 @@ function EventsSection({
         eventsByDate={evByDate}
         initialDate={bookingInitialDate}
       />
-
-      {/* 팀 필터 + 예약신청/일정등록 버튼 (같은 줄) */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {/* 관리자: 승인 대기 dot — 클릭 시 아래 섹션으로 스크롤 */}
-        {isAdmin && (
-          <button
-            onClick={() => pendingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="flex items-center gap-1 rounded-full border border-yellow-200 bg-yellow-50 px-2 py-1 transition hover:bg-yellow-100"
-            aria-label="승인 대기 보기"
-          >
-            <span className="h-2 w-2 rounded-full bg-yellow-400 shrink-0" />
-            {pendingCount > 0 && (
-              <span className="text-[11px] font-bold text-yellow-700">{pendingCount}</span>
-            )}
-          </button>
-        )}
-        {teams.length > 0 && (
-          <>
-            {([["", "전체"], ...teams.map((t) => [t, t] as [string, string])] as [string, string][]).map(([val, label]) => {
-              const isAll = val === "";
-              const teamC = !isAll ? getTeamColor(val, teams) : null;
-              const isActive = evTeam === val;
-              let chipStyle: React.CSSProperties = {};
-              let chipClass = "rounded-full border px-2.5 py-1 text-xs font-medium transition ";
-              if (isAll) {
-                chipClass += isActive
-                  ? "border-accent bg-accent-soft text-accent"
-                  : "border-slate-200 text-slate-500 hover:bg-slate-50";
-              } else if (teamC) {
-                if (isActive) {
-                  chipStyle = { borderColor: teamC.border, backgroundColor: teamC.bg, color: teamC.color };
-                } else {
-                  chipClass += "border-slate-200 text-slate-500 hover:bg-slate-50";
-                }
-              } else {
-                chipClass += isActive
-                  ? "border-accent bg-accent-soft text-accent"
-                  : "border-slate-200 text-slate-500 hover:bg-slate-50";
-              }
-              return (
-                <button
-                  key={val || "all"}
-                  onClick={() => setEvTeam(val)}
-                  style={chipStyle}
-                  className={chipClass}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </>
-        )}
-        {/* 예약 신청 (단원) / 일정 등록 (관리자) — 타원형 텍스트 버튼 */}
-        {!isAdmin ? (
-          <button
-            onClick={() => setShowBookingSheet(true)}
-            className="ml-auto flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-accent-fg transition hover:brightness-110 active:brightness-90"
-            style={{ backgroundColor: "rgb(var(--accent))" }}
-          >
-            <PlusIcon className="h-4 w-4 shrink-0" />
-            예약하기
-          </button>
-        ) : (
-          <button
-            onClick={() => openNewForm(`${yearMonth}-01`)}
-            className="ml-auto flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-sm font-semibold text-accent-fg transition hover:brightness-110 active:brightness-90"
-          >
-            <PlusIcon className="h-4 w-4 shrink-0" />
-            일정 등록
-          </button>
-        )}
-      </div>
 
       {isAdmin && (
         <BottomSheet open={showForm} title="확정 일정 등록" onClose={() => setShowForm(false)} onConfirm={() => newEventRef.current?.()}>
@@ -3456,7 +3513,7 @@ function EventsSection({
           return (
             <EmptyState
               icon={CalendarIcon}
-              title={teams.length > 0 && evTeam ? `${evTeam} 확정 일정이 없습니다.` : "이번 달 확정 일정이 없습니다."}
+              title="이번 달 확정 일정이 없습니다."
             />
           );
         }
