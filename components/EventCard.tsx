@@ -16,7 +16,7 @@ import Avatar from "@/components/Avatar";
 import BottomSheet from "@/components/BottomSheet";
 import { ClockIcon, PinIcon } from "@/components/Icons";
 import { ampmTimeKo, bookingWhenLabel, WEEKDAYS_KO } from "@/lib/utils";
-import { pushToAdmins } from "@/lib/push";
+import { pushToAdmins, pushToUsers } from "@/lib/push";
 import type { ScheduleEvent } from "@/lib/types";
 
 // 펼침/접힘 — 높이가 늘어나는 건 차분하게
@@ -174,22 +174,26 @@ export default function EventCard({
   //   2) 없고 team이 있으면 그 팀 단원
   //   3) 둘 다 없으면 전 단원
   // 여기에 '나도 참여하기'(attendees)를 더하고 불참(absences)을 뺀 것이 실제 참석자다.
-  const { going, iAmBase, iAmGoing } = useMemo(() => {
+  const { going, iAmBase, iAmGoing, baseUids } = useMemo(() => {
     const picked = e.participantUids ?? [];
     const base =
       picked.length > 0
         ? members.filter((m) => picked.includes(m.uid))
         : members.filter((m) => (e.team ? m.team === e.team : true));
-    const baseUids = new Set(base.map((m) => m.uid));
-    const extra = members.filter((m) => extraUids.includes(m.uid) && !baseUids.has(m.uid));
+    const baseSet = new Set(base.map((m) => m.uid));
+    const extra = members.filter((m) => extraUids.includes(m.uid) && !baseSet.has(m.uid));
     const absent = new Set(absences.map((a) => a.uid));
     const list = [...base, ...extra].filter((m) => !absent.has(m.uid));
     return {
       going: list,
-      iAmBase: baseUids.has(myUid),
+      iAmBase: baseSet.has(myUid),
       iAmGoing: list.some((m) => m.uid === myUid),
+      baseUids: [...baseSet],
     };
   }, [members, extraUids, absences, e.team, e.participantUids, myUid]);
+
+  // 이 일정이 '개별 지정'인지 — 알림을 관리자에게 보낼지 대상 인원에게 보낼지 가른다
+  const isIndividual = (e.participantUids ?? []).length > 0;
 
   // 불참자 — 명단에 없는 uid도 이름은 남아 있으므로 프로필이 없으면 건너뛴다
   const absentMembers = useMemo(
@@ -215,6 +219,23 @@ export default function EventCard({
           name: myName,
           createdAt: Date.now(),
         });
+        // 대상이 아닌 사람이 합류하면 인원이 늘어난다 —
+        // 원래 대상 인원 전원에게 알려 준비(자리·대본 등)를 맞출 수 있게 한다.
+        // (이미 대상인 사람이 참석을 누른 건 알릴 일이 아니다)
+        const to = baseUids.filter((u) => u && u !== myUid);
+        if (to.length > 0) {
+          void pushToUsers(to, {
+            title: `[참석 추가] ${e.title}`,
+            body: [
+              `${myName || "단원"}님이 참석하기로 했어요.`,
+              bookingWhenLabel(e.date, e.startTime ?? "", e.endTime ?? ""),
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            href: `/schedule?tab=events&date=${e.date}`,
+            tag: `attend-${e.id}`,
+          });
+        }
       }
       onChanged();
     } finally {
@@ -235,8 +256,10 @@ export default function EventCard({
       });
       // 기본 명단 밖에서 참여했던 사람이면 추가참석 기록도 정리
       if (!iAmBase) await deleteDoc(doc(db, "events", e.id, "attendees", myUid)).catch(() => {});
-      // 관리자에게 불참을 알린다 — 안 그러면 일정 카드를 열어 봐야만 인원 파악이 된다
-      void pushToAdmins({
+      // 불참 알림 — 누가 알아야 하는지는 일정 성격에 따라 다르다.
+      //   전체·팀 일정  → 관리자 (인원 파악은 관리자 몫)
+      //   개별 지정 일정 → 같이 하기로 한 대상 인원 (소수라 서로 조율이 필요하다)
+      const absentMsg = {
         title: `[불참] ${e.title}`,
         body: [
           `${myName || "단원"}님이 불참을 알렸어요.`,
@@ -247,7 +270,13 @@ export default function EventCard({
           .join("\n"),
         href: `/schedule?tab=events&date=${e.date}`,
         tag: `absence-${e.id}`,
-      });
+      };
+      if (isIndividual) {
+        const to = baseUids.filter((u) => u && u !== myUid);
+        if (to.length > 0) void pushToUsers(to, absentMsg);
+      } else {
+        void pushToAdmins(absentMsg);
+      }
       setReason("");
       setReasonSheet(false);
       onChanged();
@@ -614,7 +643,7 @@ export default function EventCard({
       </BottomSheet>
 
       {/* 불참 사유 — 사유는 선택, 비워도 그냥 불참 처리 */}
-      <BottomSheet open={reasonSheet} title="이 날 못 가요" onClose={() => setReasonSheet(false)}>
+      <BottomSheet open={reasonSheet} title="불참 신청" onClose={() => setReasonSheet(false)}>
         <div className="space-y-3">
           <p className="text-[13.5px] text-slate-500">
             <strong className="text-slate-800">{e.title}</strong> 일정에 참석이 어려우신가요?
@@ -622,7 +651,7 @@ export default function EventCard({
           {absentMembers.length > 0 && (
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="text-[12px] font-semibold text-slate-500">
-                🚫 못 가요 {absentMembers.length}명
+                이미 불참한 단원 {absentMembers.length}명
               </p>
               <p className="mt-1 text-[13px] text-slate-400">
                 {absentMembers.map((m) => m.name).join(", ")}
@@ -642,7 +671,8 @@ export default function EventCard({
           <button
             onClick={setAbsent}
             disabled={busy}
-            className="w-full rounded-2xl bg-red-500 py-3 text-[15px] font-bold text-white transition active:brightness-90 disabled:opacity-50"
+            style={{ backgroundColor: "rgb(var(--accent))" }}
+            className="w-full rounded-2xl py-3 text-[15px] font-bold text-accent-fg transition active:brightness-90 disabled:opacity-50"
           >
             불참으로 표시하기
           </button>
