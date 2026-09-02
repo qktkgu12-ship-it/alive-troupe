@@ -77,10 +77,13 @@ export function AvatarStack({
   members,
   max = 4,
   size = "h-7 w-7",
+  overlap = -9,
 }: {
   members: Member[];
   max?: number;
   size?: string;
+  /** 겹침 정도 — 음수가 클수록 많이 겹친다 (기본 -9) */
+  overlap?: number;
 }) {
   const shown = members.slice(0, max);
   const rest = members.length - shown.length;
@@ -89,16 +92,16 @@ export function AvatarStack({
       {shown.map((m, i) => (
         <div
           key={m.uid}
-          className="rounded-full bg-white p-[2px]"
-          style={{ marginLeft: i === 0 ? 0 : -9, zIndex: shown.length - i }}
+          className="rounded-full bg-white p-[1.5px]"
+          style={{ marginLeft: i === 0 ? 0 : overlap, zIndex: shown.length - i }}
         >
           <Avatar src={m.avatar} name={m.name} className={size} />
         </div>
       ))}
       {rest > 0 && (
         <div
-          className="grid place-items-center rounded-full bg-white p-[2px]"
-          style={{ marginLeft: -9, zIndex: 0 }}
+          className="grid place-items-center rounded-full bg-white p-[1.5px]"
+          style={{ marginLeft: overlap, zIndex: 0 }}
         >
           <span
             className={`grid ${size} place-items-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500`}
@@ -310,63 +313,48 @@ export default function EventCard({
     </span>
   );
 
+  // 캐러셀 전용 날짜 라벨 — "10.25 (토) 오후 3:00"
+  const dateCompact = `${dt.getMonth() + 1}.${String(dt.getDate()).padStart(2, "0")} (${WEEKDAYS_KO[dt.getDay()]})`;
+
   // ===== 접힘 머리 ① 홈 캐러셀 =====
-  // D-day줄·제목칸(2줄 고정)·하단바 자리를 전부 못박아 뒀다.
-  // 제목 길이에 따라 위 아래가 밀리지 않는다.
+  // 레퍼런스 스타일: 제목이 맨 위, 아바타+날짜·시간이 바닥.
   const carouselHead = (
           <button
             onClick={onToggle}
             aria-expanded={open}
-            // 접힘일 때 남는 높이를 이 버튼이 다 먹어야 하단 줄이 카드 바닥에 앉는다.
-            // button은 내용을 세로 가운데로 모으는 성질이 있어서, 늘어나면
-            // D-day·날짜·제목이 카드 한가운데로 밀린다 → flex-col + 위 정렬로 못 박는다.
-            className={`relative w-full px-3.5 pt-3.5 text-left ${
+            className={`relative w-full pl-3.5 pr-3 pt-3 text-left ${
               open ? "" : "flex flex-1 flex-col justify-start"
             }`}
-            style={{ paddingBottom: open ? 12 : 52 }}
+            style={{ paddingBottom: open ? 12 : 0 }}
           >
-            {/* D-day + 날짜 */}
-            <div className="flex h-5 items-center gap-1.5 pr-10">
-              <span
-                className="rounded-full px-2 py-[2px] text-[11px] font-extrabold"
-                style={{ backgroundColor: tint, color }}
-              >
-                {ddayLabel(e.date)}
-              </span>
-              <span className="text-[12.5px] font-medium text-slate-400">
-                {dt.getMonth() + 1}월 {dt.getDate()}일 ({WEEKDAYS_KO[dt.getDay()]})
-              </span>
-            </div>
-
-            {/* 제목 — 2줄 높이 고정칸. 한 줄이어도 아래 줄이 안 올라온다 */}
-            <div className="mt-1.5 flex h-[46px] items-start pr-10">
+            {/* 제목 — 카드에서 가장 먼저 읽힌다 */}
+            <div className="flex items-start justify-between gap-2">
               <h3
-                className={`line-clamp-2 text-[18px] font-extrabold leading-[23px] tracking-tight ${
+                className={`line-clamp-2 text-[17px] font-extrabold leading-[22px] tracking-tight ${
                   dimmed ? "text-slate-400 line-through" : "text-slate-900"
                 }`}
               >
                 {e.title}
               </h3>
               {badge}
+              {/* 펼치기 화살표 — 제목 오른쪽 */}
+              {chevron}
             </div>
 
-            {/* 펼치기 화살표 — 우상단 고정 */}
-            <span className="absolute right-3.5 top-3.5">{chevron}</span>
-
-            {/* 하단 바 — 접힘 전용. absolute로 카드 전체 폭 사용 → 아바타가 오른쪽 끝에 딱 붙는다 */}
+            {/* 하단 바 — 접힘 전용. 아바타(왼) + 날짜·시간(오른) */}
             <span
-              className="absolute bottom-4 left-3.5 right-3.5 flex items-center justify-between"
+              className="absolute bottom-3 left-3.5 right-3 flex items-center justify-between"
               style={{
                 opacity: open ? 0 : 1,
                 pointerEvents: open ? "none" : "auto",
                 transition: "opacity 180ms ease",
               }}
             >
-              <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold text-slate-500">
-                <ClockIcon className="h-[15px] w-[15px] shrink-0 text-slate-400" />
-                {timeLabel}
+              {going.length > 0 && <AvatarStack members={going} max={4} size="h-6 w-6" overlap={-11} />}
+              <span className="flex shrink-0 items-center gap-1 text-[11.5px] font-semibold text-slate-400">
+                <ClockIcon className="h-[13px] w-[13px] shrink-0 text-slate-300" />
+                {dateCompact}{e.startTime ? ` ${ampmTimeKo(e.startTime)}` : ""}
               </span>
-              {going.length > 0 && <AvatarStack members={going} max={3} />}
             </span>
           </button>
   );
@@ -579,9 +567,9 @@ export default function EventCard({
         // 카드가 4:3 비율로 높이를 갖는다 → 안쪽도 그 높이를 이어받아야
         // 시간·아바타 줄이 카드 바닥에 붙는다 (안 그러면 내용이 위에만 뭉친다)
         <div className="flex h-full">
-          {/* 왼쪽 팀색 바 — 카드 왼쪽 끝에 붙는 두툼한 알약 */}
-          <div className="flex shrink-0 self-stretch py-2">
-            <div className="w-[7px] flex-1 rounded-full" style={{ backgroundColor: color }} />
+          {/* 왼쪽 팀색 바 — 자그맣게 */}
+          <div className="flex shrink-0 self-stretch py-2.5">
+            <div className="w-[3px] flex-1 rounded-full" style={{ backgroundColor: color }} />
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
             {carouselHead}
