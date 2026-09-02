@@ -104,7 +104,12 @@ export default function ScheduleCarousel({
         // scroll-px-4 : 멈추는 자리도 좌우 16px씩 들여서 잡는다.
         //   양쪽을 같게 둬야 가운데 정렬 카드의 좌우 여백이 정확히 반씩 나뉜다.
         // items-start : 펼친 카드만 길어지고 나머지는 원래 높이를 지킨다.
-        className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto scroll-smooth px-4"
+        //
+        // -mb-4 + pb-4 : 카드 그림자가 잘리지 않게 하는 장치.
+        //   overflow-x를 auto로 두면 CSS 규칙상 세로축도 함께 잘림 처리가 되어
+        //   카드 아래로 12px 뻗는 그림자가 트랙 끝에서 싹둑 잘린다.
+        //   안쪽에 16px 자리를 만들고 같은 만큼 마진으로 당겨 위치는 그대로 둔다.
+        className="no-scrollbar -mx-4 -mb-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto scroll-smooth px-4 pb-4"
       >
         {events.map((e, i) => {
           const edge = i === 0 || i === events.length - 1;
@@ -129,9 +134,10 @@ export default function ScheduleCarousel({
                 // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다.
                 width: open ? "calc(100vw - 32px)" : "78%",
                 maxWidth: open ? 520 : 330,
-                // 상단 14 + 제목칸 44 + 날짜줄 22 = 80, 아바타 24 + 바닥 12 = 36.
-                // 116이 최소치라 숨 쉴 틈을 더해 128로 잡았다.
-                ...(open ? {} : { height: 128 }),
+                // 상단 16 + 배지줄 17 + 10 + 제목 46 + 8 + 시간줄 18 = 115,
+                // 아바타 24 + 바닥 14 = 38. 115+38 = 153이 최소치라
+                // 시간줄과 아바타가 붙지 않게 숨 쉴 틈을 더해 160으로 잡았다.
+                ...(open ? {} : { height: 160 }),
                 transition: `width ${EXPAND}, max-width ${EXPAND}`,
               }}
             />
