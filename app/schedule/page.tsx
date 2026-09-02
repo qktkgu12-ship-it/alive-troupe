@@ -3356,6 +3356,7 @@ function EventsSection({
             onSaved={() => { setShowForm(false); onChanged(); setNaverBlockSheet(true); }}
             onCancel={() => setShowForm(false)}
             submitRef={newEventRef}
+            eventsByDate={evByDate}
           />
         </BottomSheet>
       )}
@@ -3476,6 +3477,7 @@ function EventsSection({
                 onSaved={() => { setEditEvent(null); onChanged(); setNaverBlockSheet(true); }}
                 onCancel={() => setEditEvent(null)}
                 submitRef={editEventRef}
+                eventsByDate={evByDate}
               />
               <div className="mt-4 border-t border-slate-100 pt-3 space-y-1">
                 <button

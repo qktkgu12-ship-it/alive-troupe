@@ -3,6 +3,7 @@
 // 확정 일정 등록 폼 (일정 페이지 + 조율 확정 + 전역 바텀시트 공용)
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { pushToAll, pushToUsers } from "@/lib/push";
@@ -19,9 +20,82 @@ import {
 import { useTheme } from "@/lib/theme-context";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
-import type { PublicProfile } from "@/lib/types";
+import { CalendarIcon } from "@/components/Icons";
+import type { ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
+
+// "HH:mm" → 분
+function toMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+// ---------- 날짜 겹침 경고 (예약 신청 시트와 동일) ----------
+function DateConflictModal({
+  date,
+  events,
+  onCancel,
+  onConfirm,
+}: {
+  date: string | null;
+  events: ScheduleEvent[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!date) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-rose-50">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-rose-500">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5M12 16h.01" />
+          </svg>
+        </div>
+        <p className="text-center text-[15px] font-bold text-slate-900">
+          현재 다른 일정이 있는 날짜입니다.
+          <br />
+          그래도 선택하시겠습니까?
+        </p>
+        <div className="mt-3 space-y-1.5 rounded-xl bg-surface p-3">
+          {events.map((e) => (
+            <div key={e.id} className="flex items-center gap-2 text-sm">
+              <CalendarIcon className={`h-4 w-4 shrink-0 ${e.source === "external" ? "text-emerald-500" : "text-slate-400"}`} />
+              <span className="min-w-0 flex-1 truncate font-semibold text-slate-700">{e.title}</span>
+              {e.startTime && (
+                <span className="shrink-0 text-xs text-slate-400">
+                  {e.startTime}
+                  {e.endTime ? `~${e.endTime}` : ""}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-bold text-accent-fg transition hover:brightness-110"
+          >
+            그래도 선택
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 // ---------- 인라인 달력 그리드 ----------
 function MiniCalendar({ grid, renderCell }: { grid: (Date | null)[]; renderCell: (d: Date) => React.ReactNode }) {
@@ -46,10 +120,12 @@ function SimpleTimeRangeBar({
   mySlots,
   anchor,
   onTap,
+  disabledSlots,
 }: {
   mySlots: string[];
   anchor: string | null;
   onTap: (slot: string) => void;
+  disabledSlots?: Set<string>;
 }) {
   const hours = useMemo(() => [...new Set(TIME_SLOTS.map((s) => s.slice(0, 2)))], []);
 
@@ -89,20 +165,26 @@ function SimpleTimeRangeBar({
               const on1 = mySlots.includes(s1);
               const isAnchor0 = anchor === s0;
               const isAnchor1 = anchor === s1;
+              const dis0 = !!disabledSlots?.has(s0);
+              const dis1 = !!disabledSlots?.has(s1);
               return (
                 <div key={h} className="flex h-full w-[52px] shrink-0">
                   <button
                     type="button"
                     onClick={() => onTap(s0)}
+                    disabled={dis0}
+                    title={`${s0}~${slotEnd(s0)}${dis0 ? " · 이미 일정이 있는 시간" : ""}`}
                     className={`h-full w-[26px] border-r border-dashed border-slate-200 transition ${
-                      on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
+                      dis0 ? "cursor-not-allowed bg-slate-300" : on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
                     }`}
                   />
                   <button
                     type="button"
                     onClick={() => onTap(s1)}
+                    disabled={dis1}
+                    title={`${s1}~${slotEnd(s1)}${dis1 ? " · 이미 일정이 있는 시간" : ""}`}
                     className={`h-full w-[26px] transition ${
-                      on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
+                      dis1 ? "cursor-not-allowed bg-slate-300" : on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
                     }`}
                   />
                 </div>
@@ -140,6 +222,7 @@ export default function EventForm({
   onSaved,
   onCancel,
   submitRef,
+  eventsByDate: eventsByDateProp,
 }: {
   eventId?: string; // 수정 모드: 기존 문서 ID
   initial: {
@@ -150,6 +233,11 @@ export default function EventForm({
   onSaved: (saved: SavedEvent) => void;
   onCancel: () => void;
   submitRef?: React.MutableRefObject<(() => void) | null>;
+  /**
+   * 날짜별 기존 일정 — 달력 점·겹침 경고·시간바 회색 처리에 쓴다.
+   * 안 넘기면(전역 등록 시트) 이 컴포넌트가 직접 읽어 온다.
+   */
+  eventsByDate?: Record<string, ScheduleEvent[]>;
 }) {
   const { settings } = useTheme();
   const teams = settings.teams ?? [];
@@ -169,6 +257,61 @@ export default function EventForm({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const grid = useMemo(() => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor]);
+
+  // ---------- 기존 일정 (달력 점 · 겹침 경고 · 시간바 회색) ----------
+  // prop으로 받으면 그대로 쓰고, 없으면(전역 등록 시트) 직접 읽는다.
+  const [selfLoaded, setSelfLoaded] = useState<Record<string, ScheduleEvent[]> | null>(null);
+  useEffect(() => {
+    if (eventsByDateProp) return;
+    let alive = true;
+    (async () => {
+      try {
+        const [evSnap, exSnap] = await Promise.all([
+          getDocs(collection(db, "events")),
+          getDocs(collection(db, "externalBookings")).catch(() => null),
+        ]);
+        const list: ScheduleEvent[] = evSnap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<ScheduleEvent, "id">),
+        }));
+        for (const d of exSnap?.docs ?? []) {
+          const b = d.data() as Omit<ExternalBooking, "id">;
+          list.push({
+            id: `ext_${d.id}`,
+            title: "외부 손님 예약",
+            date: b.date,
+            startTime: b.startTime ?? "",
+            endTime: b.endTime ?? "",
+            location: "",
+            memo: "",
+            createdAt: b.createdAt,
+            source: "external",
+          });
+        }
+        if (!alive) return;
+        const m: Record<string, ScheduleEvent[]> = {};
+        for (const e of list) (m[e.date] ??= []).push(e);
+        setSelfLoaded(m);
+      } catch {
+        if (alive) setSelfLoaded({});
+      }
+    })();
+    return () => { alive = false; };
+  }, [eventsByDateProp]);
+
+  // 수정 중인 일정 자신은 '겹치는 일정'이 아니다 — 빼고 본다
+  const eventsByDate = useMemo(() => {
+    const src = eventsByDateProp ?? selfLoaded ?? {};
+    if (!eventId) return src;
+    const m: Record<string, ScheduleEvent[]> = {};
+    for (const [ds, list] of Object.entries(src)) {
+      const kept = list.filter((e) => e.id !== eventId);
+      if (kept.length > 0) m[ds] = kept;
+    }
+    return m;
+  }, [eventsByDateProp, selfLoaded, eventId]);
+
+  const [conflictDate, setConflictDate] = useState<string | null>(null);
 
   // 시간바 슬롯
   const [mySlots, setMySlots] = useState<string[]>(() => {
@@ -192,7 +335,26 @@ export default function EventForm({
   const startTime = mySlots.length > 0 ? mySlots[0] : "";
   const endTime = mySlots.length > 0 ? slotEnd(mySlots[mySlots.length - 1]) : "";
 
+  // 이미 일정이 잡힌 시간대 — 회색으로 막는다
+  const disabledSlots = useMemo(() => {
+    const set = new Set<string>();
+    if (!selectedDate) return set;
+    for (const e of eventsByDate[selectedDate] ?? []) {
+      if (!e.startTime) continue;
+      const startM = toMinutes(e.startTime);
+      let endM = e.endTime ? toMinutes(e.endTime) : startM + 30;
+      if (endM <= startM) endM = 24 * 60;
+      for (const s of TIME_SLOTS) {
+        const sM = toMinutes(s);
+        const eM = toMinutes(slotEnd(s));
+        if (sM < endM && eM > startM) set.add(s);
+      }
+    }
+    return set;
+  }, [selectedDate, eventsByDate]);
+
   function tapSlot(slot: string) {
+    if (disabledSlots.has(slot)) return;
     if (rangeAnchor === null) {
       setMySlots([]);
       setRangeAnchor(slot);
@@ -200,10 +362,17 @@ export default function EventForm({
       const iA = TIME_SLOTS.indexOf(rangeAnchor);
       const iB = TIME_SLOTS.indexOf(slot);
       const [lo, hi] = iA <= iB ? [iA, iB] : [iB, iA];
-      const range = TIME_SLOTS.slice(lo, hi + 1);
+      // 막힌 슬롯은 범위에서 빼서, 이미 잡힌 시간을 덮어쓰지 않게 한다
+      const range = TIME_SLOTS.slice(lo, hi + 1).filter((s) => !disabledSlots.has(s));
       setMySlots(range);
       setRangeAnchor(null);
     }
+  }
+
+  function pickDate(ds: string) {
+    setSelectedDate(ds);
+    setMySlots([]);
+    setRangeAnchor(null);
   }
 
   function selectDate(ds: string) {
@@ -211,11 +380,16 @@ export default function EventForm({
       setSelectedDate(null);
       setMySlots([]);
       setRangeAnchor(null);
-    } else {
-      setSelectedDate(ds);
+      return;
+    }
+    // 다른 일정이 있는 날이면 한 번 물어본다
+    if ((eventsByDate[ds] ?? []).length > 0) {
       setMySlots([]);
       setRangeAnchor(null);
+      setConflictDate(ds);
+      return;
     }
+    pickDate(ds);
   }
 
   // 참여 인원 — 예약 신청 시트와 같은 팀/개별 카드
@@ -480,6 +654,7 @@ export default function EventForm({
             const ds = toDateStr(d);
             const isPast = ds < todayStr;
             const on = selectedDate === ds;
+            const hasEvent = (eventsByDate[ds] ?? []).length > 0;
             if (isPast) {
               return (
                 <div className="flex h-full w-full items-center justify-center rounded-lg text-sm text-slate-300">
@@ -496,6 +671,9 @@ export default function EventForm({
                 } ${!on && ds === todayStr ? "ring-1 ring-accent/50" : ""}`}
               >
                 {d.getDate()}
+                {hasEvent && (
+                  <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${on ? "bg-accent-fg" : "bg-rose-400"}`} />
+                )}
               </button>
             );
           }}
@@ -527,10 +705,27 @@ export default function EventForm({
               mySlots={mySlots}
               anchor={rangeAnchor}
               onTap={tapSlot}
+              disabledSlots={disabledSlots}
             />
+            {disabledSlots.size > 0 && (
+              <p className="-mt-2 text-[11px] text-slate-400">
+                회색 구간은 이미 다른 일정이 잡혀 있어요.
+              </p>
+            )}
           </div>
         )}
       </div>
+
+      {/* 다른 일정이 있는 날짜를 고르면 한 번 확인 */}
+      <DateConflictModal
+        date={conflictDate}
+        events={conflictDate ? eventsByDate[conflictDate] ?? [] : []}
+        onCancel={() => setConflictDate(null)}
+        onConfirm={() => {
+          if (conflictDate) pickDate(conflictDate);
+          setConflictDate(null);
+        }}
+      />
 
       {/* 메모 (펼쳤을 때) */}
       {more && (
