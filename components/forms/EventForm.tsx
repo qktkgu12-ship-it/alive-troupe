@@ -31,6 +31,12 @@ function toMinutes(t: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
+// 이미 일정이 있는 시간을 그래도 고른 칸 — 빗금으로 '겹침'을 계속 알려 준다
+const OVERLAP_STYLE: React.CSSProperties = {
+  backgroundImage:
+    "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 3px, transparent 3px 6px)",
+};
+
 // ---------- 날짜 겹침 경고 (예약 신청 시트와 동일) ----------
 function DateConflictModal({
   date,
@@ -169,22 +175,24 @@ function SimpleTimeRangeBar({
               const dis1 = !!disabledSlots?.has(s1);
               return (
                 <div key={h} className="flex h-full w-[52px] shrink-0">
+                  {/* 이미 일정이 있는 칸도 관리자는 고를 수 있다 (겹치는 일정이 필요할 때가 있다).
+                      고르기 전엔 회색으로, 고르고 나면 빗금으로 '겹침'을 계속 보여 준다. */}
                   <button
                     type="button"
                     onClick={() => onTap(s0)}
-                    disabled={dis0}
                     title={`${s0}~${slotEnd(s0)}${dis0 ? " · 이미 일정이 있는 시간" : ""}`}
+                    style={on0 && dis0 ? OVERLAP_STYLE : undefined}
                     className={`h-full w-[26px] border-r border-dashed border-slate-200 transition ${
-                      dis0 ? "cursor-not-allowed bg-slate-300" : on0 ? "bg-accent" : isAnchor0 ? "bg-accent/30" : ""
+                      on0 ? "bg-accent" : dis0 ? "bg-slate-300" : isAnchor0 ? "bg-accent/30" : ""
                     }`}
                   />
                   <button
                     type="button"
                     onClick={() => onTap(s1)}
-                    disabled={dis1}
                     title={`${s1}~${slotEnd(s1)}${dis1 ? " · 이미 일정이 있는 시간" : ""}`}
+                    style={on1 && dis1 ? OVERLAP_STYLE : undefined}
                     className={`h-full w-[26px] transition ${
-                      dis1 ? "cursor-not-allowed bg-slate-300" : on1 ? "bg-accent" : isAnchor1 ? "bg-accent/30" : ""
+                      on1 ? "bg-accent" : dis1 ? "bg-slate-300" : isAnchor1 ? "bg-accent/30" : ""
                     }`}
                   />
                 </div>
@@ -353,8 +361,9 @@ export default function EventForm({
     return set;
   }, [selectedDate, eventsByDate]);
 
+  // 이미 일정이 있는 칸도 고를 수 있다 — 막지 않고 아래에 경고만 띄운다.
+  // (다른 공간에서 동시에 연습하는 등, 일부러 겹쳐야 할 때가 있다)
   function tapSlot(slot: string) {
-    if (disabledSlots.has(slot)) return;
     if (rangeAnchor === null) {
       setMySlots([]);
       setRangeAnchor(slot);
@@ -362,12 +371,16 @@ export default function EventForm({
       const iA = TIME_SLOTS.indexOf(rangeAnchor);
       const iB = TIME_SLOTS.indexOf(slot);
       const [lo, hi] = iA <= iB ? [iA, iB] : [iB, iA];
-      // 막힌 슬롯은 범위에서 빼서, 이미 잡힌 시간을 덮어쓰지 않게 한다
-      const range = TIME_SLOTS.slice(lo, hi + 1).filter((s) => !disabledSlots.has(s));
-      setMySlots(range);
+      setMySlots(TIME_SLOTS.slice(lo, hi + 1));
       setRangeAnchor(null);
     }
   }
+
+  // 고른 구간이 기존 일정과 겹치는지
+  const overlapCount = useMemo(
+    () => mySlots.filter((s) => disabledSlots.has(s)).length,
+    [mySlots, disabledSlots]
+  );
 
   function pickDate(ds: string) {
     setSelectedDate(ds);
@@ -707,10 +720,20 @@ export default function EventForm({
               onTap={tapSlot}
               disabledSlots={disabledSlots}
             />
-            {disabledSlots.size > 0 && (
-              <p className="-mt-2 text-[11px] text-slate-400">
-                회색 구간은 이미 다른 일정이 잡혀 있어요.
+            {overlapCount > 0 ? (
+              <p className="-mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-[11.5px] font-medium leading-relaxed text-amber-700">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="mt-px h-3.5 w-3.5 shrink-0">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v5M12 16h.01" />
+                </svg>
+                이미 다른 일정이 있는 시간과 겹칩니다. 그대로 등록해도 괜찮아요.
               </p>
+            ) : (
+              disabledSlots.size > 0 && (
+                <p className="-mt-2 text-[11px] text-slate-400">
+                  회색 구간은 이미 다른 일정이 있어요. 필요하면 그대로 골라도 됩니다.
+                </p>
+              )
             )}
           </div>
         )}

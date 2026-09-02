@@ -185,7 +185,9 @@ function HomeInner() {
     .slice(0, 5);
 
   return (
-    <div className="space-y-4">
+    // 인사말을 걷어낸 뒤로 상단바와 캐러셀 사이가 떠 보여서,
+    // AppShell의 py-8 중 위쪽 여백만 홈에서 줄인다 (다른 페이지는 그대로).
+    <div className="-mt-5 space-y-4">
       {/* 다가오는 확정 일정 — 컬러 카드 캐러셀 */}
       <section>
         <ScheduleCarousel events={shownEvents} teams={teams} />
