@@ -64,12 +64,16 @@ function CardHead({ title, href, label }: { title: string; href: string; label: 
 // 하나뿐이면 아예 안 움직인다.
 function NoticeBar({ notices }: { notices: Post[] }) {
   const [i, setI] = useState(0);
+  // 손을 대고 있는 동안은 넘기지 않는다.
+  // 누르면 '지금 보이는 그 공지'로 들어가는데, 손가락을 대는 순간 글이 바뀌면
+  // 내가 본 것과 다른 글이 열린다. 그 창을 막아 준다.
+  const [held, setHeld] = useState(false);
 
   useEffect(() => {
-    if (notices.length < 2) return;
+    if (notices.length < 2 || held) return;
     const t = setInterval(() => setI((v) => (v + 1) % notices.length), 4000);
     return () => clearInterval(t);
-  }, [notices.length]);
+  }, [notices.length, held]);
 
   // 공지 개수가 줄어도 번호와 내용이 어긋나지 않게 항상 범위 안으로 접어 준다
   const idx = notices.length > 0 ? i % notices.length : 0;
@@ -77,8 +81,15 @@ function NoticeBar({ notices }: { notices: Post[] }) {
 
   return (
     <Link
-      href="/board"
-      aria-label="공지 보기"
+      // 지금 띠에 떠 있는 그 공지로 바로 들어간다.
+      // 공지가 없을 때만 게시판 목록으로 보낸다 (열 글이 없으므로).
+      href={cur ? `/board/${cur.id}` : "/board"}
+      aria-label={cur ? `공지 보기 — ${cur.title}` : "게시판 보기"}
+      onPointerEnter={() => setHeld(true)}
+      onPointerDown={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onPointerUp={() => setHeld(false)}
+      onPointerCancel={() => setHeld(false)}
       className="content-card mt-3 flex items-center gap-3 px-4 py-3"
     >
       <span className="flex shrink-0 items-center gap-1.5 text-accent">

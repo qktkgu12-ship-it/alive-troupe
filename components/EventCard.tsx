@@ -45,16 +45,36 @@ export const COLORS = {
   individual: "#E9A15A",
 } as const;
 
+// 짝 색 — 카테고리 색 맞은편에 두는 두 번째 광원.
+// 빛이 한 군데서만 오면 평평해 보여서, 반대쪽 모서리에 이웃 색조를 아주 옅게 깐다.
+// 색상환에서 바로 옆 색만 골랐다 — 멀리 떨어진 색을 쓰면 얼룩처럼 보인다.
+const COMPANION: Record<string, string> = {
+  [COLORS.all]: "#F5A55C", // 빨강 → 살구
+  [COLORS.teamA]: "#7EC8E3", // 민트 → 하늘
+  [COLORS.teamB]: "#E9A8D8", // 라벤더 → 분홍
+  [COLORS.individual]: "#F2C879", // 주황 → 노랑
+};
+
 // 개별 일정은 화면에 가장 자주 뜬다. 다른 색과 같은 농도로 깔면
 // 목록 전체가 주황으로 물들어서, 이 색만 빛을 옅게 준다. (핸드오프 §4)
-const TINT_PCT = 14;
-const TINT_PCT_INDIVIDUAL = 9;
+const TINT = { main: 14, sub: 10 };
+const TINT_INDIVIDUAL = { main: 9, sub: 7 };
 
-/** 카드에 스며드는 빛 — 오른쪽 위 모서리에서 옅게 번져 가운데쯤에서 사라진다.
- *  '컬러 카드'가 아니라 '흰 카드에 색이 살짝 스민 것'으로 보여야 한다. */
+/** 카드에 스며드는 빛.
+ *
+ *  카테고리 색이 오른쪽 위에서, 짝 색이 왼쪽 아래에서 옅게 번진다.
+ *  레퍼런스(토스 결제 카드)처럼 여러 색이 섞이는 느낌은 살리되 농도를 크게 낮췄다 —
+ *  저건 흰 글씨를 얹은 '한 장짜리 주인공 카드'고, 우리 건 검은 글씨가 올라가는
+ *  카드가 다섯 장 나란히 서는 자리라 같은 세기로는 못 쓴다.
+ *
+ *  세기 조절은 위 TINT / TINT_INDIVIDUAL 숫자만 바꾸면 된다. */
 export function cardTint(color: string): string {
-  const pct = color === COLORS.individual ? TINT_PCT_INDIVIDUAL : TINT_PCT;
-  return `radial-gradient(115% 78% at 100% 0%, color-mix(in srgb, ${color} ${pct}%, transparent), transparent 62%)`;
+  const t = color === COLORS.individual ? TINT_INDIVIDUAL : TINT;
+  const sub = COMPANION[color] ?? color;
+  return [
+    `radial-gradient(95% 72% at 100% 0%, color-mix(in srgb, ${color} ${t.main}%, transparent), transparent 60%)`,
+    `radial-gradient(85% 68% at 8% 100%, color-mix(in srgb, ${sub} ${t.sub}%, transparent), transparent 62%)`,
+  ].join(", ");
 }
 
 /** 일정 하나가 어떤 색을 쓸지 */
