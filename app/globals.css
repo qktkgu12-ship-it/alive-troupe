@@ -227,3 +227,23 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-notice-in { animation: none; }
 }
+
+/* 일정 카드 위 필름 그레인.
+   색 덩어리만 깔면 표면이 너무 매끈해서 '그라데이션을 넣었다'는 티가 난다.
+   아주 미세한 알갱이가 얹히면 '빛이 퍼지는 질감'으로 읽힌다 (레퍼런스도 같은 처리).
+
+   overlay로 섞으므로 밝은 면(펼쳤을 때의 흰 패널)에는 거의 나타나지 않고
+   색이 깔린 면에서만 보인다. pointer-events는 꺼서 탭을 가로막지 않는다. */
+.mesh-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.38;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)' opacity='0.55'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  .mesh-grain::after { opacity: 0.28; }
+}

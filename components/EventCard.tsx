@@ -46,35 +46,75 @@ export const COLORS = {
   individual: "#F0851A",
 } as const;
 
-// 카드를 가득 채우는 컬러 메시. 카테고리마다 깊은색 → 중간색 → 밝은색 3단이다.
+// ===== 카드를 채우는 멀티포인트 앰비언트 메시 =====
 //
-// ⚠️ 흰 글씨가 올라가므로 '깊은색'과 '중간색'은 충분히 어두워야 한다.
-//    밝은색은 글자가 없는 오른쪽 아래(아바타 자리)에만 닿게 배치한다.
-const MESH: Record<string, { deep: string; mid: string; light: string }> = {
-  [COLORS.teamA]: { deep: "#0E9384", mid: "#17A99A", light: "#6FD6C2" },
-  [COLORS.teamB]: { deep: "#5B3FC4", mid: "#7C63DC", light: "#B9A5EF" },
-  [COLORS.individual]: { deep: "#DE6F0C", mid: "#F0851A", light: "#F9BE5C" },
+// 레퍼런스(토스 결제 카드)를 색 분포까지 뜯어보면 구조가 이렇다:
+//   왼쪽에 진한 메인색이 세로로 길게 / 오른쪽 위에 밝은 보조색 /
+//   가운데에서 둘이 섞이고 / 오른쪽 아래에 두 번째 강조색이 번진다.
+// 한 방향으로 흐르는 linear가 아니라, 아주 크게 번진 radial 네 개가 겹쳐
+// 경계 없이 섞이는 방식이다.
+//
+// 네 테마 모두 아래 '자리'는 똑같이 쓰고 색군만 갈아 끼운다.
+// 그래야 색이 달라도 같은 디자인으로 보인다.
+//
+//   main  — 왼쪽 (제목·시간이 앉는 자리라 가장 진하다)
+//   light — 오른쪽 위 (가장 밝은 보조색)
+//   accent— 오른쪽 아래 (두 번째 색군)
+//   soft  — 가운데 아래 (메인과 보조를 이어 주는 중간색)
+//   base  — 빈 곳을 메우는 바탕
+type Mesh = { base: string; main: string; soft: string; light: string; accent: string };
+
+const MESH: Record<string, Mesh> = {
+  // 전체 일정 — Red / Coral / Peach / Soft Pink
+  [COLORS.all]: {
+    base: "#F0706A",
+    main: "#E24B4A",
+    soft: "#F79273",
+    light: "#FFCBA6",
+    accent: "#F58FC0",
+  },
+  // A팀 — Mint / Aqua / Pale Green / Sky
+  [COLORS.teamA]: {
+    base: "#4CBFB0",
+    main: "#189E90",
+    soft: "#7FD8C6",
+    light: "#BFF0DF",
+    accent: "#86C9E8",
+  },
+  // B팀 — Purple / Lavender / Pink / Pale Blue
+  [COLORS.teamB]: {
+    base: "#9382E6",
+    main: "#6E56D6",
+    soft: "#B3A2F0",
+    light: "#D9C8F5",
+    accent: "#F0A8D8",
+  },
+  // 개별·네이버 — Orange / Apricot / Peach / Pale Yellow / Soft Coral
+  // 레퍼런스와 가장 가까운 계열이다.
+  [COLORS.individual]: {
+    base: "#EE9440",
+    main: "#E07316",
+    soft: "#F3B06B",
+    light: "#FBDFA0",
+    accent: "#F2907A",
+  },
 };
 
-/** 카드를 채우는 컬러 메시 배경.
+/** 카드를 채우는 앰비언트 메시 배경.
  *
- *  왼쪽 위가 가장 진하고(제목·시간이 앉는 자리라 흰 글씨가 또렷해야 한다)
- *  오른쪽 아래로 갈수록 밝아진다 — 레퍼런스 카드와 같은 빛의 흐름이다.
- *
- *  전체 일정은 표에 없다. 극단 설정 색에서 그때그때 만들어 쓰므로
- *  관리자가 브랜드 색을 바꾸면 카드도 같이 따라간다. */
+ *  ⚠️ 흰 글씨가 올라가므로 main은 충분히 진해야 한다. 밝은 색(light·accent)은
+ *     글자가 없는 오른쪽에만 닿도록 자리를 잡아 뒀다.
+ *  카드가 펼쳐져 길어져도 퍼센트라 같이 늘어나므로 앰비언트 느낌이 유지된다. */
 export function cardMesh(color: string): React.CSSProperties {
-  const m =
-    MESH[color] ?? {
-      deep: `color-mix(in srgb, ${color} 82%, #6B0F1A 18%)`,
-      mid: color,
-      light: `color-mix(in srgb, ${color} 40%, #FFC46E 60%)`,
-    };
+  const m = MESH[color] ?? MESH[COLORS.all];
   return {
-    backgroundColor: m.mid,
+    backgroundColor: m.base,
+    // 먼저 쓴 것이 위에 깔린다. 전부 transparent로 사라지므로 경계가 안 생긴다.
     backgroundImage: [
-      `radial-gradient(125% 112% at 4% 0%, ${m.deep}, transparent 62%)`,
-      `radial-gradient(115% 100% at 100% 100%, ${m.light}, transparent 64%)`,
+      `radial-gradient(125% 130% at 6% 38%, ${m.main} 0%, transparent 58%)`,
+      `radial-gradient(95% 85% at 94% 2%, ${m.light} 0%, transparent 60%)`,
+      `radial-gradient(90% 100% at 82% 100%, ${m.accent} 0%, transparent 60%)`,
+      `radial-gradient(110% 95% at 46% 80%, ${m.soft} 0%, transparent 56%)`,
     ].join(", "),
   };
 }
@@ -403,10 +443,7 @@ export default function EventCard({
             className={`relative w-full px-4 pt-4 text-left ${
               open ? "" : "flex flex-1 flex-col justify-start"
             }`}
-            // 카드를 채우는 컬러 메시는 머리에만 건다.
-            // 펼치면 머리만 컬러로 남고 그 아래 상세는 흰 바탕이라, 상세 안의
-            // 검은 글씨·회색 박스·토글이 손대지 않고도 그대로 읽힌다.
-            style={{ paddingBottom: open ? 12 : 0, ...cardMesh(color) }}
+            style={{ paddingBottom: open ? 12 : 0 }}
           >
             {/* ① 상태 배지 + 날짜 + 펼치기.
                 컬러 배경 위에서는 옅은 tint 배지가 묻히므로 흰 알약에 상태색 글씨로 뒤집는다 */}
@@ -523,8 +560,18 @@ export default function EventCard({
               transition: `max-height ${EXPAND}, opacity 220ms ease`,
             }}
           >
-            {/* 머리(px-4)와 좌우를 맞춰 펼쳐도 글의 왼쪽 끝이 흔들리지 않게 한다 */}
-            <div className="px-4 pb-4">
+            {/* 펼친 내용은 흰 패널 한 장 위에 올린다.
+                카드 전체가 컬러라 검은 글씨를 그냥 얹으면 자리마다 밝기가 달라 안 읽힌다.
+                패널을 반투명으로 둬서 아래 색이 은은히 비치게 했다 — 색은 이어지고
+                글씨는 또렷한 절충점이다. list 변형은 원래 흰 카드라 패널이 필요 없다. */}
+            <div className={variant === "carousel" ? "px-3 pb-3" : "px-4 pb-4"}>
+              <div
+                className={
+                  variant === "carousel"
+                    ? "rounded-[22px] bg-white/92 p-3 backdrop-blur-sm"
+                    : "contents"
+                }
+              >
               <div className="space-y-2.5 rounded-2xl bg-slate-50 p-3.5">
                 {/* 시간 */}
                 <div className="flex items-center gap-2.5">
@@ -665,20 +712,22 @@ export default function EventCard({
                   일정에서 보기
                 </button>
               )}
+              </div>
             </div>
           </div>
   );
 
   return (
     <div
-      className={`overflow-hidden bg-white ${
+      className={`relative overflow-hidden ${
         variant === "list"
-          ? "rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
-          : "rounded-3xl shadow-[0_2px_4px_rgba(16,24,40,0.04),0_8px_24px_-8px_rgba(16,24,40,0.12)]"
+          ? "rounded-2xl bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
+          : // 큰 라운드 + 옅은 그림자. 색이 이미 카드를 세워 주므로 그림자는 거들기만 한다.
+            "mesh-grain rounded-[28px] shadow-[0_4px_16px_-6px_rgba(16,24,40,0.16)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
-      // 컬러 메시는 카드 전체가 아니라 '머리'에만 건다 (carouselHead 참고).
-      // 펼치면 머리만 컬러로 남고 아래 상세는 이 흰 바탕을 그대로 쓴다.
-      style={wrapperStyle}
+      // 메시는 카드 '전체'에 건다 — 펼쳐서 길어져도 색이 끝까지 이어진다.
+      // 목록(list)은 흰 카드 그대로 두고 왼쪽 세로 바로 구분한다.
+      style={variant === "list" ? wrapperStyle : { ...wrapperStyle, ...cardMesh(color) }}
     >
       {variant === "list" ? (
         <>
