@@ -100,15 +100,25 @@ const MESH: Record<string, Mesh> = {
   },
   // 개별·네이버 — Orange / Peach / Coral / Pale Yellow / subtle Pink·Lavender
   // 레퍼런스와 가장 가까운 계열이다.
+  //
+  // ⚠️ 주황이 계속 '칙칙하다(황토색 같다)'고 했던 이유는 채도가 아니라 두 가지였다.
+  //    재 보면 이 카드의 채도는 오히려 빨강·민트·보라보다 높았다.
+  //    ① 갈색은 '어두운 주황'이다 — 밝기를 올리지 않으면 아무리 채도를 올려도
+  //       황토색으로 읽힌다. 카드 평균 밝기를 0.935 → 0.981로 올렸다.
+  //    ② 색상각이 28°(노랑 쪽)이었다. 23°(귤 쪽)로 당기면 같은 밝기라도
+  //       '탁한 주황'이 아니라 '선명한 귤색'으로 보인다.
+  //    제목 자리 대비는 2.99 → 2.92로 사실상 그대로다 (흰 글씨 가독성 유지).
+  //    되돌리려면 아래 여섯 값을 예전 값으로: base #EF9A4E · main #E4710D ·
+  //    light #FBE3A2 · accent #F58FAF · soft #F9AE7C · hint #E0A9E4
   [COLORS.individual]: {
-    base: "#EF9A4E",
-    main: "#E4710D",
-    light: "#FBE3A2",
-    accent: "#F58FAF",
-    soft: "#F9AE7C",
-    // 라벤더는 회색기가 적은 쪽으로. #D3AEE6처럼 채도가 낮으면 주황과 섞일 때
+    base: "#FA9C4A",
+    main: "#F8640F",
+    light: "#FFE8A4",
+    accent: "#FF7FB2",
+    soft: "#FFB37A",
+    // 라벤더는 회색기가 적은 쪽으로. 채도가 낮으면 주황과 섞일 때
     // 회보라가 되어 카드가 탁해진다. 분홍 쪽으로 당겨 따뜻하게 잡았다.
-    hint: "#E0A9E4",
+    hint: "#F09EF0",
   },
 };
 
@@ -465,8 +475,6 @@ export default function EventCard({
   // 상태 배지 — 오늘만 빨강, 나머지는 진한 회색.
   const dday = ddayLabel(e.date);
   const statusColor = dday.startsWith("D+") ? PAST : dday === "오늘" ? TODAY : UPCOMING;
-  // 목록(list)용 옅은 배경. 캐러셀은 흰 알약을 쓰므로 이 값을 안 쓴다.
-  const statusBg = `color-mix(in srgb, ${statusColor} 12%, transparent)`;
 
   // ===== 접힘 머리 ① 홈 캐러셀 =====
   // 참고 시안 구조 — 읽는 순서: 언제(배지·날짜) → 무엇(제목) → 몇 시(시간) → 누가(아바타).
@@ -483,8 +491,15 @@ export default function EventCard({
             {/* ① 상태 배지 + 날짜 + 펼치기.
                 컬러 배경 위에서는 옅은 tint 배지가 묻히므로 흰 알약에 상태색 글씨로 뒤집는다 */}
             <div className="flex items-center gap-2">
+              {/* 위아래 안여백이 3/3이 아니라 4/2다 — 일부러 어긋나게 뒀다.
+                  글자는 line-height 상자의 '가운데'가 아니라 폰트가 정해 둔 기준선 위에
+                  그려지는데, 그 기준선 위치가 폰트마다 다르다.
+                  PC(Pretendard)는 거의 정가운데지만, 폰은 이 글꼴이 없어 다른 글꼴로
+                  대체되고 그 글꼴은 글자를 1px쯤 위에 그린다 → 칩 안에서 위로 뜬 것처럼 보인다.
+                  위쪽을 1px 더 벌려 눈에 보이는 위치를 가운데로 맞췄다 (칩 높이는 그대로).
+                  ※ 근본 해결은 Pretendard를 웹폰트로 실어 PC·폰이 같은 글꼴을 쓰게 하는 것. */}
               <span
-                className="shrink-0 rounded-full bg-white px-2 py-[3px] text-[11px] font-bold leading-none"
+                className="shrink-0 rounded-full bg-white px-2 pb-[2px] pt-[4px] text-[11px] font-bold leading-none"
                 style={{ color: statusColor }}
               >
                 {dday}
@@ -784,15 +799,16 @@ export default function EventCard({
                 </div>
               )}
 
-              {/* 일정 페이지로.
-                  글씨만 두면 카드 아래쪽 밝은 구역에서 흰 글씨가 배경에 묻힌다 —
-                  위 토글과 같은 처리(살짝 눌린 자리 + 흰 테두리)로 '버튼'이 되게 한다. */}
+              {/* 일정 페이지로 — 판 없이 글씨만.
+                  참석/불참 토글만 판을 두르고 이건 글씨로 남긴다.
+                  둘 다 판을 두르면 무게가 같아져서 어느 쪽이 '고르는 것'인지 안 읽힌다.
+                  누르는 자리는 눌렀을 때(active) 옅게 밝아지는 것으로 알려 준다. */}
               {onOpenDetail && (
                 <button
                   onClick={onOpenDetail}
                   className={`mt-2 w-full rounded-2xl py-2.5 text-[13px] font-semibold transition ${
                     variant === "carousel"
-                      ? "bg-black/[0.16] text-white ring-1 ring-inset ring-white/40 hover:bg-black/25"
+                      ? "text-white active:bg-white/15"
                       : "text-slate-400 hover:bg-slate-50"
                   }`}
                   style={variant === "carousel" ? { textShadow: ON_MESH_SHADOW } : undefined}
