@@ -22,14 +22,13 @@ import type { ScheduleEvent } from "@/lib/types";
 // 펼침/접힘 — 높이가 늘어나는 건 차분하게
 export const EXPAND = "360ms cubic-bezier(0.32, 0.72, 0.28, 1)";
 
-// 참고 시안의 색 가이드.
-// 핵심은 "색을 상태 배지 한 곳에만 쓴다" — 제목·시간·아바타·화살표는 전부 무채색이라
-// 카드가 컬러풀해 보이지 않으면서도 '오늘/D-데이'는 눈에 확 들어온다.
-// 캐러셀 카드는 컬러 배경 + 흰 글씨라 본문 색은 따로 두지 않는다.
-// 남은 건 상태 배지 색뿐 — 흰 알약 위에 이 색으로 글씨를 얹는다.
-const SUB = "#8E8E93"; // 이미 지난 일정 배지 (D+N)
-const TODAY = "#22C55E"; // 오늘
-const DDAY = "#FF3B30"; // 다가오는 일정 (D-N)
+// D-day 칩(흰 알약) 안 글자색.
+// 캐러셀 카드는 컬러 배경 + 흰 글씨라 본문에는 색을 따로 두지 않는다.
+// 색이 붙는 곳은 이 칩 하나뿐이고, 그마저도 '오늘'에만 준다 —
+// 다가오는 날짜까지 색을 주면 어느 게 급한 건지 구분이 안 된다.
+const TODAY = "#E5484D"; // 오늘 — 유일하게 색이 붙는다
+const UPCOMING = "#334155"; // 그 외 (D-N) — 진한 회색. 흐리면 꺼진 칩처럼 보인다
+const PAST = "#94A3B8"; // 이미 지난 일정 (D+N)
 
 // 카테고리 색.
 // 카드 안에 '스며드는 빛'으로 쓰기 좋게 맞춘 값이라 예전보다 한 톤씩 부드럽다.
@@ -137,9 +136,11 @@ export function cardMesh(color: string): React.CSSProperties {
   };
 }
 
-// 컬러 카드 위 작은 글씨는 배경 밝기가 자리마다 달라 그냥 흰색이면 흐려 보인다.
-// 아주 옅은 그림자 한 겹으로 어디서든 또렷하게 붙잡아 준다.
-const ON_MESH_SHADOW = "0 1px 2px rgba(16,24,40,0.28)";
+// 카드의 주인공은 여러 색이 퍼지는 그라데이션이다. 글자에 그림자를 얹으면
+// 그 위에 검은 테두리가 한 겹 생겨 빛의 느낌이 깨진다.
+// 제목처럼 굵은 글씨는 그림자 없이 흰색만 쓰고,
+// 작은 보조 글씨(날짜·시간)에만 아주 미세하게 한 겹 — blur도 glow도 아니다.
+const ON_MESH_SHADOW = "0 1px 4px rgba(0,0,0,0.08)";
 
 /** 일정 하나가 어떤 색을 쓸지 */
 export function eventColor(e: ScheduleEvent, teams: string[]): string {
@@ -444,11 +445,10 @@ export default function EventCard({
   // 캐러셀 전용 날짜 라벨 — "9월 2일 (수)"
   const dateFull = `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${WEEKDAYS_KO[dt.getDay()]})`;
 
-  // 상태 배지 — 카드에서 색을 쓰는 유일한 곳.
-  //   오늘 = 초록 / 앞으로 남은 일정 = 빨강 / 이미 지난 일정 = 회색
+  // 상태 배지 — 오늘만 빨강, 나머지는 진한 회색.
   const dday = ddayLabel(e.date);
-  const statusColor = dday.startsWith("D+") ? SUB : dday === "오늘" ? TODAY : DDAY;
-  // 배경은 같은 색을 12%만 섞은 tint — 배지가 '칩'으로 읽히되 카드를 물들이진 않는다
+  const statusColor = dday.startsWith("D+") ? PAST : dday === "오늘" ? TODAY : UPCOMING;
+  // 목록(list)용 옅은 배경. 캐러셀은 흰 알약을 쓰므로 이 값을 안 쓴다.
   const statusBg = `color-mix(in srgb, ${statusColor} 12%, transparent)`;
 
   // ===== 접힘 머리 ① 홈 캐러셀 =====
@@ -484,10 +484,11 @@ export default function EventCard({
 
             {/* ② 제목 — 카드에서 가장 큰 글자 */}
             <h3
+              // 제목은 굵고 커서 그림자 없이도 또렷하다 — 그림자를 넣으면
+              // 글자 테두리가 지저분해지고 그라데이션의 빛도 탁해진다.
               className={`mt-2.5 line-clamp-2 h-[46px] text-[17px] font-bold leading-[23px] tracking-tight text-white ${
                 dimmed ? "line-through" : ""
               }`}
-              style={{ textShadow: ON_MESH_SHADOW }}
             >
               {e.title}
             </h3>
@@ -578,19 +579,17 @@ export default function EventCard({
               transition: `max-height ${EXPAND}, opacity 220ms ease`,
             }}
           >
-            {/* 펼친 내용은 흰 패널 한 장 위에 올린다.
-                카드 전체가 컬러라 검은 글씨를 그냥 얹으면 자리마다 밝기가 달라 안 읽힌다.
-                패널을 반투명으로 둬서 아래 색이 은은히 비치게 했다 — 색은 이어지고
-                글씨는 또렷한 절충점이다. list 변형은 원래 흰 카드라 패널이 필요 없다. */}
+            {/* 컬러 카드에서는 '정보 박스'만 흰 패널로 띄우고,
+                라벨·토글·버튼은 그라데이션 위에 흰 글씨로 직접 올린다.
+                전부 흰 패널에 담으면 카드 아래쪽이 흰 상자로 덮여 색이 끊긴다. */}
             <div className={variant === "carousel" ? "px-3 pb-3" : "px-4 pb-4"}>
               <div
                 className={
                   variant === "carousel"
-                    ? "rounded-[22px] bg-white/92 p-3 backdrop-blur-sm"
-                    : "contents"
+                    ? "space-y-2.5 rounded-[20px] bg-white/90 p-3.5 backdrop-blur-sm"
+                    : "space-y-2.5 rounded-2xl bg-slate-50 p-3.5"
                 }
               >
-              <div className="space-y-2.5 rounded-2xl bg-slate-50 p-3.5">
                 {/* 시간 */}
                 <div className="flex items-center gap-2.5">
                   <ClockIcon className="h-[17px] w-[17px] shrink-0 text-slate-400" />
@@ -655,15 +654,29 @@ export default function EventCard({
               {/* 참석 여부 세그먼트 토글 */}
               {myUid && (
                 <>
-                  <p className="mb-1.5 mt-3.5 px-0.5 text-[12px] font-semibold text-slate-400">
+                  <p
+                    className={`mb-1.5 mt-3.5 px-0.5 text-[12px] font-semibold ${
+                      variant === "carousel" ? "text-white/85" : "text-slate-400"
+                    }`}
+                  >
                     내 참석 여부
                   </p>
-                  <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1">
+                  {/* 토글 트랙 — 컬러 위에서는 반투명 흰색.
+                      회색 트랙을 그대로 쓰면 그라데이션 위에 회색 판이 얹힌 것처럼 보인다. */}
+                  <div
+                    className={`flex gap-1.5 rounded-2xl p-1 ${
+                      variant === "carousel" ? "bg-white/22" : "bg-slate-100"
+                    }`}
+                  >
                     <button
                       onClick={setAttend}
                       disabled={busy}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[14px] font-bold transition ${
-                        iAmGoing ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400"
+                        iAmGoing
+                          ? "bg-white text-emerald-600 shadow-sm"
+                          : variant === "carousel"
+                            ? "text-white/75"
+                            : "text-slate-400"
                       }`}
                     >
                       {iAmGoing && (
@@ -677,7 +690,11 @@ export default function EventCard({
                       onClick={() => setReasonSheet(true)}
                       disabled={busy}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[14px] font-bold transition ${
-                        !iAmGoing ? "bg-white text-red-500 shadow-sm" : "text-slate-400"
+                        !iAmGoing
+                          ? "bg-white text-red-500 shadow-sm"
+                          : variant === "carousel"
+                            ? "text-white/75"
+                            : "text-slate-400"
                       }`}
                     >
                       {!iAmGoing && (
@@ -699,7 +716,11 @@ export default function EventCard({
                     <button
                       onClick={onEdit}
                       aria-label="일정 수정"
-                      className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                      className={`grid h-9 w-9 place-items-center rounded-full border transition ${
+                        variant === "carousel"
+                          ? "border-white/45 text-white/90 hover:bg-white/15"
+                          : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                      }`}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px]">
                         <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -711,7 +732,11 @@ export default function EventCard({
                     <button
                       onClick={onDelete}
                       aria-label="일정 삭제"
-                      className="grid h-9 w-9 place-items-center rounded-full border border-red-100 text-red-400 transition hover:bg-red-50 hover:text-red-500"
+                      className={`grid h-9 w-9 place-items-center rounded-full border transition ${
+                        variant === "carousel"
+                          ? "border-white/45 text-white/90 hover:bg-white/15"
+                          : "border-red-100 text-red-400 hover:bg-red-50 hover:text-red-500"
+                      }`}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px]">
                         <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -721,16 +746,19 @@ export default function EventCard({
                 </div>
               )}
 
-              {/* 일정 페이지로 */}
+              {/* 일정 페이지로 — 컬러 카드에서는 그라데이션 위 흰 글씨 */}
               {onOpenDetail && (
                 <button
                   onClick={onOpenDetail}
-                  className="mt-2 w-full rounded-2xl py-2.5 text-[13px] font-semibold text-slate-400 transition hover:bg-slate-50"
+                  className={`mt-2 w-full rounded-2xl py-2.5 text-[13px] font-semibold transition ${
+                    variant === "carousel"
+                      ? "text-white/85 hover:bg-white/15"
+                      : "text-slate-400 hover:bg-slate-50"
+                  }`}
                 >
                   일정에서 보기
                 </button>
               )}
-              </div>
             </div>
           </div>
   );
