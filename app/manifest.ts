@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "portrait",
     background_color: "#f7f8fa", // 스플래시 배경 — 앱의 첫 화면 색과 맞춤
-    theme_color: "#ffffff",
+    theme_color: "#f7f8fa", // 상태바 기본색 — 캔버스와 맞춤 (홈에서는 JS가 빛 번짐 색으로 교체)
     lang: "ko",
     categories: ["productivity", "social"],
     icons: [

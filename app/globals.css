@@ -65,6 +65,13 @@ body {
        진하면 카드마다 테두리가 생긴 것처럼 보여 화면이 시끄러워진다. */
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03), 0 6px 16px -12px rgba(16, 24, 40, 0.1);
   }
+  /* 보조 콘텐츠 카드 — 아카이브·자료실·전체글.
+     일정 카드보다 한 단계 조용하게: 같은 흰 배경 + 둥근 모서리이되 그림자를 줄인다.
+     제목 + 리스트가 하나의 카드로 묶여 같은 덩어리로 읽힌다. */
+  .content-card {
+    @apply rounded-2xl bg-white;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.02), 0 4px 12px -8px rgba(16, 24, 40, 0.06);
+  }
   .chip {
     @apply inline-flex items-center justify-center rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium leading-none text-slate-600;
   }
@@ -206,4 +213,49 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-bell { animation: none; }
+}
+
+/* 공지 띠 — 다음 공지로 넘어갈 때 조용히 떠오르며 바뀐다.
+   가로로 흐르는 마퀴 대신 쓴 방식이라 글자가 항상 멈춰 있어 읽기 편하다. */
+@keyframes notice-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-notice-in {
+  animation: notice-in 420ms ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-notice-in { animation: none; }
+}
+
+/* 일정 카드 위 필름 그레인 — 지금은 꺼져 있다 (EventCard에서 클래스를 뗐다).
+   overlay 합성이 기기·화면 배율마다 다르게 계산돼 폰에서 색이 탁해지는 원인으로
+   의심되어, 먼저 그레인 없이 PC·폰 색이 같은지 확인하는 중이다.
+   확인 후 배율에 흔들리지 않는 방식으로 고쳐 다시 켠다.
+
+   색 덩어리만 깔면 표면이 너무 매끈해서 '그라데이션을 넣었다'는 티가 난다.
+   아주 미세한 알갱이가 얹히면 '빛이 퍼지는 질감'으로 읽힌다 (레퍼런스도 같은 처리).
+
+   overlay로 섞으므로 밝은 면(펼쳤을 때의 흰 패널)에는 거의 나타나지 않고
+   색이 깔린 면에서만 보인다. pointer-events는 꺼서 탭을 가로막지 않는다. */
+.mesh-grain {
+  /* ⚠️ 이게 없으면 아래 overlay가 '카드 뒤쪽 화면'까지 끌어와 섞는다.
+     기기·방향에 따라 카드가 자체 레이어로 분리되느냐가 달라져서,
+     같은 카드가 세로에서는 회색이 섞여 칙칙하고 가로에서는 멀쩡해 보였다.
+     isolate로 섞이는 범위를 카드 안으로 못 박으면 어디서나 같게 나온다. */
+  isolation: isolate;
+}
+.mesh-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+  /* baseFrequency를 0.9 → 0.5로 낮춰 알갱이를 굵게 잡았다.
+     SVG 노이즈는 기기 화소로 그려지는데, 폰(3배 화면)에서 0.9는 눈에 안 잡힐 만큼
+     잘게 쪼개져 '질감'이 아니라 '균일한 회색 막'이 된다 → 채도가 죽어 칙칙해진다.
+     굵게 잡으면 3배 화면에서도 알갱이로 보인다. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)' opacity='0.5'/%3E%3C/svg%3E");
 }

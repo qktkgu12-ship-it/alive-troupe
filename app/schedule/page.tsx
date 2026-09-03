@@ -114,9 +114,16 @@ const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
   { border: "rgb(196,181,253)", color: "rgb(109,40,217)", bg: "rgba(196,181,253,0.35)" }, // pastel violet
 ];
 
-// 네이버 예약(source='naver')·개별 지정 일정 공용 초록색
-// (네이버 공식 초록 #03C75A — 홈 캐러셀·'네이버 예약 관리' 버튼과 같은 색)
-const GREEN_COLOR = { border: "#03C75A", color: "#04913F", bg: "rgba(3,199,90,0.15)" };
+// 네이버 예약(source='naver')·개별 지정 일정 공용 색.
+// 예전엔 네이버 초록이었으나 주황으로 통일했다 — 홈 카드와 같은 색이다.
+// (EventCard.COLORS.individual과 짝을 맞춰야 두 화면의 색이 어긋나지 않는다)
+//
+// 색상각을 30° → 23°로 당겼다. 30°는 노랑 쪽이라 옅게 깔면 황토색으로 읽히고,
+// 23°는 같은 밝기에서도 '선명한 귤색'으로 읽힌다. 홈 카드 그라데이션과 같은 각이다.
+// color는 흰 배경 위 글자용이라 같은 색조를 어둡게 잡았다 (흰 바탕 대비 6.6:1).
+// ⚠️ '네이버 예약 관리' 버튼들의 #03C75A는 그대로 둔다 — 저건 카테고리 색이 아니라
+//    네이버로 나가는 브랜드 버튼이다.
+const INDIVIDUAL_COLOR = { border: "#F76B15", color: "#9E3F06", bg: "rgba(247,107,21,0.20)" };
 
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
@@ -125,10 +132,10 @@ function getTeamColor(team: string | undefined, teams: string[]) {
   return TEAM_PALETTE[idx] ?? { border: "rgb(148,163,184)", color: "rgb(100,116,139)", bg: "rgba(148,163,184,0.2)" };
 }
 
-// 이벤트 색상 결정 (네이버 예약·개별 지정 = 초록, 그 외는 팀색)
+// 이벤트 색상 결정 (네이버 예약·개별 지정 = 주황, 그 외는 팀색)
 function getEventColor(e: { team?: string; source?: string; participantUids?: string[] }, teams: string[]) {
-  if (e.source === 'naver') return GREEN_COLOR;
-  if (e.participantUids && e.participantUids.length > 0) return GREEN_COLOR;
+  if (e.source === 'naver') return INDIVIDUAL_COLOR;
+  if (e.participantUids && e.participantUids.length > 0) return INDIVIDUAL_COLOR;
   const tc = getTeamColor(e.team, teams);
   if (tc) return tc;
   return null;

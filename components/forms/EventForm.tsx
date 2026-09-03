@@ -18,6 +18,7 @@ import {
   ampmTimeKo,
 } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
+import { useAuth } from "@/lib/auth-context";
 import { getMembers } from "@/lib/members";
 import Avatar from "@/components/Avatar";
 import Spinner from "@/components/Spinner";
@@ -249,6 +250,7 @@ export default function EventForm({
   eventsByDate?: Record<string, ScheduleEvent[]>;
 }) {
   const { settings } = useTheme();
+  const { user } = useAuth();
   const teams = settings.teams ?? [];
   const [title, setTitle] = useState(initial.title ?? "");
   const [location, setLocation] = useState(initial.location ?? "스튜디오 얼라이브");
@@ -510,7 +512,13 @@ export default function EventForm({
           else void pushToAll(msg);
         }
       } else {
-        await setDoc(doc(db, "events", crypto.randomUUID()), { ...data, createdAt: Date.now() });
+        // createdBy를 같이 남긴다 — 카드 상세의 '만든 사람'에 쓰인다.
+        // (예전엔 단원 예약이 승인된 일정에만 기록돼서 관리자가 등록한 일정은 비어 있었다)
+        await setDoc(doc(db, "events", crypto.randomUUID()), {
+          ...data,
+          createdBy: user?.uid ?? "",
+          createdAt: Date.now(),
+        });
         void pushToAll({
           title: "새 일정이 등록됐어요",
           body: [data.title, when].filter(Boolean).join("\n"),
