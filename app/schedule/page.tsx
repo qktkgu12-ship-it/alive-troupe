@@ -115,12 +115,15 @@ const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
 ];
 
 // 네이버 예약(source='naver')·개별 지정 일정 공용 색.
-// 예전엔 네이버 초록이었으나 주황(#E9A15A)으로 통일했다 — 홈 카드와 같은 색이다.
+// 예전엔 네이버 초록이었으나 주황으로 통일했다 — 홈 카드와 같은 색이다.
 // (EventCard.COLORS.individual과 짝을 맞춰야 두 화면의 색이 어긋나지 않는다)
-// color는 흰 배경 위 글자용이라 같은 색조를 어둡게 잡았다.
+//
+// 색상각을 30° → 23°로 당겼다. 30°는 노랑 쪽이라 옅게 깔면 황토색으로 읽히고,
+// 23°는 같은 밝기에서도 '선명한 귤색'으로 읽힌다. 홈 카드 그라데이션과 같은 각이다.
+// color는 흰 배경 위 글자용이라 같은 색조를 어둡게 잡았다 (흰 바탕 대비 6.6:1).
 // ⚠️ '네이버 예약 관리' 버튼들의 #03C75A는 그대로 둔다 — 저건 카테고리 색이 아니라
 //    네이버로 나가는 브랜드 버튼이다.
-const INDIVIDUAL_COLOR = { border: "#F0851A", color: "#9C500A", bg: "rgba(240,133,26,0.20)" };
+const INDIVIDUAL_COLOR = { border: "#F76B15", color: "#9E3F06", bg: "rgba(247,107,21,0.20)" };
 
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
