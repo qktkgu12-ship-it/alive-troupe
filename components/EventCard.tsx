@@ -62,41 +62,52 @@ export const COLORS = {
 //   accent— 오른쪽 아래 (두 번째 색군)
 //   soft  — 가운데 아래 (메인과 보조를 이어 주는 중간색)
 //   base  — 빈 곳을 메우는 바탕
-type Mesh = { base: string; main: string; soft: string; light: string; accent: string };
+type Mesh = {
+  base: string; // 빈 곳을 메우는 바탕
+  main: string; // 왼쪽 — 흰 글씨가 앉는 자리라 가장 진하다
+  light: string; // 오른쪽 위 — 가장 밝은 색
+  accent: string; // 아래 가운데~오른쪽 — 색군이 확 바뀌는 자리
+  soft: string; // 가운데 아래 — 메인과 강조색을 잇는 중간색
+  hint: string; // 오른쪽 가장자리 — 다른 계열이 아주 살짝
+};
 
 const MESH: Record<string, Mesh> = {
-  // 전체 일정 — Red / Coral / Peach / Soft Pink
+  // 전체 — Red / Coral / Pink / Peach / Warm Yellow
   [COLORS.all]: {
-    base: "#F0706A",
-    main: "#E24B4A",
-    soft: "#F79273",
-    light: "#FFCBA6",
-    accent: "#F58FC0",
+    base: "#EE6B62",
+    main: "#DF3F3E",
+    light: "#FBD79B",
+    accent: "#F084BE",
+    soft: "#FFBE9E",
+    hint: "#E2A6D8",
   },
-  // A팀 — Mint / Aqua / Pale Green / Sky
+  // A팀 — Mint / Aqua / Soft Green / Pale Blue
   [COLORS.teamA]: {
-    base: "#4CBFB0",
-    main: "#189E90",
-    soft: "#7FD8C6",
-    light: "#BFF0DF",
-    accent: "#86C9E8",
+    base: "#46BCAE",
+    main: "#10A093",
+    light: "#D3F3E2",
+    accent: "#7FC4E8",
+    soft: "#74D6C4",
+    hint: "#A9E0F0",
   },
   // B팀 — Purple / Lavender / Pink / Pale Blue
   [COLORS.teamB]: {
-    base: "#9382E6",
-    main: "#6E56D6",
-    soft: "#B3A2F0",
-    light: "#D9C8F5",
-    accent: "#F0A8D8",
+    base: "#8F7DE4",
+    main: "#6A50D4",
+    light: "#DFD1F8",
+    accent: "#F0A3D5",
+    soft: "#AC9BEE",
+    hint: "#A9BCF0",
   },
-  // 개별·네이버 — Orange / Apricot / Peach / Pale Yellow / Soft Coral
+  // 개별·네이버 — Orange / Peach / Coral / Pale Yellow / subtle Pink·Lavender
   // 레퍼런스와 가장 가까운 계열이다.
   [COLORS.individual]: {
-    base: "#EE9440",
-    main: "#E07316",
-    soft: "#F3B06B",
-    light: "#FBDFA0",
-    accent: "#F2907A",
+    base: "#EF9A4E",
+    main: "#E4710D",
+    light: "#FBE3A2",
+    accent: "#F58FAF",
+    soft: "#F9AE7C",
+    hint: "#D3AEE6",
   },
 };
 
@@ -110,11 +121,16 @@ export function cardMesh(color: string): React.CSSProperties {
   return {
     backgroundColor: m.base,
     // 먼저 쓴 것이 위에 깔린다. 전부 transparent로 사라지므로 경계가 안 생긴다.
+    //
+    // 메인은 왼쪽 절반 남짓만 덮는다. 예전엔 125%×130%로 카드를 거의 다 덮어서
+    // 나머지 색이 나올 자리가 없었고, 그래서 '주황 → 살구' 한 방향으로만 흘렀다.
+    // 자리를 비워 주니 노랑·핑크·라벤더가 각자 빛 덩어리로 드러난다.
     backgroundImage: [
-      `radial-gradient(125% 130% at 6% 38%, ${m.main} 0%, transparent 58%)`,
-      `radial-gradient(95% 85% at 94% 2%, ${m.light} 0%, transparent 60%)`,
-      `radial-gradient(90% 100% at 82% 100%, ${m.accent} 0%, transparent 60%)`,
-      `radial-gradient(110% 95% at 46% 80%, ${m.soft} 0%, transparent 56%)`,
+      `radial-gradient(100% 108% at 0% 40%, ${m.main} 0%, transparent 58%)`,
+      `radial-gradient(70% 66% at 98% 0%, ${m.light} 0%, transparent 60%)`,
+      `radial-gradient(76% 72% at 64% 100%, ${m.accent} 0%, transparent 58%)`,
+      `radial-gradient(58% 56% at 100% 60%, ${m.hint} 0%, transparent 62%)`,
+      `radial-gradient(88% 74% at 46% 82%, ${m.soft} 0%, transparent 58%)`,
     ].join(", "),
   };
 }
