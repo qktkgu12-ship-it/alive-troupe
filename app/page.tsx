@@ -21,7 +21,7 @@ import {
   type Production,
   type ScheduleEvent,
 } from "@/lib/types";
-import { chunk, relativeTime, toDateStr } from "@/lib/utils";
+import { ampmTimeKo, chunk, relativeTime, toDateStr } from "@/lib/utils";
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -182,27 +182,51 @@ function HomeInner() {
 
   // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이거나 관리자면 전체 (네이버 예약 일정도 포함)
   const myTeam = role === "admin" ? "" : (profile?.team ?? "");
-  const shownEvents = upcoming
-    .filter((e) => !myTeam || !e.team || e.team === myTeam)
-    .slice(0, 5);
+  const myEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam);
+  const shownEvents = myEvents.slice(0, 5);
+
+  // 인사말 둘째 줄 — 캐치프라이즈(슬로건) 대신 지금 알아야 할 것을 담는다.
+  // 이 줄이 일정 캐러셀의 섹션 제목 역할도 겸하므로 링크와 화살표가 붙는다.
+  //   오늘 일정이 있으면  → 몇 시인지까지
+  //   없으면            → 앞으로 몇 개 남았는지
+  const todayStr = toDateStr(new Date());
+  const todayEvents = myEvents.filter((e) => e.date === todayStr);
+  const scheduleLine =
+    todayEvents.length > 0
+      ? `오늘 일정 있어요${todayEvents[0].startTime ? ` · ${ampmTimeKo(todayEvents[0].startTime)}` : ""}`
+      : myEvents.length > 0
+        ? `다가오는 일정 ${myEvents.length}개`
+        : "다가오는 일정이 없어요";
 
   return (
     // 상단바와 인사말 사이는 조금 좁게 — 인사말이 헤더에 이어지는 느낌으로.
     // 카드 사이(space-y)는 넓히고 카드 안쪽 padding은 줄였다 —
     // 여백이 '박스 안'이 아니라 '정보 사이'에 있어야 숨통이 트인다.
     <div className="-mt-3 space-y-6">
-      {/* 인사 — 담백하게. 날짜 줄은 없다 (폰 상단바와 겹친다).
-          상단 빛 번짐이 이 인사말을 받치는 자리가 된다 —
-          레퍼런스들도 그라데이션 위에 인사말을 얹는 구조다. */}
-      <header className="pb-1 pt-1">
-        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
-          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
-        </h1>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today, Here, Right now!</p>
-      </header>
-
-      {/* 다가오는 확정 일정 — 컬러 카드 캐러셀 */}
+      {/* 인사말 + 일정 — 한 덩어리.
+          예전엔 '인사말 / 캐치프라이즈 / 다가오는 일정' 세 줄이 서로 비슷한 간격으로
+          떨어져 있어 셋 다 동급으로 읽혔고, 26px와 22px 큰 제목 둘이 주인공 자리를
+          다퉜다. 큰 제목을 인사말 하나로 합치고, 둘째 줄이 섹션 제목을 겸하게 했다.
+          날짜 줄은 없다 (폰 상단바와 겹친다). */}
       <section>
+        <header className="mb-2.5 pt-1">
+          <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
+            안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
+          </h1>
+          {/* 둘째 줄 = 정보 + 섹션 제목. 인사말과 붙여 두 줄이 한 덩어리로 읽히게 한다 */}
+          <Link
+            href="/schedule"
+            aria-label="전체 일정 보기"
+            className="mt-1.5 flex items-center justify-between"
+          >
+            <span className="text-[14px] font-medium text-slate-500">{scheduleLine}</span>
+            <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </span>
+          </Link>
+        </header>
+
+        {/* 다가오는 확정 일정 — 카드 캐러셀 (제목은 위 인사말 블록이 겸한다) */}
         <ScheduleCarousel events={shownEvents} teams={teams} />
       </section>
 

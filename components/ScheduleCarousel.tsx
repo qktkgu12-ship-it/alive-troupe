@@ -5,7 +5,6 @@
 // 여기선 가로 스크롤·스냅과, 펼쳤을 때 카드가 화면을 꽉 채우는 것만 맡는다.
 // dot 인디케이터는 제거됨 — peek(옆 카드 삐침)이 슬라이드 가능성을 충분히 전달한다.
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
@@ -83,19 +82,9 @@ export default function ScheduleCarousel({
 
   return (
     <div>
-      {/* 섹션 제목 — 아카이브·자료실과 같은 '제목 >' 문법.
-          제일 중요한 일정만 제목이 없어 이름 없는 덩어리로 보이던 걸 맞췄다.
-          카드 밖에 두므로 아래 카드들과 왼쪽 끝이 정확히 맞는다. */}
-      <Link
-        href="/schedule"
-        aria-label="전체 일정 보기"
-        className="mb-2.5 flex items-center justify-between"
-      >
-        <h2 className="text-[22px] font-bold tracking-tight text-slate-900">다가오는 일정</h2>
-        <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-        </span>
-      </Link>
+      {/* 섹션 제목은 여기 없다 — 홈의 인사말 블록 둘째 줄이 그 역할을 겸한다.
+          큰 제목(인사말 26px)과 섹션 제목(22px)이 나란히 있으면 서로 경쟁해
+          어느 쪽이 주인공인지 안 읽혔다. 제목을 하나로 합쳐 그 경쟁을 없앴다. */}
 
       {/* 카드 줄 — 손으로 밀면 한 장씩 딱딱 맞춰 선다 */}
       <div
