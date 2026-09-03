@@ -191,6 +191,16 @@ function HomeInner() {
     // 카드 사이(space-y)는 넓히고 카드 안쪽 padding은 줄였다 —
     // 여백이 '박스 안'이 아니라 '정보 사이'에 있어야 숨통이 트인다.
     <div className="-mt-3 space-y-6">
+      {/* 인사 — 담백하게. 날짜 줄은 없다 (폰 상단바와 겹친다).
+          상단 빛 번짐이 이 인사말을 받치는 자리가 된다 —
+          레퍼런스들도 그라데이션 위에 인사말을 얹는 구조다. */}
+      <header className="pb-1 pt-1">
+        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
+          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
+        </h1>
+        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">Today, Here, Right now!</p>
+      </header>
+
       {/* 다가오는 확정 일정 — 컬러 카드 캐러셀 */}
       <section>
         <ScheduleCarousel events={shownEvents} teams={teams} />
