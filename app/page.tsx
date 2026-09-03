@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ScheduleCarousel from "@/components/ScheduleCarousel";
 import { ProfileName } from "@/components/ProfileViewer";
+import { MegaphoneIcon } from "@/components/Icons";
 import {
   ARCHIVE_KIND_EMOJI,
   DEFAULT_RESOURCE_EMOJIS,
@@ -21,7 +22,7 @@ import {
   type Production,
   type ScheduleEvent,
 } from "@/lib/types";
-import { ampmTimeKo, chunk, relativeTime, toDateStr } from "@/lib/utils";
+import { chunk, relativeTime, toDateStr } from "@/lib/utils";
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -51,6 +52,54 @@ function CardHead({ title, href, label }: { title: string; href: string; label: 
       <span className="grid h-6 w-6 place-items-center rounded-full text-slate-300 transition hover:text-accent">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
       </span>
+    </Link>
+  );
+}
+
+// 공지 띠 — 인사말 아래 한 줄. 누르면 게시판(공지가 맨 위에 고정돼 있다)으로 간다.
+//
+// 공지가 여럿이면 4초마다 조용히 다음 것으로 넘어간다.
+// 글자가 옆으로 계속 흐르는 방식(마퀴)은 쓰지 않았다 — 움직이는 글자는 읽기 어렵고
+// 멈출 수도 없어서, 놓치면 한 바퀴 돌 때까지 기다려야 한다.
+// 하나뿐이면 아예 안 움직인다.
+function NoticeBar({ notices }: { notices: Post[] }) {
+  const [i, setI] = useState(0);
+
+  useEffect(() => {
+    if (notices.length < 2) return;
+    const t = setInterval(() => setI((v) => (v + 1) % notices.length), 4000);
+    return () => clearInterval(t);
+  }, [notices.length]);
+
+  if (notices.length === 0) return null;
+  // 공지 개수가 줄어도 번호와 내용이 어긋나지 않게 항상 범위 안으로 접어 준다
+  const idx = i % notices.length;
+  const cur = notices[idx];
+
+  return (
+    <Link
+      href="/board"
+      aria-label="공지 보기"
+      className="content-card mt-3 flex items-center gap-3 px-4 py-3"
+    >
+      <span className="flex shrink-0 items-center gap-1.5 text-accent">
+        <MegaphoneIcon className="h-[17px] w-[17px]" />
+        <span className="text-[13px] font-bold">공지</span>
+      </span>
+      {/* 세로 구분선 — 라벨과 내용의 역할을 가른다 */}
+      <span className="h-4 w-px shrink-0 bg-slate-200" />
+      {/* key를 바꿔 다시 그리게 해서 넘어갈 때마다 페이드가 처음부터 돈다 */}
+      <span
+        key={cur.id}
+        className="animate-notice-in min-w-0 flex-1 truncate text-[14px] font-medium text-slate-700"
+      >
+        {cur.title}
+      </span>
+      {notices.length > 1 && (
+        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-300">
+          {idx + 1}/{notices.length}
+        </span>
+      )}
     </Link>
   );
 }
@@ -99,6 +148,7 @@ function HomeInner() {
     catEmojis[cat] ?? DEFAULT_RESOURCE_EMOJIS[cat] ?? FALLBACK_RESOURCE_EMOJI;
   const [upcoming, setUpcoming] = useState<ScheduleEvent[]>([]);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
+  const [notices, setNotices] = useState<Post[]>([]);
   const [recentArchives, setRecentArchives] = useState<ArchiveItem[]>([]);
   const [recentAudio, setRecentAudio] = useState<AudioTrack[]>([]);
 
@@ -126,6 +176,20 @@ function HomeInner() {
     getDocs(query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(6)))
       .then((snap) => setRecentPosts(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))))
       .catch(() => setRecentPosts([]));
+
+    // 공지 — 상단 띠에 쓴다.
+    // where 하나뿐이라 복합 색인이 필요 없다 (게시판 페이지와 같은 방식).
+    // 최신 3개만 — 오래된 공지까지 계속 돌면 그냥 소음이 된다.
+    getDocs(query(collection(db, "posts"), where("isNotice", "==", true)))
+      .then((snap) =>
+        setNotices(
+          snap.docs
+            .map((d) => ({ id: d.id, ...(d.data() as Omit<Post, "id">) }))
+            .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+            .slice(0, 3)
+        )
+      )
+      .catch(() => setNotices([]));
   }, []);
 
   // 아카이브 · 자료실 최신 3개
@@ -185,19 +249,6 @@ function HomeInner() {
   const myEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam);
   const shownEvents = myEvents.slice(0, 5);
 
-  // 인사말 둘째 줄 — 캐치프라이즈(슬로건) 대신 지금 알아야 할 것을 담는다.
-  // 이 줄이 일정 캐러셀의 섹션 제목 역할도 겸하므로 링크와 화살표가 붙는다.
-  //   오늘 일정이 있으면  → 몇 시인지까지
-  //   없으면            → 앞으로 몇 개 남았는지
-  const todayStr = toDateStr(new Date());
-  const todayEvents = myEvents.filter((e) => e.date === todayStr);
-  const scheduleLine =
-    todayEvents.length > 0
-      ? `오늘 일정 있어요${todayEvents[0].startTime ? ` · ${ampmTimeKo(todayEvents[0].startTime)}` : ""}`
-      : myEvents.length > 0
-        ? `다가오는 일정 ${myEvents.length}개`
-        : "다가오는 일정이 없어요";
-
   return (
     // 상단바와 인사말 사이는 조금 좁게 — 인사말이 헤더에 이어지는 느낌으로.
     // 카드 사이(space-y)는 넓히고 카드 안쪽 padding은 줄였다 —
@@ -209,24 +260,15 @@ function HomeInner() {
           다퉜다. 큰 제목을 인사말 하나로 합치고, 둘째 줄이 섹션 제목을 겸하게 했다.
           날짜 줄은 없다 (폰 상단바와 겹친다). */}
       <section>
-        <header className="mb-2.5 pt-1">
-          <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
-            안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
-          </h1>
-          {/* 둘째 줄 = 정보 + 섹션 제목. 인사말과 붙여 두 줄이 한 덩어리로 읽히게 한다 */}
-          <Link
-            href="/schedule"
-            aria-label="전체 일정 보기"
-            className="mt-1.5 flex items-center justify-between"
-          >
-            <span className="text-[14px] font-medium text-slate-500">{scheduleLine}</span>
-            <span className="grid h-7 w-7 place-items-center rounded-full text-slate-300 transition hover:text-accent">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-            </span>
-          </Link>
-        </header>
+        <h1 className="pt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
+          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
+        </h1>
+        {/* 공지가 하나도 없으면 띠 자체를 띄우지 않는다 — 빈 띠가 남으면 더 허전하다 */}
+        {notices.length > 0 && <NoticeBar notices={notices} />}
+      </section>
 
-        {/* 다가오는 확정 일정 — 카드 캐러셀 (제목은 위 인사말 블록이 겸한다) */}
+      {/* 다가오는 확정 일정 — 카드 캐러셀 */}
+      <section>
         <ScheduleCarousel events={shownEvents} teams={teams} />
       </section>
 
