@@ -518,34 +518,35 @@ export default function EventCard({
             <h3
               // 제목은 굵고 커서 그림자 없이도 또렷하다 — 그림자를 넣으면
               // 글자 테두리가 지저분해지고 그라데이션의 빛도 탁해진다.
-              className={`mt-2.5 line-clamp-2 h-[46px] text-[17px] font-bold leading-[23px] tracking-tight text-white ${
+              // 19px — 카드에서 유일하게 큰 글자다. 나머지(날짜 13 · 시간 13)를
+              // 작게 눌러 두었으므로 제목만 키워야 '무엇'이 먼저 읽힌다.
+              // 두 줄 칸 높이도 같이 키웠다(46 → 50). 줄간격 25 × 2줄이라 딱 맞는다.
+              className={`mt-2.5 line-clamp-2 h-[50px] text-[19px] font-bold leading-[25px] tracking-tight text-white ${
                 dimmed ? "line-through" : ""
               }`}
             >
               {e.title}
             </h3>
 
-            {/* ③ 시작 시각 — 펼치면 감춘다.
-                펼친 상세 맨 위에 같은 시간이 다시 나오므로 두 번 읽힐 이유가 없다. */}
-            {!open && (
-              <div
-                className="mt-2 flex items-center gap-1.5 text-white/90"
-                style={{ textShadow: ON_MESH_SHADOW }}
-              >
-                <ClockIcon className="h-[15px] w-[15px] shrink-0" />
-                <span className="truncate text-[13px] font-semibold">{startLabel}</span>
-              </div>
-            )}
-
-            {/* ④ 아바타 — 카드 오른쪽 아래. 접힘 전용 (펼치면 상세에 참여인원이 따로 나온다) */}
+            {/* ③ 카드 바닥 줄 — 시작 시각(왼쪽)과 참여인원(오른쪽)을 한 줄에 묶는다.
+                예전엔 시간은 글 흐름에, 아바타만 바닥에 절대배치라 둘의 높이가 어긋났다.
+                한 줄로 묶고 items-center를 주면 제목이 한 줄이든 두 줄이든 항상 나란하다.
+                펼치면 같은 내용이 상세에 다시 나오므로 함께 사라진다. */}
             <span
-              className="absolute bottom-3.5 right-4 flex items-center"
+              className="absolute inset-x-4 bottom-3.5 flex items-center justify-between gap-2"
               style={{
                 opacity: open ? 0 : 1,
                 pointerEvents: open ? "none" : "auto",
                 transition: "opacity 180ms ease",
               }}
             >
+              <span
+                className="flex min-w-0 items-center gap-1.5 text-white/90"
+                style={{ textShadow: ON_MESH_SHADOW }}
+              >
+                <ClockIcon className="h-[15px] w-[15px] shrink-0" />
+                <span className="truncate text-[13px] font-semibold">{startLabel}</span>
+              </span>
               {going.length > 0 && <AvatarStack members={going} max={4} size="h-6 w-6" overlap={-10} />}
             </span>
           </button>
@@ -699,19 +700,14 @@ export default function EventCard({
                   >
                     내 참석 여부
                   </p>
-                  {/* 토글 트랙 — 컬러 위에서는 '살짝 눌린 자리' + 흰 테두리.
-                      반투명 흰색을 깔았더니 아예 안 보였다. 카드 아래쪽이 이미
-                      밝은 살구·분홍(밝기 47%)이라 흰색을 더 얹으면 배경과 같아지고,
-                      그 위의 흰 글씨는 오히려 더 안 읽힌다(대비 2.03 → 1.68).
-                      반대로 16%만 어둡게 하면 색은 그대로 두고 밝기만 내려가
-                      흰 글씨가 살아난다(대비 2.9). 회색이 섞이는 게 아니라
-                      같은 색에 그늘이 지는 것이라 카드가 탁해지지도 않는다.
-                      흰 테두리는 밝든 어둡든 윤곽을 남겨 '누를 수 있는 칸'으로 읽히게 한다. */}
+                  {/* 토글 트랙 — 컬러 위에서는 반투명 흰색, 테두리 없이.
+                      22%로는 잘 안 보여서 30%로 잡았다. 이보다 낮추면
+                      카드 아래쪽 밝은 구역(살구·분홍)에서 배경과 거의 같아진다.
+                      선택 안 된 쪽 흰 글씨에는 미세 그림자를 남겨 뒀다 —
+                      흰 판 위 흰 글씨라 그것마저 빼면 읽기 어렵다. */}
                   <div
                     className={`flex gap-1.5 rounded-2xl p-1 ${
-                      variant === "carousel"
-                        ? "bg-black/[0.16] ring-1 ring-inset ring-white/40"
-                        : "bg-slate-100"
+                      variant === "carousel" ? "bg-white/30" : "bg-slate-100"
                     }`}
                   >
                     <button
