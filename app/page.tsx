@@ -71,9 +71,8 @@ function NoticeBar({ notices }: { notices: Post[] }) {
     return () => clearInterval(t);
   }, [notices.length]);
 
-  if (notices.length === 0) return null;
   // 공지 개수가 줄어도 번호와 내용이 어긋나지 않게 항상 범위 안으로 접어 준다
-  const idx = i % notices.length;
+  const idx = notices.length > 0 ? i % notices.length : 0;
   const cur = notices[idx];
 
   return (
@@ -88,12 +87,15 @@ function NoticeBar({ notices }: { notices: Post[] }) {
       </span>
       {/* 세로 구분선 — 라벨과 내용의 역할을 가른다 */}
       <span className="h-4 w-px shrink-0 bg-slate-200" />
-      {/* key를 바꿔 다시 그리게 해서 넘어갈 때마다 페이드가 처음부터 돈다 */}
+      {/* 공지가 없어도 칸은 남긴다 — 자리가 사라지면 화면이 매번 달라 보인다.
+          key를 바꿔 다시 그리게 해서 넘어갈 때마다 페이드가 처음부터 돈다 */}
       <span
-        key={cur.id}
-        className="animate-notice-in min-w-0 flex-1 truncate text-[14px] font-medium text-slate-700"
+        key={cur?.id ?? "empty"}
+        className={`animate-notice-in min-w-0 flex-1 truncate text-[14px] ${
+          cur ? "font-medium text-slate-700" : "text-slate-400"
+        }`}
       >
-        {cur.title}
+        {cur ? cur.title : "아직 등록된 공지가 없어요"}
       </span>
       {notices.length > 1 && (
         <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-300">
@@ -263,8 +265,15 @@ function HomeInner() {
         <h1 className="pt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
           안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
         </h1>
-        {/* 공지가 하나도 없으면 띠 자체를 띄우지 않는다 — 빈 띠가 남으면 더 허전하다 */}
-        {notices.length > 0 && <NoticeBar notices={notices} />}
+        {/* 캐치프라이즈 — 예전엔 font-mono + 대문자 + 자간 0.2em이었는데,
+            고정폭 서체는 이미 글자 사이가 넓어서 자간까지 더하면 흩어져 보였다.
+            앱 본문 서체(Pretendard)로 바꾸고 자간을 0.1em으로 조여 균형을 맞췄다.
+            제목과의 간격도 살짝 붙여 두 줄이 한 덩어리로 읽히게 한다. */}
+        <p className="mt-1.5 text-[11.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+          Today, Here, Right now!
+        </p>
+        {/* 공지가 없어도 칸은 유지한다 (NoticeBar 안에서 빈 문구를 보여 준다) */}
+        <NoticeBar notices={notices} />
       </section>
 
       {/* 다가오는 확정 일정 — 카드 캐러셀 */}

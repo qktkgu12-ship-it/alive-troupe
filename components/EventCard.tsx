@@ -2,8 +2,8 @@
 
 // 펼쳐지는 일정 카드 — 홈 캐러셀과 일정 페이지 목록이 같이 쓴다.
 //
-// 흰 바탕 + 왼쪽 세로 색 바로 일정 성격을 구분한다:
-//   전체 일정 = 빨강 / A팀 = 민트 / B팀 = 보라 / 네이버 예약·개별 지정 = 네이버 초록
+// 카테고리는 색으로 구분한다 — 캐러셀은 카드에 스민 빛으로, 목록은 왼쪽 세로 바로:
+//   전체 = 극단색 / A팀 = 민트 / B팀 = 라벤더 / 개별 지정·네이버 예약 = 주황
 //
 // 접힘: 날짜·D-day / 제목(2줄 고정) / 시간 / 참여인원 아바타
 //   제목 칸을 2줄 높이로 고정해 뒀다 — 제목이 짧든 길든 D-day·시간줄 위치가 같다.
@@ -31,20 +31,37 @@ const LINE = "#D1D1D6"; // 아이콘·펼치기 화살표
 const TODAY = "#22C55E"; // 오늘
 const DDAY = "#FF3B30"; // 다가오는 일정 (D-N)
 
-// 팀 색은 일정 달력(TEAM_PALETTE)과 같은 색조·채도를 쓴다.
+// 카테고리 색.
+// 카드 안에 '스며드는 빛'으로 쓰기 좋게 맞춘 값이라 예전보다 한 톤씩 부드럽다.
+// 목록의 세로 컬러바에도 같은 색을 써서 화면마다 색이 달라지지 않게 한다.
 export const COLORS = {
-  all: "rgb(var(--accent))", // 전체 일정 — 극단 브랜드 색(accent)
-  teamA: "#19BDA4", // 첫 번째 팀 — 달력 민트를 어둡게
-  teamB: "#7A2FF2", // 두 번째 팀
-  // 네이버 예약·개별 지정 일정은 같은 초록을 쓴다 (네이버 공식 초록 = 관리 버튼 색)
-  green: "#03C75A",
+  // 전체 일정은 극단 설정 색을 그대로 쓴다 — 관리자가 브랜드 색을 바꾸면 같이 따라간다.
+  // (10% 남짓한 틴트에서는 어떤 빨강을 써도 육안 차이가 거의 없다)
+  all: "rgb(var(--accent))",
+  teamA: "#72CFC3", // 첫 번째 팀 — 민트
+  teamB: "#9B8BEA", // 두 번째 팀 — 라벤더
+  // 개별 지정·네이버 예약 — 예전엔 네이버 초록이었으나 주황으로 통일했다.
+  // 초록은 '오늘' 배지와 부딪혔고, 빨간 로고와도 긴장이 컸다.
+  individual: "#E9A15A",
 } as const;
+
+// 개별 일정은 화면에 가장 자주 뜬다. 다른 색과 같은 농도로 깔면
+// 목록 전체가 주황으로 물들어서, 이 색만 빛을 옅게 준다. (핸드오프 §4)
+const TINT_PCT = 14;
+const TINT_PCT_INDIVIDUAL = 9;
+
+/** 카드에 스며드는 빛 — 오른쪽 위 모서리에서 옅게 번져 가운데쯤에서 사라진다.
+ *  '컬러 카드'가 아니라 '흰 카드에 색이 살짝 스민 것'으로 보여야 한다. */
+export function cardTint(color: string): string {
+  const pct = color === COLORS.individual ? TINT_PCT_INDIVIDUAL : TINT_PCT;
+  return `radial-gradient(115% 78% at 100% 0%, color-mix(in srgb, ${color} ${pct}%, transparent), transparent 62%)`;
+}
 
 /** 일정 하나가 어떤 색을 쓸지 */
 export function eventColor(e: ScheduleEvent, teams: string[]): string {
-  if (e.source === "naver") return COLORS.green;
-  // 개별 지정 일정도 같은 초록 (팀 지정과 시각적으로 다름을 알림)
-  if (e.participantUids && e.participantUids.length > 0) return COLORS.green;
+  if (e.source === "naver") return COLORS.individual;
+  // 개별 지정 일정도 같은 주황 (팀 지정과 시각적으로 다름을 알림)
+  if (e.participantUids && e.participantUids.length > 0) return COLORS.individual;
   if (!e.team) return COLORS.all;
   const i = teams.indexOf(e.team);
   if (i === 0) return COLORS.teamA;
@@ -596,7 +613,13 @@ export default function EventCard({
           ? "rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
           : "rounded-3xl shadow-[0_2px_4px_rgba(16,24,40,0.04),0_8px_24px_-8px_rgba(16,24,40,0.12)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
-      style={wrapperStyle}
+      style={{
+        ...wrapperStyle,
+        // 카테고리 빛은 캐러셀 카드에만. 목록(list)은 이미 왼쪽 세로 바로 구분하고 있어서
+        // 빛까지 얹으면 색이 두 번 겹친다 (핸드오프 §8).
+        // 지난 일정처럼 흐리게 처리한 카드는 색도 빼서 흰 카드로 둔다.
+        ...(variant === "carousel" && !dimmed ? { backgroundImage: cardTint(color) } : null),
+      }}
     >
       {variant === "list" ? (
         <>
