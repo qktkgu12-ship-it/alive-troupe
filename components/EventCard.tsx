@@ -107,7 +107,9 @@ const MESH: Record<string, Mesh> = {
     light: "#FBE3A2",
     accent: "#F58FAF",
     soft: "#F9AE7C",
-    hint: "#D3AEE6",
+    // 라벤더는 회색기가 적은 쪽으로. #D3AEE6처럼 채도가 낮으면 주황과 섞일 때
+    // 회보라가 되어 카드가 탁해진다. 분홍 쪽으로 당겨 따뜻하게 잡았다.
+    hint: "#E0A9E4",
   },
 };
 

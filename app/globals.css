@@ -234,16 +234,24 @@ body {
 
    overlay로 섞으므로 밝은 면(펼쳤을 때의 흰 패널)에는 거의 나타나지 않고
    색이 깔린 면에서만 보인다. pointer-events는 꺼서 탭을 가로막지 않는다. */
+.mesh-grain {
+  /* ⚠️ 이게 없으면 아래 overlay가 '카드 뒤쪽 화면'까지 끌어와 섞는다.
+     기기·방향에 따라 카드가 자체 레이어로 분리되느냐가 달라져서,
+     같은 카드가 세로에서는 회색이 섞여 칙칙하고 가로에서는 멀쩡해 보였다.
+     isolate로 섞이는 범위를 카드 안으로 못 박으면 어디서나 같게 나온다. */
+  isolation: isolate;
+}
 .mesh-grain::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  opacity: 0.38;
+  opacity: 0.22;
   mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)' opacity='0.55'/%3E%3C/svg%3E");
-}
-@media (prefers-reduced-motion: reduce) {
-  .mesh-grain::after { opacity: 0.28; }
+  /* baseFrequency를 0.9 → 0.5로 낮춰 알갱이를 굵게 잡았다.
+     SVG 노이즈는 기기 화소로 그려지는데, 폰(3배 화면)에서 0.9는 눈에 안 잡힐 만큼
+     잘게 쪼개져 '질감'이 아니라 '균일한 회색 막'이 된다 → 채도가 죽어 칙칙해진다.
+     굵게 잡으면 3배 화면에서도 알갱이로 보인다. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)' opacity='0.5'/%3E%3C/svg%3E");
 }
