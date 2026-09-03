@@ -112,26 +112,43 @@ const MESH: Record<string, Mesh> = {
   },
 };
 
+/** #RRGGBB → 같은 색의 '투명한 판' (rgba(r,g,b,0)).
+ *
+ *  ⚠️ 그라데이션 끝을 `transparent`로 쓰면 안 되는 이유:
+ *     CSS의 transparent는 '투명한 검정'이다. 요즘 브라우저는 알파를 미리 곱해
+ *     계산하므로 검정이 안 섞이지만, 사파리(특히 iOS)는 이 처리가 브라우저·기기마다
+ *     달라서 색이 사라지는 구간에 회색기가 끼어든다.
+ *     → 색은 그대로 두고 알파만 0으로 떨어뜨리면 어디서 그리든 같은 색이 나온다.
+ *     주황이 유독 탁해 보이던 것도 이 회색기 때문일 가능성이 크다. */
+function fade(hex: string) {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.replace(/./g, (c) => c + c) : h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0)`;
+}
+
 /** 카드를 채우는 앰비언트 메시 배경.
  *
  *  ⚠️ 흰 글씨가 올라가므로 main은 충분히 진해야 한다. 밝은 색(light·accent)은
  *     글자가 없는 오른쪽에만 닿도록 자리를 잡아 뒀다.
- *  카드가 펼쳐져 길어져도 퍼센트라 같이 늘어나므로 앰비언트 느낌이 유지된다. */
+ *  카드가 펼쳐져 길어져도 퍼센트라 같이 늘어나므로 앰비언트 느낌이 유지된다.
+ *
+ *  색은 전부 sRGB 16진값 하나로 통일했다 — color-mix·hsl·oklch를 섞어 쓰면
+ *  브라우저마다 보간하는 색 공간이 달라져 같은 코드가 다른 색으로 나온다. */
 export function cardMesh(color: string): React.CSSProperties {
   const m = MESH[color] ?? MESH[COLORS.all];
   return {
     backgroundColor: m.base,
-    // 먼저 쓴 것이 위에 깔린다. 전부 transparent로 사라지므로 경계가 안 생긴다.
+    // 먼저 쓴 것이 위에 깔린다. 전부 알파 0으로 사라지므로 경계가 안 생긴다.
     //
     // 메인은 왼쪽 절반 남짓만 덮는다. 예전엔 125%×130%로 카드를 거의 다 덮어서
     // 나머지 색이 나올 자리가 없었고, 그래서 '주황 → 살구' 한 방향으로만 흘렀다.
     // 자리를 비워 주니 노랑·핑크·라벤더가 각자 빛 덩어리로 드러난다.
     backgroundImage: [
-      `radial-gradient(100% 108% at 0% 40%, ${m.main} 0%, transparent 58%)`,
-      `radial-gradient(70% 66% at 98% 0%, ${m.light} 0%, transparent 60%)`,
-      `radial-gradient(76% 72% at 64% 100%, ${m.accent} 0%, transparent 58%)`,
-      `radial-gradient(58% 56% at 100% 60%, ${m.hint} 0%, transparent 62%)`,
-      `radial-gradient(88% 74% at 46% 82%, ${m.soft} 0%, transparent 58%)`,
+      `radial-gradient(100% 108% at 0% 40%, ${m.main} 0%, ${fade(m.main)} 58%)`,
+      `radial-gradient(70% 66% at 98% 0%, ${m.light} 0%, ${fade(m.light)} 60%)`,
+      `radial-gradient(76% 72% at 64% 100%, ${m.accent} 0%, ${fade(m.accent)} 58%)`,
+      `radial-gradient(58% 56% at 100% 60%, ${m.hint} 0%, ${fade(m.hint)} 62%)`,
+      `radial-gradient(88% 74% at 46% 82%, ${m.soft} 0%, ${fade(m.soft)} 58%)`,
     ].join(", "),
   };
 }
@@ -586,7 +603,10 @@ export default function EventCard({
               <div
                 className={
                   variant === "carousel"
-                    ? "space-y-2.5 rounded-[20px] bg-white/90 p-3.5 backdrop-blur-sm"
+                    ? // backdrop-blur는 뺐다 — 이미 90% 흰 판이라 뿌옇게 할 배경이
+                      // 거의 안 비치는데, 이것 하나 때문에 카드 전체가 GPU 합성
+                      // 레이어로 올라가 기기마다 색이 달라질 여지가 생긴다.
+                      "space-y-2.5 rounded-[20px] bg-white/90 p-3.5"
                     : "space-y-2.5 rounded-2xl bg-slate-50 p-3.5"
                 }
               >
@@ -656,16 +676,27 @@ export default function EventCard({
                 <>
                   <p
                     className={`mb-1.5 mt-3.5 px-0.5 text-[12px] font-semibold ${
-                      variant === "carousel" ? "text-white/85" : "text-slate-400"
+                      variant === "carousel" ? "text-white" : "text-slate-400"
                     }`}
+                    // 작은 글씨라 밝은 배경 위에서 가장 먼저 묻힌다.
+                    // 그림자는 윤곽만 잡아 주는 정도(알파 0.08)로만 — 글자에 테를 두르지 않는다.
+                    style={variant === "carousel" ? { textShadow: ON_MESH_SHADOW } : undefined}
                   >
                     내 참석 여부
                   </p>
-                  {/* 토글 트랙 — 컬러 위에서는 반투명 흰색.
-                      회색 트랙을 그대로 쓰면 그라데이션 위에 회색 판이 얹힌 것처럼 보인다. */}
+                  {/* 토글 트랙 — 컬러 위에서는 '살짝 눌린 자리' + 흰 테두리.
+                      반투명 흰색을 깔았더니 아예 안 보였다. 카드 아래쪽이 이미
+                      밝은 살구·분홍(밝기 47%)이라 흰색을 더 얹으면 배경과 같아지고,
+                      그 위의 흰 글씨는 오히려 더 안 읽힌다(대비 2.03 → 1.68).
+                      반대로 16%만 어둡게 하면 색은 그대로 두고 밝기만 내려가
+                      흰 글씨가 살아난다(대비 2.9). 회색이 섞이는 게 아니라
+                      같은 색에 그늘이 지는 것이라 카드가 탁해지지도 않는다.
+                      흰 테두리는 밝든 어둡든 윤곽을 남겨 '누를 수 있는 칸'으로 읽히게 한다. */}
                   <div
                     className={`flex gap-1.5 rounded-2xl p-1 ${
-                      variant === "carousel" ? "bg-white/22" : "bg-slate-100"
+                      variant === "carousel"
+                        ? "bg-black/[0.16] ring-1 ring-inset ring-white/40"
+                        : "bg-slate-100"
                     }`}
                   >
                     <button
@@ -675,9 +706,13 @@ export default function EventCard({
                         iAmGoing
                           ? "bg-white text-emerald-600 shadow-sm"
                           : variant === "carousel"
-                            ? "text-white/75"
+                            ? "text-white"
                             : "text-slate-400"
                       }`}
+                      // 선택 안 된 쪽만 그라데이션 위에 흰 글씨로 놓인다 → 미세 그림자
+                      style={
+                        variant === "carousel" && !iAmGoing ? { textShadow: ON_MESH_SHADOW } : undefined
+                      }
                     >
                       {iAmGoing && (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-[14px] w-[14px]">
@@ -693,9 +728,12 @@ export default function EventCard({
                         !iAmGoing
                           ? "bg-white text-red-500 shadow-sm"
                           : variant === "carousel"
-                            ? "text-white/75"
+                            ? "text-white"
                             : "text-slate-400"
                       }`}
+                      style={
+                        variant === "carousel" && iAmGoing ? { textShadow: ON_MESH_SHADOW } : undefined
+                      }
                     >
                       {!iAmGoing && (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" className="h-[14px] w-[14px]">
@@ -746,15 +784,18 @@ export default function EventCard({
                 </div>
               )}
 
-              {/* 일정 페이지로 — 컬러 카드에서는 그라데이션 위 흰 글씨 */}
+              {/* 일정 페이지로.
+                  글씨만 두면 카드 아래쪽 밝은 구역에서 흰 글씨가 배경에 묻힌다 —
+                  위 토글과 같은 처리(살짝 눌린 자리 + 흰 테두리)로 '버튼'이 되게 한다. */}
               {onOpenDetail && (
                 <button
                   onClick={onOpenDetail}
                   className={`mt-2 w-full rounded-2xl py-2.5 text-[13px] font-semibold transition ${
                     variant === "carousel"
-                      ? "text-white/85 hover:bg-white/15"
+                      ? "bg-black/[0.16] text-white ring-1 ring-inset ring-white/40 hover:bg-black/25"
                       : "text-slate-400 hover:bg-slate-50"
                   }`}
+                  style={variant === "carousel" ? { textShadow: ON_MESH_SHADOW } : undefined}
                 >
                   일정에서 보기
                 </button>
@@ -769,7 +810,13 @@ export default function EventCard({
         variant === "list"
           ? "rounded-2xl bg-white shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
           : // 큰 라운드 + 옅은 그림자. 색이 이미 카드를 세워 주므로 그림자는 거들기만 한다.
-            "mesh-grain rounded-[28px] shadow-[0_4px_16px_-6px_rgba(16,24,40,0.16)]"
+            //
+            // ⚠️ 필름 그레인(.mesh-grain)을 일시적으로 뺀 상태다.
+            //    그레인은 mix-blend-mode: overlay로 얹히는데, 이 합성이 기기·화면
+            //    배율마다 다르게 계산돼 폰에서 색이 탁해지는 원인으로 의심된다.
+            //    먼저 그레인 없이 PC와 폰의 색이 같은지 확인한 뒤 다시 넣는다.
+            //    (CSS는 app/globals.css에 그대로 남아 있다)
+            "rounded-[28px] shadow-[0_4px_16px_-6px_rgba(16,24,40,0.16)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
       // 메시는 카드 '전체'에 건다 — 펼쳐서 길어져도 색이 끝까지 이어진다.
       // 목록(list)은 흰 카드 그대로 두고 왼쪽 세로 바로 구분한다.

@@ -79,19 +79,8 @@ function NoticeBar({ notices }: { notices: Post[] }) {
   const idx = notices.length > 0 ? i % notices.length : 0;
   const cur = notices[idx];
 
-  return (
-    <Link
-      // 지금 띠에 떠 있는 그 공지로 바로 들어간다.
-      // 공지가 없을 때만 게시판 목록으로 보낸다 (열 글이 없으므로).
-      href={cur ? `/board/${cur.id}` : "/board"}
-      aria-label={cur ? `공지 보기 — ${cur.title}` : "게시판 보기"}
-      onPointerEnter={() => setHeld(true)}
-      onPointerDown={() => setHeld(true)}
-      onPointerLeave={() => setHeld(false)}
-      onPointerUp={() => setHeld(false)}
-      onPointerCancel={() => setHeld(false)}
-      className="content-card mt-3 flex items-center gap-3 px-4 py-3"
-    >
+  const inner = (
+    <>
       <span className="flex shrink-0 items-center gap-1.5 text-accent">
         <MegaphoneIcon className="h-[17px] w-[17px]" />
         <span className="text-[13px] font-bold">공지</span>
@@ -113,6 +102,29 @@ function NoticeBar({ notices }: { notices: Post[] }) {
           {idx + 1}/{notices.length}
         </span>
       )}
+    </>
+  );
+
+  const box = "content-card mt-3 flex items-center gap-3 px-4 py-3";
+
+  // 공지가 없으면 누를 수 없는 그냥 칸이다.
+  // 링크로 두면 눌러서 게시판까지 갔다가 '공지가 없다'는 걸 그제서야 알게 된다 —
+  // 띠에 이미 "없어요"라고 적혀 있으니 들어갈 이유가 없다.
+  if (!cur) return <div className={box}>{inner}</div>;
+
+  return (
+    <Link
+      // 지금 띠에 떠 있는 그 공지로 바로 들어간다
+      href={`/board/${cur.id}`}
+      aria-label={`공지 보기 — ${cur.title}`}
+      onPointerEnter={() => setHeld(true)}
+      onPointerDown={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onPointerUp={() => setHeld(false)}
+      onPointerCancel={() => setHeld(false)}
+      className={box}
+    >
+      {inner}
     </Link>
   );
 }
