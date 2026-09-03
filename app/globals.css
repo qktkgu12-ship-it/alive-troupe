@@ -77,31 +77,6 @@ body {
   }
 }
 
-/* 홈 화면 맨 위 빛 번짐 — 상단이 휑해 보이던 걸 '색' 대신 '빛'으로 채운다.
-   홈에서만 쓴다 (AppShell이 경로를 보고 붙인다). 다른 화면은 .bg-canvas 그대로.
-
-   ⚠️ 브랜드 빛은 반드시 '가로로 균일'해야 한다.
-   맨 윗줄(y=0)의 색이 좌우로 다르면 폰 상태바 색(theme-color)은 단색 하나뿐이라
-   어느 한쪽에 경계선이 생긴다. 그래서 브랜드 빛은 linear-gradient(세로)로 깔고,
-   입체감을 주는 흰빛 radial은 중심을 아래로 내려 y=46px 위로는 닿지 않게 했다.
-   → 맨 윗줄은 항상 '--accent 10% + 배경'이라 상태바와 정확히 이어진다.
-
-   background-size로 340px를 못 박는 게 핵심 — 퍼센트로 두면 페이지 전체 높이
-   기준이라 아무리 스크롤해도 색이 안 끝난다. */
-.app-canvas {
-  background-color: rgb(var(--bg));
-  background-image:
-    radial-gradient(75% 34% at 92% 38%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 72%),
-    linear-gradient(
-      to bottom,
-      rgb(var(--accent) / 0.1) 0px,
-      rgb(var(--accent) / 0.06) 110px,
-      rgb(var(--accent) / 0) 300px
-    );
-  background-repeat: no-repeat;
-  background-size: 100% 340px;
-}
-
 /* 일정 카드 — 카드 폭을 기준으로 글자·여백이 따라 커지게 한다.
    (화면 폭이 아니라 '카드 폭' 기준이라 어느 기기에서도 같은 비율로 보인다) */
 .cq {
