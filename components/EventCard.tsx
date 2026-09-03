@@ -25,9 +25,9 @@ export const EXPAND = "360ms cubic-bezier(0.32, 0.72, 0.28, 1)";
 // 참고 시안의 색 가이드.
 // 핵심은 "색을 상태 배지 한 곳에만 쓴다" — 제목·시간·아바타·화살표는 전부 무채색이라
 // 카드가 컬러풀해 보이지 않으면서도 '오늘/D-데이'는 눈에 확 들어온다.
-const INK = "#1A1A1A"; // 제목 등 주요 텍스트
-const SUB = "#8E8E93"; // 날짜·시간 등 보조 텍스트
-const LINE = "#D1D1D6"; // 아이콘·펼치기 화살표
+// 캐러셀 카드는 컬러 배경 + 흰 글씨라 본문 색은 따로 두지 않는다.
+// 남은 건 상태 배지 색뿐 — 흰 알약 위에 이 색으로 글씨를 얹는다.
+const SUB = "#8E8E93"; // 이미 지난 일정 배지 (D+N)
 const TODAY = "#22C55E"; // 오늘
 const DDAY = "#FF3B30"; // 다가오는 일정 (D-N)
 
@@ -41,41 +41,47 @@ export const COLORS = {
   teamA: "#72CFC3", // 첫 번째 팀 — 민트
   teamB: "#9B8BEA", // 두 번째 팀 — 라벤더
   // 개별 지정·네이버 예약 — 예전엔 네이버 초록이었으나 주황으로 통일했다.
-  // 초록은 '오늘' 배지와 부딪혔고, 빨간 로고와도 긴장이 컸다.
-  individual: "#E9A15A",
+  // 채도를 올린 주황이다. 앞서 쓰던 #E9A15A는 옅게 깔면 베이지로 주저앉아
+  // 갈색처럼 탁하게 보였다.
+  individual: "#F0851A",
 } as const;
 
-// 짝 색 — 카테고리 색 맞은편에 두는 두 번째 광원.
-// 빛이 한 군데서만 오면 평평해 보여서, 반대쪽 모서리에 이웃 색조를 아주 옅게 깐다.
-// 색상환에서 바로 옆 색만 골랐다 — 멀리 떨어진 색을 쓰면 얼룩처럼 보인다.
-const COMPANION: Record<string, string> = {
-  [COLORS.all]: "#F5A55C", // 빨강 → 살구
-  [COLORS.teamA]: "#7EC8E3", // 민트 → 하늘
-  [COLORS.teamB]: "#E9A8D8", // 라벤더 → 분홍
-  [COLORS.individual]: "#F2C879", // 주황 → 노랑
+// 카드를 가득 채우는 컬러 메시. 카테고리마다 깊은색 → 중간색 → 밝은색 3단이다.
+//
+// ⚠️ 흰 글씨가 올라가므로 '깊은색'과 '중간색'은 충분히 어두워야 한다.
+//    밝은색은 글자가 없는 오른쪽 아래(아바타 자리)에만 닿게 배치한다.
+const MESH: Record<string, { deep: string; mid: string; light: string }> = {
+  [COLORS.teamA]: { deep: "#0E9384", mid: "#17A99A", light: "#6FD6C2" },
+  [COLORS.teamB]: { deep: "#5B3FC4", mid: "#7C63DC", light: "#B9A5EF" },
+  [COLORS.individual]: { deep: "#DE6F0C", mid: "#F0851A", light: "#F9BE5C" },
 };
 
-// 개별 일정은 화면에 가장 자주 뜬다. 다른 색과 같은 농도로 깔면
-// 목록 전체가 주황으로 물들어서, 이 색만 빛을 옅게 준다. (핸드오프 §4)
-const TINT = { main: 14, sub: 10 };
-const TINT_INDIVIDUAL = { main: 9, sub: 7 };
-
-/** 카드에 스며드는 빛.
+/** 카드를 채우는 컬러 메시 배경.
  *
- *  카테고리 색이 오른쪽 위에서, 짝 색이 왼쪽 아래에서 옅게 번진다.
- *  레퍼런스(토스 결제 카드)처럼 여러 색이 섞이는 느낌은 살리되 농도를 크게 낮췄다 —
- *  저건 흰 글씨를 얹은 '한 장짜리 주인공 카드'고, 우리 건 검은 글씨가 올라가는
- *  카드가 다섯 장 나란히 서는 자리라 같은 세기로는 못 쓴다.
+ *  왼쪽 위가 가장 진하고(제목·시간이 앉는 자리라 흰 글씨가 또렷해야 한다)
+ *  오른쪽 아래로 갈수록 밝아진다 — 레퍼런스 카드와 같은 빛의 흐름이다.
  *
- *  세기 조절은 위 TINT / TINT_INDIVIDUAL 숫자만 바꾸면 된다. */
-export function cardTint(color: string): string {
-  const t = color === COLORS.individual ? TINT_INDIVIDUAL : TINT;
-  const sub = COMPANION[color] ?? color;
-  return [
-    `radial-gradient(95% 72% at 100% 0%, color-mix(in srgb, ${color} ${t.main}%, transparent), transparent 60%)`,
-    `radial-gradient(85% 68% at 8% 100%, color-mix(in srgb, ${sub} ${t.sub}%, transparent), transparent 62%)`,
-  ].join(", ");
+ *  전체 일정은 표에 없다. 극단 설정 색에서 그때그때 만들어 쓰므로
+ *  관리자가 브랜드 색을 바꾸면 카드도 같이 따라간다. */
+export function cardMesh(color: string): React.CSSProperties {
+  const m =
+    MESH[color] ?? {
+      deep: `color-mix(in srgb, ${color} 82%, #6B0F1A 18%)`,
+      mid: color,
+      light: `color-mix(in srgb, ${color} 40%, #FFC46E 60%)`,
+    };
+  return {
+    backgroundColor: m.mid,
+    backgroundImage: [
+      `radial-gradient(125% 112% at 4% 0%, ${m.deep}, transparent 62%)`,
+      `radial-gradient(115% 100% at 100% 100%, ${m.light}, transparent 64%)`,
+    ].join(", "),
+  };
 }
+
+// 컬러 카드 위 작은 글씨는 배경 밝기가 자리마다 달라 그냥 흰색이면 흐려 보인다.
+// 아주 옅은 그림자 한 겹으로 어디서든 또렷하게 붙잡아 준다.
+const ON_MESH_SHADOW = "0 1px 2px rgba(16,24,40,0.28)";
 
 /** 일정 하나가 어떤 색을 쓸지 */
 export function eventColor(e: ScheduleEvent, teams: string[]): string {
@@ -338,9 +344,17 @@ export default function EventCard({
   // color-mix로 어떤 형식이든 같은 농도의 연한 배경을 만든다.
   const tint = `color-mix(in srgb, ${color} 10%, transparent)`;
 
+  // 펼친 상세에서 쓰는 전체 시간 (시작 ~ 종료)
   const timeLabel = e.startTime
     ? `${ampmTimeKo(e.startTime)}${e.endTime ? ` ~ ${ampmTimeKo(e.endTime, false)}` : ""}`
     : "시간 미정";
+  // 접힌 카드에서는 시작 시각만. 끝나는 시각까지 넣으면 줄이 길어지고,
+  // 접힌 상태에서 정말 필요한 건 '몇 시에 시작하나'뿐이다.
+  const startLabel = e.startTime ? ampmTimeKo(e.startTime) : "시간 미정";
+
+  // 이 일정을 만든 사람 — 단원 예약이 승인돼 만들어진 일정에만 기록돼 있다.
+  // 명단에서 못 찾으면(탈퇴 등) 줄 자체를 띄우지 않는다.
+  const creator = e.createdBy ? members.find((m) => m.uid === e.createdBy) : undefined;
 
   // 펼치기 화살표.
   // 캐러셀은 배경 없이 아이콘만 — 색을 빼서 '상태 배지'만 눈에 띄게 남긴다.
@@ -352,7 +366,11 @@ export default function EventCard({
           ? "grid h-5 w-5 shrink-0 place-items-center"
           : "grid h-7 w-7 shrink-0 place-items-center rounded-full"
       }
-      style={variant === "carousel" ? { color: LINE } : { backgroundColor: tint, color }}
+      style={
+        variant === "carousel"
+          ? { color: "rgba(255,255,255,0.82)" }
+          : { backgroundColor: tint, color }
+      }
     >
       <svg
         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6}
@@ -385,17 +403,24 @@ export default function EventCard({
             className={`relative w-full px-4 pt-4 text-left ${
               open ? "" : "flex flex-1 flex-col justify-start"
             }`}
-            style={{ paddingBottom: open ? 12 : 0 }}
+            // 카드를 채우는 컬러 메시는 머리에만 건다.
+            // 펼치면 머리만 컬러로 남고 그 아래 상세는 흰 바탕이라, 상세 안의
+            // 검은 글씨·회색 박스·토글이 손대지 않고도 그대로 읽힌다.
+            style={{ paddingBottom: open ? 12 : 0, ...cardMesh(color) }}
           >
-            {/* ① 상태 배지 + 날짜 + 펼치기 — 카드에서 색이 있는 유일한 줄 */}
+            {/* ① 상태 배지 + 날짜 + 펼치기.
+                컬러 배경 위에서는 옅은 tint 배지가 묻히므로 흰 알약에 상태색 글씨로 뒤집는다 */}
             <div className="flex items-center gap-2">
               <span
-                className="shrink-0 rounded-full px-2 py-[3px] text-[11px] font-bold leading-none"
-                style={{ color: statusColor, backgroundColor: statusBg }}
+                className="shrink-0 rounded-full bg-white px-2 py-[3px] text-[11px] font-bold leading-none"
+                style={{ color: statusColor }}
               >
                 {dday}
               </span>
-              <span className="truncate text-[13px] font-medium" style={{ color: SUB }}>
+              <span
+                className="truncate text-[13px] font-semibold text-white/90"
+                style={{ textShadow: ON_MESH_SHADOW }}
+              >
                 {dateFull}
               </span>
               {badge}
@@ -404,22 +429,25 @@ export default function EventCard({
 
             {/* ② 제목 — 카드에서 가장 큰 글자 */}
             <h3
-              className={`mt-2.5 line-clamp-2 h-[46px] text-[17px] font-bold leading-[23px] tracking-tight ${
+              className={`mt-2.5 line-clamp-2 h-[46px] text-[17px] font-bold leading-[23px] tracking-tight text-white ${
                 dimmed ? "line-through" : ""
               }`}
-              style={{ color: dimmed ? SUB : INK }}
+              style={{ textShadow: ON_MESH_SHADOW }}
             >
               {e.title}
             </h3>
 
-            {/* ③ 시간 — 보조 정보라 무채색으로 한 단계 내린다.
-                아이콘은 currentColor를 쓰므로 색을 부모에서 내려 준다 */}
-            <div className="mt-2 flex items-center gap-1.5" style={{ color: LINE }}>
-              <ClockIcon className="h-[15px] w-[15px] shrink-0" />
-              <span className="truncate text-[13px] font-medium" style={{ color: SUB }}>
-                {timeLabel}
-              </span>
-            </div>
+            {/* ③ 시작 시각 — 펼치면 감춘다.
+                펼친 상세 맨 위에 같은 시간이 다시 나오므로 두 번 읽힐 이유가 없다. */}
+            {!open && (
+              <div
+                className="mt-2 flex items-center gap-1.5 text-white/90"
+                style={{ textShadow: ON_MESH_SHADOW }}
+              >
+                <ClockIcon className="h-[15px] w-[15px] shrink-0" />
+                <span className="truncate text-[13px] font-semibold">{startLabel}</span>
+              </div>
+            )}
 
             {/* ④ 아바타 — 카드 오른쪽 아래. 접힘 전용 (펼치면 상세에 참여인원이 따로 나온다) */}
             <span
@@ -511,6 +539,21 @@ export default function EventCard({
                     {e.location || "장소 미정"}
                   </span>
                 </div>
+
+                {/* 만든 사람 — createdBy가 기록된 일정에만 나온다.
+                    (단원 예약이 승인돼 만들어진 일정과, 이후 관리자가 등록한 일정) */}
+                {creator && (
+                  <div className="flex items-center gap-2.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px] shrink-0 text-slate-400">
+                      <circle cx="12" cy="8" r="3.6" />
+                      <path d="M5.5 20v-1.2a4.5 4.5 0 0 1 4.5-4.5h4a4.5 4.5 0 0 1 4.5 4.5V20" />
+                    </svg>
+                    <span className="min-w-0 truncate text-[14px] text-slate-700">
+                      <strong className="font-semibold text-slate-900">{creator.name}</strong>
+                      님이 등록
+                    </span>
+                  </div>
+                )}
 
                 {/* 참여인원 — 누르면 참석·불참 명단 시트 */}
                 <button
@@ -633,13 +676,9 @@ export default function EventCard({
           ? "rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.03),0_6px_16px_-12px_rgba(16,24,40,0.1)]"
           : "rounded-3xl shadow-[0_2px_4px_rgba(16,24,40,0.04),0_8px_24px_-8px_rgba(16,24,40,0.12)]"
       } ${dimmed ? "opacity-60" : ""} ${wrapperClassName}`}
-      style={{
-        ...wrapperStyle,
-        // 카테고리 빛은 캐러셀 카드에만. 목록(list)은 이미 왼쪽 세로 바로 구분하고 있어서
-        // 빛까지 얹으면 색이 두 번 겹친다 (핸드오프 §8).
-        // 지난 일정처럼 흐리게 처리한 카드는 색도 빼서 흰 카드로 둔다.
-        ...(variant === "carousel" && !dimmed ? { backgroundImage: cardTint(color) } : null),
-      }}
+      // 컬러 메시는 카드 전체가 아니라 '머리'에만 건다 (carouselHead 참고).
+      // 펼치면 머리만 컬러로 남고 아래 상세는 이 흰 바탕을 그대로 쓴다.
+      style={wrapperStyle}
     >
       {variant === "list" ? (
         <>

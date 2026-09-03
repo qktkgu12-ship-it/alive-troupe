@@ -120,7 +120,7 @@ const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
 // color는 흰 배경 위 글자용이라 같은 색조를 어둡게 잡았다.
 // ⚠️ '네이버 예약 관리' 버튼들의 #03C75A는 그대로 둔다 — 저건 카테고리 색이 아니라
 //    네이버로 나가는 브랜드 버튼이다.
-const INDIVIDUAL_COLOR = { border: "#E9A15A", color: "#9A5A18", bg: "rgba(233,161,90,0.18)" };
+const INDIVIDUAL_COLOR = { border: "#F0851A", color: "#9C500A", bg: "rgba(240,133,26,0.20)" };
 
 function getTeamColor(team: string | undefined, teams: string[]) {
   if (!team) return null;
