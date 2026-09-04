@@ -62,10 +62,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
         {/* 폰트는 JS 파싱을 기다리지 않고 HTML 파싱 시점에 바로 요청 시작.
             media="print"라 렌더를 막지 않고, 아래 스크립트가 로드 후 all로 전환 */}
-        <link id="alive-font" rel="stylesheet" href={FONT_CSS} media="print" />
+        {/* suppressHydrationWarning: 위 스크립트가 React보다 먼저 media를 all로 바꿔 두므로
+            서버 HTML(print)과 화면(all)이 다르다. 의도된 차이라 경고만 끈다. */}
+        <link id="alive-font" rel="stylesheet" href={FONT_CSS} media="print" suppressHydrationWarning />
         {/* 이모지 글꼴도 같은 방식으로 — 늦게 와도 시스템 이모지가 먼저 보일 뿐이라
             글이 안 보이는 구간은 없다 */}
-        <link id="alive-emoji" rel="stylesheet" href={EMOJI_CSS} media="print" />
+        <link id="alive-emoji" rel="stylesheet" href={EMOJI_CSS} media="print" suppressHydrationWarning />
         <noscript>
           <link rel="stylesheet" href={FONT_CSS} />
           <link rel="stylesheet" href={EMOJI_CSS} />

@@ -39,6 +39,32 @@ const NO_MARKS: Marks = {
 //    그 순간 누르고 있던 버튼이 사라져 탭이 먹히지 않는다.
 //    (폰에서 툴바가 아예 동작하지 않던 원인 중 하나였다)
 
+/**
+ * 폰에서 확실하게 먹히는 '누름'.
+ *
+ * ⚠️ click을 기다리면 안 된다. 편집칸의 커서를 지키려고 pointerdown을 막는데,
+ *    pointerdown을 막으면 브라우저가 그 뒤에 만들어 주던 mousedown·click까지
+ *    같이 취소해 버리는 기기가 있다 → 버튼이 아무 일도 안 한다.
+ *    그래서 누르는 순간(pointerdown)에 바로 실행하고,
+ *    뒤따라 click이 오더라도 방금 처리한 것이면 무시한다.
+ *    (키보드 Enter처럼 pointerdown 없이 오는 click은 그대로 살아 있다)
+ */
+function usePress(onPress: () => void) {
+  const firedAt = useRef(0);
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      firedAt.current = Date.now();
+      onPress();
+    },
+    onMouseDown: (e: React.MouseEvent) => e.preventDefault(),
+    onClick: () => {
+      if (Date.now() - firedAt.current < 700) return;
+      onPress();
+    },
+  };
+}
+
 // 켜져 있는 버튼은 강조색 알약으로 바뀐다.
 // 굵게/기울임처럼 '지금 상태'가 있는 기능은, 눌러서 켠 건지 원래 켜져 있던 건지
 // 표시가 없으면 글을 쓰다가 알 수가 없다.
@@ -57,14 +83,11 @@ function Btn({
   active?: boolean;
   children: ReactNode;
 }) {
+  const press = usePress(onPress);
   return (
     <button
       type="button"
-      // pointerdown으로 막아야 한다. mousedown은 폰에서 손을 뗀 뒤에야 오므로
-      // 그때는 이미 편집칸의 포커스와 선택 영역이 날아간 뒤다.
-      onPointerDown={(e) => e.preventDefault()}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onPress}
+      {...press}
       aria-label={label}
       aria-pressed={active}
       title={label}
@@ -93,13 +116,12 @@ function Dropdown({
   active?: boolean;
   children: ReactNode;
 }) {
+  const press = usePress(onToggle);
   return (
     <div className="relative">
       <button
         type="button"
-        onPointerDown={(e) => e.preventDefault()}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onToggle}
+        {...press}
         aria-label={label}
         aria-expanded={open}
         title={label}
@@ -132,12 +154,11 @@ function MenuItem({
   active?: boolean;
   children: ReactNode;
 }) {
+  const press = usePress(onPress);
   return (
     <button
       type="button"
-      onPointerDown={(e) => e.preventDefault()}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onPress}
+      {...press}
       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50 active:bg-slate-100 ${
         active ? "font-semibold text-accent" : "text-slate-700"
       }`}
@@ -179,19 +200,45 @@ export default function RichEditor({
   // 지금 커서 자리에 어떤 서식이 걸려 있는지 — 툴바를 켜고 끄는 데 쓴다
   const [on, setOn] = useState<Marks>(NO_MARKS);
 
-  // 커서가 <font size="n"> 안에 있으면 그 n. 크기를 지정한 적 없으면 빈 문자열.
-  const explicitSize = useCallback(() => {
+  /**
+   * 커서 자리에서 위로 올라가며 어떤 태그에 싸여 있는지 직접 본다.
+   *
+   * queryCommandState만 믿으면 안 되는 이유: 이 값은 브라우저가 알아서 계산해
+   * 주는 편의 기능이라 기기·브라우저마다 결과가 다르다. 특히 폰에서는
+   * 아무 서식도 안 걸린 것처럼 false만 돌려주는 경우가 있다 →
+   * 툴바가 영영 안 켜진다. 태그를 직접 훑으면 어디서 그리든 답이 같다.
+   */
+  const domMarks = useCallback(() => {
+    const found = {
+      bold: false, italic: false, underline: false, strike: false,
+      ul: false, ol: false, quote: false, align: "", size: "",
+    };
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return "";
+    if (!sel || sel.rangeCount === 0) return found;
     let n: Node | null = sel.getRangeAt(0).commonAncestorContainer;
     while (n && n !== ref.current) {
-      if (n instanceof HTMLElement && n.tagName === "FONT") {
-        const s = n.getAttribute("size");
-        if (s) return s;
+      if (n instanceof HTMLElement) {
+        switch (n.tagName) {
+          case "B": case "STRONG": found.bold = true; break;
+          case "I": case "EM": found.italic = true; break;
+          case "U": found.underline = true; break;
+          case "S": case "STRIKE": case "DEL": found.strike = true; break;
+          case "UL": found.ul = true; break;
+          case "OL": found.ol = true; break;
+          case "BLOCKQUOTE": found.quote = true; break;
+          case "FONT": {
+            const s = n.getAttribute("size");
+            if (s && !found.size) found.size = s;
+            break;
+          }
+        }
+        // 정렬은 가장 가까운 것이 이긴다 (안쪽 블록이 바깥을 덮어쓴다)
+        const a = n.style?.textAlign;
+        if (a && !found.align) found.align = a;
       }
       n = n.parentNode;
     }
-    return "";
+    return found;
   }, []);
 
   const syncMarks = useCallback(() => {
@@ -209,24 +256,30 @@ export default function RichEditor({
         return "";
       }
     };
+    // 둘 중 하나라도 잡아내면 켠다 — 브라우저가 놓친 걸 태그 훑기가 받쳐 준다
+    const d = domMarks();
+    const alignFromDom =
+      d.align === "center" ? "justifyCenter" : d.align === "right" ? "justifyRight" : "";
     setOn({
-      bold: q("bold"),
-      italic: q("italic"),
-      underline: q("underline"),
-      strike: q("strikeThrough"),
-      ul: q("insertUnorderedList"),
-      ol: q("insertOrderedList"),
+      bold: q("bold") || d.bold,
+      italic: q("italic") || d.italic,
+      underline: q("underline") || d.underline,
+      strike: q("strikeThrough") || d.strike,
+      ul: q("insertUnorderedList") || d.ul,
+      ol: q("insertOrderedList") || d.ol,
       // formatBlock은 대소문자가 브라우저마다 다르다 (blockquote / BLOCKQUOTE)
-      quote: v("formatBlock").toLowerCase() === "blockquote",
-      align: q("justifyCenter") ? "justifyCenter" : q("justifyRight") ? "justifyRight" : "justifyLeft",
-      // 크기는 queryCommandValue를 믿지 않는다.
+      quote: v("formatBlock").toLowerCase() === "blockquote" || d.quote,
+      align:
+        alignFromDom ||
+        (q("justifyCenter") ? "justifyCenter" : q("justifyRight") ? "justifyRight" : "justifyLeft"),
+      // 크기는 queryCommandValue를 쓰지 않는다.
       // 그 값은 '지금 글자가 몇 픽셀인가'를 1~7로 환산해 주는 거라,
       // 크기를 한 번도 안 건드린 글자도 편집칸 기본 글씨 크기에 따라
       // 2가 나오기도 3이 나오기도 한다 → 툴바가 늘 켜져 있게 된다.
       // 대신 execCommand가 실제로 만들어 넣는 <font size="n">를 직접 찾는다.
-      size: explicitSize() || "3",
+      size: d.size || "3",
     });
-  }, [explicitSize]);
+  }, [domMarks]);
 
   const remember = useCallback(() => {
     const sel = window.getSelection();
@@ -379,10 +432,12 @@ export default function RichEditor({
         onMouseUp={remember}
         onTouchEnd={remember}
         onFocus={syncMarks}
+        // ⚠️ 여기서 툴바를 끄지 않는다.
+        //    폰에서는 툴바를 누르는 순간 편집칸이 잠깐 blur되는 기기가 있어서,
+        //    끄게 두면 버튼을 누르자마자 표시가 도로 꺼진다.
+        //    게다가 이 에디터는 '마지막 커서 자리'를 기억해 뒀다 그 자리에 명령을
+        //    거는 방식이라, 그 자리의 서식을 계속 보여 주는 쪽이 사실에 맞다.
         onBlur={() => {
-          // 편집칸을 떠나면 툴바도 꺼진 상태로 되돌린다 —
-          // 다른 곳을 보고 있는데 굵게 버튼만 켜져 있으면 무엇에 걸린 표시인지 알 수 없다
-          setOn(NO_MARKS);
           if (ref.current) onChange(sanitizeRichHtml(ref.current.innerHTML));
         }}
         data-placeholder={placeholder}
