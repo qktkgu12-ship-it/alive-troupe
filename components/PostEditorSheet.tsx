@@ -200,6 +200,11 @@ export default function PostEditorSheet({
     if (!open) return;
     let alive = true;
 
+    // 지난번에 쓴 글의 커서·서식이 남아 있으면 안 된다.
+    // (이 시트는 닫혀도 화면에서 사라지지 않아 값이 그대로 남는다)
+    savedRange.current = null;
+    setMarks(NO_MARKS);
+
     (async () => {
       if (editing) {
         setBoard(editing.board);
@@ -337,12 +342,30 @@ export default function PostEditorSheet({
   }, [open, rememberCaret]);
 
   const restoreCaret = useCallback(() => {
-    bodyRef.current?.focus();
-    const r = savedRange.current;
-    // 기억해 둔 자리가 없으면(= 아직 한 글자도 안 썼거나 커서를 둔 적이 없으면)
-    // 맨 끝에 커서를 놓는다. 그래야 바로 서식부터 켜도 그대로 먹힌다.
-    if (!r) return placeCaretAtEnd(bodyRef.current);
+    const body = bodyRef.current;
+    if (!body) return;
     const sel = window.getSelection();
+
+    // ⚠️ 커서가 이미 편집칸 안에 있으면 선택에 손을 대지 않는다.
+    //    removeAllRanges()는 '눌러는 뒀지만 아직 어떤 글자에도 안 붙은 서식'을
+    //    같이 날려 버린다. 빈 칸에서 굵게를 켜고 이어서 크게를 누르면
+    //    굵게가 조용히 사라지던 것이 이것 때문이었다.
+    //    (되돌려 놓는 건 툴바가 커서를 빼앗아 갔을 때만 필요한 일이다)
+    if (sel && sel.rangeCount > 0 && body.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      body.focus();
+      return;
+    }
+
+    body.focus();
+    const r = savedRange.current;
+    // 기억해 둔 자리가 없거나, 그 자리가 지금 편집칸 밖이면 맨 끝에 커서를 놓는다.
+    //
+    // ⚠️ '밖인지'를 꼭 확인해야 한다. 이 시트는 닫혀도 화면에서 사라지지 않고
+    //    null만 그리는 구조라(lib/post-editor-context), 글을 하나 쓰고 나면
+    //    savedRange가 '이미 지워진 이전 글의 글자'를 계속 가리킨다.
+    //    그걸 그대로 되돌리면 커서가 어디에도 없는 상태가 되어,
+    //    새 글에서 서식 버튼이 아무 반응도 안 한다.
+    if (!r || !body.contains(r.commonAncestorContainer)) return placeCaretAtEnd(body);
     sel?.removeAllRanges();
     sel?.addRange(r);
   }, []);
@@ -705,7 +728,7 @@ export default function PostEditorSheet({
              왼쪽 흰 동그라미 ✕ · 가운데 굵은 제목 · 오른쪽 강조색 동그라미 ✓.
              두 시트가 다르게 생기면 같은 앱에서 규칙이 두 개인 것처럼 보인다.
              ⚠️ 치수를 바꿀 일이 있으면 BottomSheet의 헤더도 같이 볼 것. */}
-        <header className="flex shrink-0 items-center justify-between bg-canvas px-4 py-3">
+        <header className="flex shrink-0 items-center gap-2 px-4 py-3">
           <button
             onClick={handleCancel}
             aria-label={kbOpen ? "키보드 내리기" : "닫기"}
@@ -714,16 +737,16 @@ export default function PostEditorSheet({
             {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : <XIcon className="h-[22px] w-[22px]" />}
           </button>
 
-          {/* 가운데는 바텀시트의 제목 자리다. 여기서는 '어느 게시판에 쓰는 글인지'가
-              곧 제목이고, 누르면 글 설정(게시판·태그·공지)이 열린다. */}
+          {/* 게시판 고르기 — 취소 버튼 바로 옆에, 같은 흰 알약으로.
+              누르면 글 설정(게시판·태그·공지)이 열린다. */}
           <button
             onClick={() => {
               (document.activeElement as HTMLElement | null)?.blur();
               setOptionsOpen(true);
             }}
-            className="flex min-w-0 items-center gap-1 rounded-full px-2 py-1 transition active:bg-slate-200/60"
+            className="flex h-11 min-w-0 items-center gap-1 rounded-full bg-white px-4 shadow-sm transition hover:bg-slate-50 active:scale-95"
           >
-            <span className="truncate text-[16px] font-bold text-slate-900">{board || "게시판 선택"}</span>
+            <span className="truncate text-[15px] font-bold text-slate-900">{board || "게시판 선택"}</span>
             <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-500" />
           </button>
 
@@ -732,7 +755,7 @@ export default function PostEditorSheet({
             onClick={submit}
             disabled={busy || !canSubmit}
             aria-label={editing ? "수정 완료" : "게시"}
-            className={`grid h-11 w-11 shrink-0 place-items-center rounded-full shadow-sm transition active:scale-95 ${
+            className={`ml-auto grid h-11 w-11 shrink-0 place-items-center rounded-full shadow-sm transition active:scale-95 ${
               canSubmit ? "text-accent-fg hover:brightness-110" : "bg-white text-slate-300"
             }`}
             style={canSubmit ? { backgroundColor: "rgb(var(--accent))" } : undefined}
@@ -749,7 +772,7 @@ export default function PostEditorSheet({
 
         {/* ── 제목 · 본문 · 툴바 — 셋이 한 스크롤 안에 있다 ──
              툴바가 본문 밑에 흐름대로 놓여, 글이 길어지면 같이 내려간다. */}
-        <div ref={scrollRef} className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
+        <div ref={scrollRef} className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <input
             ref={titleRef}
             value={title}
@@ -757,7 +780,7 @@ export default function PostEditorSheet({
             placeholder="제목"
             // 제목과 본문 사이를 벌린다 — 붙어 있으면 제목의 첫 줄처럼 읽힌다.
             // 아래 본문의 pt-6과 합쳐 약 28px. (예전엔 4px밖에 안 됐다)
-            className="w-full bg-white px-4 pb-2 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-300"
+            className="w-full bg-transparent px-4 pb-2 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-300"
           />
 
           <div
@@ -785,7 +808,7 @@ export default function PostEditorSheet({
 
           {/* ── 툴바 — 본문 바로 밑 ──
                순서: 링크 · 사진 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 정렬 · 더보기 */}
-          <div className="border-t border-slate-100">
+          <div className="border-t border-slate-200/70">
             <div className="flex h-[52px] items-center gap-0.5 px-2">
               <ToolBtn onPress={openLinkSheet} label="링크">
                 <LinkIcon className="h-[20px] w-[20px]" />
@@ -846,7 +869,7 @@ export default function PostEditorSheet({
 
             {/* 더보기 — 자주 안 쓰는 서식은 여기로 내렸다 */}
             {moreOpen && (
-              <div className="flex h-[52px] items-center gap-0.5 border-t border-slate-100 px-2">
+              <div className="flex h-[52px] items-center gap-0.5 border-t border-slate-200/70 px-2">
                 <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}>
                   <span className="text-[16px] line-through">S</span>
                 </ToolBtn>
