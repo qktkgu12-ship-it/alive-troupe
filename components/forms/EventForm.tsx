@@ -502,9 +502,13 @@ export default function EventForm({
             movedPlace ? "장소" : "",
           ].filter(Boolean).join("·");
           const target = data.participantUids.length > 0 ? data.participantUids : null;
+          // 알림은 '제목 1줄 + from ALIVE 1줄 + 본문 1줄' 세 줄로 맞춘다.
+          // 길이가 변하는 일정 제목은 제목줄에 둔다 — 제목은 iOS가 한 줄로 잘라 주지만
+          // 본문은 줄바꿈해서 늘어난다.
           const msg = {
-            title: `일정 ${changed}이 변경됐어요`,
-            body: [data.title, when, data.location].filter(Boolean).join("\n"),
+            title: `[${changed} 변경] ${data.title}`,
+            // 바뀐 것만 한 줄로. 시간이 바뀌었으면 시간, 장소만 바뀌었으면 장소.
+            body: movedDate || movedTime ? when : `장소: ${data.location}`,
             href: `/schedule?tab=events&date=${selectedDate}`,
             tag: `event-changed-${eventId}`,
           };
@@ -520,8 +524,8 @@ export default function EventForm({
           createdAt: Date.now(),
         });
         void pushToAll({
-          title: "새 일정이 등록됐어요",
-          body: [data.title, when].filter(Boolean).join("\n"),
+          title: `[새 일정] ${data.title}`,
+          body: when,
           href: `/schedule?tab=events&date=${selectedDate}`,
           tag: "event",
         });

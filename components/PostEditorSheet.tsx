@@ -464,7 +464,7 @@ export default function PostEditorSheet({
         await setDoc(doc(db, "posts", id), post);
         clearSearchCache();
         if (post.isNotice) {
-          void pushToAll({ title: "📢 새 공지", body: post.title, href: `/board/${id}`, tag: "notice" });
+          void pushToAll({ title: `📢 ${post.title}`, body: "새 공지가 올라왔어요.", href: `/board/${id}`, tag: "notice" });
         }
         try {
           localStorage.removeItem(draftKey);

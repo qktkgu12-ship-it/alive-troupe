@@ -401,12 +401,11 @@ export default function EventCard({
       // 여기서 정작 중요한 건 '누가, 왜'다.
       const absentMsg = {
         title: `[불참] ${e.title}`,
-        body: [
-          `${myName || "단원"}님이 불참을 알렸어요.`,
-          reason.trim() ? `사유: ${reason.trim()}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        // 본문은 한 줄로 — 사유가 있으면 그 줄에 이어 붙인다.
+        // 두 줄이 되면 "from ALIVE"까지 합쳐 알림이 네 줄로 늘어난다.
+        body: reason.trim()
+          ? `${myName || "단원"}님 불참 · ${reason.trim()}`
+          : `${myName || "단원"}님이 불참을 알렸어요.`,
         href: `/schedule?tab=events&date=${e.date}`,
         tag: `absence-${e.id}`,
       };

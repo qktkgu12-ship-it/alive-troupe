@@ -230,6 +230,8 @@ function PostDetailInner() {
   function notifyComment(text: string, isReply: boolean, mentionUids: string[]) {
     if (!post) return;
     const who = profile?.name || profile?.displayName || "누군가";
+    // 댓글은 길이를 알 수 없다. 여기서 한 번 줄이고, 알림 한 줄에 맞추는 최종 재단은
+    // 서버(app/api/push)가 한다 — 그래야 모든 알림이 같은 기준으로 세 줄에 맞는다.
     const short = text.length > 60 ? `${text.slice(0, 60)}…` : text;
 
     // ① 언급된 사람 — 나를 콕 집어 부른 것이므로 문구를 따로 준다

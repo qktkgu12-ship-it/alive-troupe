@@ -617,8 +617,8 @@ function CoordSection({
     // 가능한 날짜를 받아야 하므로, 대상자에게 바로 알린다.
     // 대상을 지정했으면 그 사람들에게만, 아니면 단원 전체에게.
     const msg = {
-      title: `${myName || "누군가"}님이 새 일정방을 만들었어요.`,
-      body: `${fields.title}\n가능한 날짜를 알려주세요`,
+      title: `[새 일정방] ${fields.title}`,
+      body: "가능한 날짜를 알려주세요",
       href: `/schedule?tab=coord&coord=${id}`,
       tag: "coord",
     };
@@ -1544,10 +1544,10 @@ function CoordDetail({
       }
       if (!confirm(`아직 안 낸 ${to.length}명에게 알림을 보낼까요?`)) return;
       await pushToUsers(to, {
-        title: "가능한 날짜를 알려주세요",
-        body: [coord.title, coord.deadline ? `${deadlineLabel(coord.deadline)} 마감` : ""]
-          .filter(Boolean)
-          .join("\n"),
+        title: `[일정방] ${coord.title}`,
+        body: coord.deadline
+          ? `아직 안 내셨어요 · ${deadlineLabel(coord.deadline)} 마감`
+          : "아직 가능한 날짜를 안 내셨어요",
         href: `/schedule?tab=coord&coord=${coord.id}`,
         tag: `coord-nudge-${coord.id}`,
       });
@@ -1938,10 +1938,8 @@ function CoordDetail({
               //    (EventForm의 '새 일정' 알림은 전체에게 가므로 '내가 낸 일정방이 정해졌다'는 맥락이 없다)
               {
                 const msg = {
-                  title: "일정방 날짜가 정해졌어요 🎉",
-                  body: [coord.title, bookingWhenLabel(confirmDraft.date, start, end)]
-                    .filter(Boolean)
-                    .join("\n"),
+                  title: `[일정 확정] ${coord.title}`,
+                  body: bookingWhenLabel(confirmDraft.date, start, end),
                   href: `/schedule?tab=events&date=${confirmDraft.date}`,
                   tag: `coord-done-${coord.id}`,
                 };
@@ -2657,12 +2655,9 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
     await deleteDoc(doc(db, "bookingRequests", r.id));
     // 신청 단원에게 거절 알림 — 승인만 알리고 거절은 안 알리면 계속 기다리게 된다.
     // 날짜·시간은 넣지 않는다 (승인 알림과 달리, 안 잡힌 시간을 다시 읽어 봐야 소용이 없다).
-    // 대신 본문 첫 줄에 신청 제목이 있어 어느 신청인지는 바로 보인다.
     await pushToUsers([r.requesterUid], {
-      title: "[예약거절]",
-      body: reason
-        ? `${r.title}\n사유: ${reason}`
-        : `${r.title}\n예약이 어렵게 되었어요. 다른 시간으로 신청해 주세요.`,
+      title: `[예약거절] ${r.title}`,
+      body: reason ? `사유: ${reason}` : "다른 시간으로 신청해 주세요.",
       href: "/schedule?tab=events",
       tag: "booking-rejected",
     });
@@ -3203,9 +3198,10 @@ function EventsSection({
     if (gone && !eventPassed(gone)) {
       // 날짜·시간은 넣지 않는다 — 제목만으로 어느 일정인지 알 수 있고,
       // 이미 없어진 일정의 시간을 다시 읽어 봐야 할 일이 없다.
+      // 길이가 변하는 일정 제목은 제목줄에 둔다 (본문에 두면 줄바꿈돼 알림이 네 줄이 된다).
       const msg = {
-        title: "일정이 취소됐어요",
-        body: gone.title,
+        title: `[취소] ${gone.title}`,
+        body: "이 일정이 취소됐어요.",
         href: "/schedule?tab=events",
         tag: `event-cancelled-${id}`,
       };

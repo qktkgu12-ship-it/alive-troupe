@@ -158,9 +158,10 @@ function WriteInner() {
       clearSearchCache(); // 방금 쓴 글이 검색에 바로 잡히도록
       // 공지만 푸시로 알린다. 일반 글까지 울리면 알림이 너무 잦다.
       if (post.isNotice) {
+        // 길이가 변하는 글 제목은 제목줄에 — 본문에 두면 줄바꿈돼 알림이 네 줄이 된다
         void pushToAll({
-          title: "📢 새 공지",
-          body: post.title,
+          title: `📢 ${post.title}`,
+          body: "새 공지가 올라왔어요.",
           href: `/board/${id}`,
           tag: "notice",
         });

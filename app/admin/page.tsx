@@ -106,7 +106,7 @@ function AdminInner() {
     if (before === "guest" && role !== "guest") {
       void pushToUsers([uid], {
         title: "가입이 승인됐어요 🎉",
-        body: "이제 ALIVE의 모든 기능을 이용할 수 있어요.",
+        body: "이제 모든 기능을 쓸 수 있어요.",
         href: "/",
         tag: "approval",
       });
