@@ -160,7 +160,7 @@ function WriteInner() {
       if (post.isNotice) {
         // 길이가 변하는 글 제목은 제목줄에 — 본문에 두면 줄바꿈돼 알림이 네 줄이 된다
         void pushToAll({
-          title: `📢 ${post.title}`,
+          title: `📢 공지 · ${post.title}`,
           body: "새 공지가 올라왔어요.",
           href: `/board/${id}`,
           tag: "notice",

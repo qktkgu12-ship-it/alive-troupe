@@ -8,14 +8,13 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/fi
 import { db } from "@/lib/firebase";
 import { pushToAll, pushToUsers } from "@/lib/push";
 import {
-  shortDateKo,
-  shortTimeKo,
   buildMonthGrid,
   toDateStr,
   TIME_SLOTS,
   slotEnd,
   WEEKDAYS_KO,
   ampmTimeKo,
+  when24,
 } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
@@ -26,6 +25,16 @@ import { CalendarIcon } from "@/components/Icons";
 import type { ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
+
+/** 앞말의 받침에 따라 '로 / 으로'를 고른다 ("얼라이브로", "연습실로", "지하 1층으로").
+ *  "(으)로"는 알림 문구에 그대로 보이면 어색해서 직접 고른다. */
+function ro(word: string): string {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (!last || code < 0xac00 || code > 0xd7a3) return "로"; // 한글이 아니면 그냥 '로'
+  const jong = (code - 0xac00) % 28;
+  return jong === 0 || jong === 8 ? "로" : "으로"; // 받침 없음·ㄹ 받침이면 '로'
+}
 
 // "HH:mm" → 분
 function toMinutes(t: string): number {
@@ -504,7 +513,7 @@ export default function EventForm({
           const msg = {
             title: `일정 변경 · ${data.title}`,
             // 바뀐 것만 한 줄로. 시간이 바뀌었으면 시간, 장소만 바뀌었으면 장소.
-            body: movedDate || movedTime ? when : `장소가 ${data.location}(으)로 변경됐어요.`,
+            body: movedDate || movedTime ? when : `장소가 ${data.location}${ro(data.location)} 변경됐어요.`,
             href: `/schedule?tab=events&date=${selectedDate}`,
             tag: `event-changed-${eventId}`,
           };
