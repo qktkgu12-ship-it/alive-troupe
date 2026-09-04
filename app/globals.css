@@ -13,7 +13,10 @@
   --bg: 247 248 250; /* 아주 옅은 회색 캔버스 */
   --surface: 241 244 248; /* 칩·탭 등 보조 면 */
   --surface-strong: 226 232 240; /* 구분선 */
-  --font-sans: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo",
+  /* 원티드 산스 (SIL OFL). 기하학적 뼈대에 사람 손맛이 남아 있어
+     큰 라운드 카드·컬러 그라데이션과 결이 맞는다.
+     ⚠️ 이모지는 이 글꼴이 아니라 .tf(토스페이스)가 맡는다. */
+  --font-sans: "Wanted Sans Variable", "Wanted Sans", "Apple SD Gothic Neo",
     "Malgun Gothic", system-ui, sans-serif;
 }
 

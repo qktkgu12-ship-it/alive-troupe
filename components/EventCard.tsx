@@ -488,15 +488,14 @@ export default function EventCard({
             {/* ① 상태 배지 + 날짜 + 펼치기.
                 컬러 배경 위에서는 옅은 tint 배지가 묻히므로 흰 알약에 상태색 글씨로 뒤집는다 */}
             <div className="flex items-center gap-2">
-              {/* 위아래 안여백이 3/3이 아니라 4/2다 — 일부러 어긋나게 뒀다.
-                  글자는 line-height 상자의 '가운데'가 아니라 폰트가 정해 둔 기준선 위에
-                  그려지는데, 그 기준선 위치가 폰트마다 다르다.
-                  PC(Pretendard)는 거의 정가운데지만, 폰은 이 글꼴이 없어 다른 글꼴로
-                  대체되고 그 글꼴은 글자를 1px쯤 위에 그린다 → 칩 안에서 위로 뜬 것처럼 보인다.
-                  위쪽을 1px 더 벌려 눈에 보이는 위치를 가운데로 맞췄다 (칩 높이는 그대로).
-                  ※ 근본 해결은 Pretendard를 웹폰트로 실어 PC·폰이 같은 글꼴을 쓰게 하는 것. */}
+              {/* 위아래 안여백이 3/3이 아니라 3.5/2.5다 — 일부러 0.5px 어긋나게 뒀다.
+                  글자는 줄상자의 '가운데'가 아니라 글꼴이 정해 둔 기준선 위에 그려진다.
+                  원티드 산스를 11px 굵게로 재 보면 글자가 줄상자에서 0.5px 위에 앉는다
+                  ('D-4'·'오늘' 둘 다). 위쪽을 그만큼 더 벌려 눈에 보이는 위치를 맞췄다.
+                  칩 높이(안여백 합 6px)는 그대로다.
+                  ※ 이제 웹폰트가 모든 기기에 실리므로 이 보정값은 어디서나 같게 먹는다. */}
               <span
-                className="shrink-0 rounded-full bg-white px-2 pb-[2px] pt-[4px] text-[11px] font-bold leading-none"
+                className="shrink-0 rounded-full bg-white px-2 pb-[2.5px] pt-[3.5px] text-[11px] font-bold leading-none"
                 style={{ color: statusColor }}
               >
                 {dday}

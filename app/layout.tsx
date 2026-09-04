@@ -27,13 +27,17 @@ export const viewport: Viewport = {
   colorScheme: "light", // 다크모드 기기의 '검은 로딩화면' 방지
 };
 
-// ⚠️ 파일 이름을 꼭 확인할 것. 예전 주소(pretendard-dynamic-subset.min.css)는
-//    v1.3.9에 없는 파일이라 404였고, 그동안 이 앱은 웹폰트 없이 기기 기본 글꼴로
-//    그려지고 있었다 (PC는 맑은 고딕, 아이폰은 애플 SD 산돌고딕…).
-//    글자 위치가 기기마다 미묘하게 달랐던 것도 이 때문이다.
-//    변수 폰트는 파일명이 'pretendardvariable-…'로 시작한다.
+// 본문 글꼴 — 원티드 산스 (wanteddev/wanted-sans, SIL OFL).
+//
+// split 빌드를 쓴다. 통짜 파일은 1.26MB지만 이건 92조각으로 나뉘어 있어
+// unicode-range로 화면에 실제로 쓰인 글자 조각만 받아 온다 (Pretendard와 같은 방식).
+//
+// ⚠️ 주소를 바꿀 땐 반드시 응답이 200인지 확인할 것.
+//    예전 Pretendard 주소가 404였는데 아무 표시가 없어서, 이 앱은 오랫동안
+//    웹폰트 없이 기기 기본 글꼴로 그려지고 있었다 (PC는 맑은 고딕, 아이폰은 애플 SD).
+//    글자 위치가 기기마다 미묘하게 다르던 것도 그 탓이었다.
 const FONT_CSS =
-  "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css";
+  "https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.css";
 
 // 토스페이스 — 이모지 글꼴 (https://github.com/toss/tossface, TossSpace License).
 // 기기마다 제각각인 시스템 이모지(애플·구글·삼성) 대신 어디서나 같은 그림이 나온다.

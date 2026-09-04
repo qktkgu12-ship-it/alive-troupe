@@ -290,7 +290,7 @@ function HomeInner() {
         </h1>
         {/* 캐치프라이즈 — 예전엔 font-mono + 대문자 + 자간 0.2em이었는데,
             고정폭 서체는 이미 글자 사이가 넓어서 자간까지 더하면 흩어져 보였다.
-            앱 본문 서체(Pretendard)로 바꾸고 자간을 0.1em으로 조여 균형을 맞췄다.
+            앱 본문 서체로 바꾸고 자간을 0.1em으로 조여 균형을 맞췄다.
             제목과의 간격도 살짝 붙여 두 줄이 한 덩어리로 읽히게 한다. */}
         <p className="mt-1.5 text-[11.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">
           Today, Here, Right now!
