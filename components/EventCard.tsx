@@ -17,6 +17,7 @@ import BottomSheet from "@/components/BottomSheet";
 import { ClockIcon, PinIcon } from "@/components/Icons";
 import { ampmTimeKo, WEEKDAYS_KO } from "@/lib/utils";
 import { pushToAdmins, pushToUsers } from "@/lib/push";
+import { inEventAudience } from "@/lib/teams";
 import type { ScheduleEvent } from "@/lib/types";
 
 // 펼침/접힘 — 높이가 늘어나는 건 차분하게
@@ -320,7 +321,7 @@ export default function EventCard({
     const base =
       picked.length > 0
         ? members.filter((m) => picked.includes(m.uid))
-        : members.filter((m) => (e.team ? m.team === e.team : true));
+        : members.filter((m) => inEventAudience(m.team, e.team));
     const baseSet = new Set(base.map((m) => m.uid));
     const extra = members.filter((m) => extraUids.includes(m.uid) && !baseSet.has(m.uid));
     const absent = new Set(absences.map((a) => a.uid));

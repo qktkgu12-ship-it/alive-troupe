@@ -11,6 +11,7 @@ import Avatar from "@/components/Avatar";
 import { ChevronDownIcon, PencilIcon, TrashIcon } from "@/components/Icons";
 import BottomSheet from "@/components/BottomSheet";
 import { pushToUsers } from "@/lib/push";
+import { ONE_CAST } from "@/lib/teams";
 import type { Production, Role, UserProfile } from "@/lib/types";
 
 // 팀 순서 기반 색상 팔레트 (첫 번째 팀=민트, 두 번째 팀=보라)
@@ -259,17 +260,25 @@ function AdminInner() {
                     </p>
                     {u.bio && <p className="truncate text-xs text-slate-400">{u.bio}</p>}
                   </div>
-                  {teams.length > 0 && (() => {
+                  {/* 팀은 '어느 일정에 들어가는가'를 정한다 (lib/teams 참고).
+                      팀 없음 = 비활성 — 일정에도 안 잡히고 단체 알림도 안 간다.
+                      원캐스트 = 팀을 가리지 않고 모든 일정에 들어간다.
+                      팀을 하나도 안 만들었어도 이 두 가지는 골라야 하므로 항상 보여 준다. */}
+                  {(() => {
                     const idx = u.team ? teams.indexOf(u.team) : -1;
                     const c = idx >= 0 ? (TEAM_PALETTE[idx] ?? null) : null;
+                    const one = u.team === ONE_CAST;
                     return (
                       <select
                         value={u.team ?? ""}
                         onChange={(e) => changeTeam(u.uid, e.target.value)}
                         style={c ? { backgroundColor: c.bg, color: c.color } : {}}
-                        className={`shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold outline-none transition ${!c ? "bg-slate-100 text-slate-400" : ""}`}
+                        className={`shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold outline-none transition ${
+                          c ? "" : one ? "bg-accent-soft text-accent" : "bg-slate-100 text-slate-400"
+                        }`}
                       >
-                        <option value="">팀 없음</option>
+                        <option value="">팀 없음 (비활성)</option>
+                        <option value={ONE_CAST}>{ONE_CAST}</option>
                         {teams.map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}

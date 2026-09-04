@@ -23,6 +23,7 @@ import {
   type ScheduleEvent,
 } from "@/lib/types";
 import { chunk, relativeTime, toDateStr } from "@/lib/utils";
+import { inEventAudience } from "@/lib/teams";
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -271,7 +272,10 @@ function HomeInner() {
 
   // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이거나 관리자면 전체 (네이버 예약 일정도 포함)
   const myTeam = role === "admin" ? "" : (profile?.team ?? "");
-  const myEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam);
+  // 원캐스트는 팀 일정도 자기 일정이고, 팀 없음(비활성)은 개별 지정만 보인다
+  const myEvents = upcoming.filter(
+    (e) => (e.participantUids ?? []).includes(user?.uid ?? "") || inEventAudience(myTeam, e.team)
+  );
   const shownEvents = myEvents.slice(0, 5);
 
   return (

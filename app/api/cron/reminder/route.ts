@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { adminDb, adminMessaging } from "@/lib/firebase-admin";
+import { inEventAudience } from "@/lib/teams";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -99,16 +100,11 @@ export async function GET(req: Request) {
     let targets: string[];
     if (participantUids.length > 0) {
       targets = participantUids.filter((u) => memberUids.has(u));
-    } else if (team) {
-      targets = users.docs
-        .filter(
-          (d) =>
-            memberUids.has(d.id) &&
-            ((d.get("team") as string) ?? "") === team
-        )
-        .map((d) => d.id);
     } else {
-      targets = [...memberUids];
+      // 팀 없음(비활성)은 빼고, 원캐스트는 팀 일정에도 넣는다 (lib/teams와 같은 규칙)
+      targets = users.docs
+        .filter((d) => memberUids.has(d.id) && inEventAudience((d.get("team") as string) ?? "", team))
+        .map((d) => d.id);
     }
 
     // 불참을 이미 알린 사람에게는 보내지 않는다
