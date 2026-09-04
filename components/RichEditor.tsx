@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { sanitizeRichHtml } from "@/lib/sanitize";
 import { LinkIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon } from "@/components/Icons";
+// ⚠️ 글쓰기 편집기는 둘이다 — PC는 이 파일, 폰은 components/PostEditorSheet.
+//    공통 로직은 아래 두 곳에 두고 둘이 같이 쓴다. 한쪽만 고치면 폰이 그대로 남는다.
+import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
+import { usePress } from "@/lib/use-press";
 
 const FONT_SIZES: { label: string; value: string }[] = [
   { label: "작게", value: "2" },
@@ -17,58 +21,14 @@ const ALIGNMENTS: { label: string; value: string; icon: string }[] = [
   { label: "오른쪽", value: "justifyRight", icon: "≡" },
 ];
 
-// 커서 자리에 걸려 있는 서식. 툴바 버튼을 켜고 끄는 데만 쓴다.
-type Marks = {
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strike: boolean;
-  ul: boolean;
-  ol: boolean;
-  quote: boolean;
-  align: string;
-  size: string;
-};
-const NO_MARKS: Marks = {
-  bold: false, italic: false, underline: false, strike: false,
-  ul: false, ol: false, quote: false, align: "justifyLeft", size: "3",
-};
-
 // ⚠️ Btn·Dropdown은 반드시 컴포넌트 '밖'에 있어야 한다.
 //    안에 두면 글자를 칠 때마다 새 컴포넌트로 취급돼 툴바가 통째로 다시 그려지고,
 //    그 순간 누르고 있던 버튼이 사라져 탭이 먹히지 않는다.
-//    (폰에서 툴바가 아예 동작하지 않던 원인 중 하나였다)
-
-/**
- * 폰에서 확실하게 먹히는 '누름'.
- *
- * ⚠️ click을 기다리면 안 된다. 편집칸의 커서를 지키려고 pointerdown을 막는데,
- *    pointerdown을 막으면 브라우저가 그 뒤에 만들어 주던 mousedown·click까지
- *    같이 취소해 버리는 기기가 있다 → 버튼이 아무 일도 안 한다.
- *    그래서 누르는 순간(pointerdown)에 바로 실행하고,
- *    뒤따라 click이 오더라도 방금 처리한 것이면 무시한다.
- *    (키보드 Enter처럼 pointerdown 없이 오는 click은 그대로 살아 있다)
- */
-function usePress(onPress: () => void) {
-  const firedAt = useRef(0);
-  return {
-    onPointerDown: (e: React.PointerEvent) => {
-      e.preventDefault();
-      firedAt.current = Date.now();
-      onPress();
-    },
-    onMouseDown: (e: React.MouseEvent) => e.preventDefault(),
-    onClick: () => {
-      if (Date.now() - firedAt.current < 700) return;
-      onPress();
-    },
-  };
-}
 
 // 켜져 있는 버튼은 강조색 알약으로 바뀐다.
 // 굵게/기울임처럼 '지금 상태'가 있는 기능은, 눌러서 켠 건지 원래 켜져 있던 건지
 // 표시가 없으면 글을 쓰다가 알 수가 없다.
-const ON = "bg-accent/10 text-accent";
+const ON = "text-accent";
 const OFF = "text-slate-600 hover:bg-slate-100 active:bg-slate-200";
 
 function Btn({
@@ -200,86 +160,8 @@ export default function RichEditor({
   // 지금 커서 자리에 어떤 서식이 걸려 있는지 — 툴바를 켜고 끄는 데 쓴다
   const [on, setOn] = useState<Marks>(NO_MARKS);
 
-  /**
-   * 커서 자리에서 위로 올라가며 어떤 태그에 싸여 있는지 직접 본다.
-   *
-   * queryCommandState만 믿으면 안 되는 이유: 이 값은 브라우저가 알아서 계산해
-   * 주는 편의 기능이라 기기·브라우저마다 결과가 다르다. 특히 폰에서는
-   * 아무 서식도 안 걸린 것처럼 false만 돌려주는 경우가 있다 →
-   * 툴바가 영영 안 켜진다. 태그를 직접 훑으면 어디서 그리든 답이 같다.
-   */
-  const domMarks = useCallback(() => {
-    const found = {
-      bold: false, italic: false, underline: false, strike: false,
-      ul: false, ol: false, quote: false, align: "", size: "",
-    };
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return found;
-    let n: Node | null = sel.getRangeAt(0).commonAncestorContainer;
-    while (n && n !== ref.current) {
-      if (n instanceof HTMLElement) {
-        switch (n.tagName) {
-          case "B": case "STRONG": found.bold = true; break;
-          case "I": case "EM": found.italic = true; break;
-          case "U": found.underline = true; break;
-          case "S": case "STRIKE": case "DEL": found.strike = true; break;
-          case "UL": found.ul = true; break;
-          case "OL": found.ol = true; break;
-          case "BLOCKQUOTE": found.quote = true; break;
-          case "FONT": {
-            const s = n.getAttribute("size");
-            if (s && !found.size) found.size = s;
-            break;
-          }
-        }
-        // 정렬은 가장 가까운 것이 이긴다 (안쪽 블록이 바깥을 덮어쓴다)
-        const a = n.style?.textAlign;
-        if (a && !found.align) found.align = a;
-      }
-      n = n.parentNode;
-    }
-    return found;
-  }, []);
-
-  const syncMarks = useCallback(() => {
-    const q = (c: string) => {
-      try {
-        return document.queryCommandState(c);
-      } catch {
-        return false;
-      }
-    };
-    const v = (c: string) => {
-      try {
-        return String(document.queryCommandValue(c) ?? "");
-      } catch {
-        return "";
-      }
-    };
-    // 둘 중 하나라도 잡아내면 켠다 — 브라우저가 놓친 걸 태그 훑기가 받쳐 준다
-    const d = domMarks();
-    const alignFromDom =
-      d.align === "center" ? "justifyCenter" : d.align === "right" ? "justifyRight" : "";
-    setOn({
-      bold: q("bold") || d.bold,
-      italic: q("italic") || d.italic,
-      underline: q("underline") || d.underline,
-      strike: q("strikeThrough") || d.strike,
-      ul: q("insertUnorderedList") || d.ul,
-      ol: q("insertOrderedList") || d.ol,
-      // formatBlock은 대소문자가 브라우저마다 다르다 (blockquote / BLOCKQUOTE)
-      quote: v("formatBlock").toLowerCase() === "blockquote" || d.quote,
-      align:
-        alignFromDom ||
-        (q("justifyCenter") ? "justifyCenter" : q("justifyRight") ? "justifyRight" : "justifyLeft"),
-      // 크기는 queryCommandValue를 쓰지 않는다.
-      // 그 값은 '지금 글자가 몇 픽셀인가'를 1~7로 환산해 주는 거라,
-      // 크기를 한 번도 안 건드린 글자도 편집칸 기본 글씨 크기에 따라
-      // 2가 나오기도 3이 나오기도 한다 → 툴바가 늘 켜져 있게 된다.
-      // 대신 execCommand가 실제로 만들어 넣는 <font size="n">를 직접 찾는다.
-      size: d.size || "3",
-    });
-  }, [domMarks]);
+  // 커서가 어떤 서식 안에 있는지 읽는 일은 lib/rich-text가 한다 (폰 편집기와 같은 코드).
+  const syncMarks = useCallback(() => setOn(readMarks(ref.current)), []);
 
   const remember = useCallback(() => {
     const sel = window.getSelection();
@@ -302,7 +184,9 @@ export default function RichEditor({
     if (!el) return;
     el.focus();
     const r = savedRange.current;
-    if (!r) return;
+    // 기억해 둔 자리가 없으면(= 아직 한 글자도 안 썼거나 커서를 둔 적이 없으면)
+    // 맨 끝에 커서를 놓는다. 그래야 바로 서식부터 켜도 그대로 먹힌다.
+    if (!r) return placeCaretAtEnd(el);
     const sel = window.getSelection();
     if (!sel) return;
     sel.removeAllRanges();
@@ -354,11 +238,12 @@ export default function RichEditor({
           onToggle={() => { setAlignOpen(false); setSizeOpen((v) => !v); }}
           onClose={() => setSizeOpen(false)}
           label="글자 크기"
-          active={on.size !== "3"}
+          // 크기를 한 번도 안 건드렸으면 빈 값이다 (lib/rich-text 참고)
+          active={on.size !== ""}
           icon={
             <span className="flex items-center gap-1">
               <span className="text-xs font-medium">가</span>
-              {on.size !== "3" && (
+              {on.size !== "" && (
                 <span className="text-[11px] font-semibold">
                   {FONT_SIZES.find((s) => s.value === on.size)?.label ?? ""}
                 </span>
@@ -369,7 +254,7 @@ export default function RichEditor({
           {FONT_SIZES.map((s) => (
             <MenuItem
               key={s.value}
-              active={on.size === s.value}
+              active={on.size === s.value || (on.size === "" && s.value === "3")}
               onPress={() => { cmd("fontSize", s.value); setSizeOpen(false); }}
             >
               {s.label}
@@ -428,6 +313,7 @@ export default function RichEditor({
         contentEditable
         suppressContentEditableWarning
         onInput={() => { remember(); emit(); }}
+        onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(ref.current); }}
         onKeyUp={remember}
         onMouseUp={remember}
         onTouchEnd={remember}
