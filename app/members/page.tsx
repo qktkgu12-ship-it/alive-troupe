@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ONE_CAST } from "@/lib/teams";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Guard from "@/components/Guard";
@@ -9,21 +8,12 @@ import { ProfileAvatar, useProfileViewer } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonList } from "@/components/Skeleton";
 import { MembersIcon } from "@/components/Icons";
-import { useTheme } from "@/lib/theme-context";
 import type { PublicProfile } from "@/lib/types";
-
-// 팀 순서 기반 색상 (schedule 페이지와 동일한 팔레트)
-const TEAM_PALETTE: { border: string; color: string; bg: string }[] = [
-  { border: "rgb(94,234,212)", color: "rgb(15,118,110)", bg: "rgba(94,234,212,0.28)" },   // pastel mint
-  { border: "rgb(196,181,253)", color: "rgb(109,40,217)", bg: "rgba(196,181,253,0.35)" }, // pastel violet
-];
 
 type Member = PublicProfile & { uid: string };
 
 function MembersInner() {
   const { seed } = useProfileViewer();
-  const { settings } = useTheme();
-  const teams = settings.teams ?? [];
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -93,22 +83,10 @@ function MembersInner() {
                   {m.role === "admin" && (
                     <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">관리자</span>
                   )}
-                  {m.team && (() => {
-                    const idx = teams.indexOf(m.team!);
-                    const c = TEAM_PALETTE[idx] ?? null;
-                    // 원캐스트는 팀 목록에 없다 — 모든 일정에 들어가는 사람이라 강조색으로
-                    const one = m.team === ONE_CAST;
-                    return (
-                      <span
-                        style={c ? { backgroundColor: c.bg, color: c.color } : {}}
-                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                          c ? "" : one ? "bg-accent-soft text-accent" : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {m.team}
-                      </span>
-                    );
-                  })()}
+                  {/* 팀 배지는 안 보여 준다.
+                      팀은 '어느 일정에 들어가는가'를 정하는 운영용 값이라
+                      (팀 없음 = 비활성) 단원 명단에 띄우면 서로의 활동 상태가
+                      드러난다. 일정 화면에서는 필요하니 거기서만 쓴다. */}
                 </div>
                 <p className="mt-0.5 truncate text-xs text-slate-400">
                   {m.bio || "소개글 없음"}
