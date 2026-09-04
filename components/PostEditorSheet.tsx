@@ -40,10 +40,10 @@ import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Mark
 import { usePress } from "@/lib/use-press";
 import {
   AlignIcon,
-  CameraIcon,
   CheckIcon,
   ChevronDownIcon,
   DotsIcon,
+  ImageIcon,
   KeyboardDownIcon,
   LinkIcon,
   ListBulletIcon,
@@ -167,6 +167,18 @@ export default function PostEditorSheet({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
 
+  // 링크 넣기 — 예전엔 prompt()로 물어봤는데 폰에서 안 먹혔다.
+  //
+  // 툴바 버튼은 usePress로 '손을 대는 순간(pointerdown)'에 반응한다. 거기서
+  // prompt()를 부르면 손가락을 뗀 신호가 오기 전에 창이 떠서 화면을 붙잡고,
+  // 주소를 치는 동안 usePress의 700ms 중복 방지 시간이 지나 버린다 →
+  // 창을 닫는 순간 click이 뒤늦게 들어와 같은 걸 한 번 더 연다.
+  // 게다가 홈 화면에 추가한 앱(PWA)에서는 이 창 자체가 안 뜨는 경우가 있다.
+  // 앱 안의 시트로 바꿔서 네이티브 창에 기대는 부분을 아예 없앴다.
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
+
   // 투표
   const [pollOn, setPollOn] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
@@ -265,20 +277,40 @@ export default function PostEditorSheet({
       setMoreOpen(false);
       setOptionsOpen(false);
       setPollOpen(false);
+      setLinkOpen(false);
       setEnter(false);
       setSelectedImg(null);
     }
   }, [open]);
 
-  // 아래에서 미끄러져 올라온 뒤 곧바로 키보드를 띄운다
+  // 아래에서 미끄러져 올라온 뒤 곧바로 제목칸에 커서를 놓는다.
+  //
+  // 시트가 다 올라온 뒤에 포커스를 줘야 키보드가 화면을 밀지 않는다.
+  // 다만 애니메이션이 늦게 끝나는 기기가 있어 한 번 더 확인한다 —
+  // 이미 제목칸에 커서가 있으면 아무 일도 안 하므로 두 번 불러도 안전하다.
   useEffect(() => {
     if (!open) return;
     const raf = requestAnimationFrame(() => setEnter(true));
-    // 시트가 다 올라온 뒤 포커스를 줘야 키보드가 화면을 밀지 않는다
-    const t = setTimeout(() => titleRef.current?.focus(), 380);
+    const focusTitle = () => {
+      const el = titleRef.current;
+      if (!el || document.activeElement === el) return;
+      // 편집칸을 이미 만지고 있으면 뺏지 않는다
+      if (bodyRef.current && bodyRef.current.contains(document.activeElement)) return;
+      el.focus();
+      // 이어 쓰기(임시저장·수정)일 때 커서를 글자 끝에 둔다
+      const n = el.value.length;
+      try {
+        el.setSelectionRange(n, n);
+      } catch {
+        /* 무시 */
+      }
+    };
+    const t1 = setTimeout(focusTitle, 380);
+    const t2 = setTimeout(focusTitle, 700);
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(t);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
   }, [open]);
 
@@ -391,6 +423,42 @@ export default function PostEditorSheet({
       sel?.addRange(next);
     }
   }, []);
+
+  /* ── 링크 ───────────────────────────────────────── */
+
+  function openLinkSheet() {
+    // 지금 골라 둔 글자가 있으면 '보일 글자'로 미리 채워 준다
+    setLinkText(savedRange.current?.toString() ?? "");
+    setLinkUrl("");
+    (document.activeElement as HTMLElement | null)?.blur();
+    setLinkOpen(true);
+  }
+
+  /** false를 돌려주면 시트가 안 닫힌다 (BottomSheet 규칙) */
+  function applyLink(): boolean | void {
+    const raw = linkUrl.trim();
+    if (!raw) {
+      alert("링크 주소를 입력해 주세요.");
+      return false;
+    }
+    // 주소창에서 복사하면 https://가 빠져 오는 일이 잦다 — 없으면 붙여 준다
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    if (!/^https?:\/\/[^\s/]+\.[^\s/]{2,}/i.test(url)) {
+      alert("주소를 다시 확인해 주세요. (예: alive.example.com/글)");
+      return false;
+    }
+    // 보일 글자를 안 적었으면 주소를 그대로 보여 준다
+    const label = linkText.trim() || url;
+    // execCommand("createLink")를 안 쓴다 — 시트를 다녀오면 편집칸이 포커스를
+    // 잃어서 조용히 아무 일도 안 하는 경우가 있다 (사진에서 겪었던 것과 같다).
+    insertAtCaret(
+      `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(label)}</a>`
+    );
+    bodyRef.current?.focus();
+    rememberCaret();
+    setLinkUrl("");
+    setLinkText("");
+  }
 
   /* ── 사진 삭제 ───────────────────────────────────── */
   const handleBodyClick = useCallback((e: React.MouseEvent) => {
@@ -632,38 +700,50 @@ export default function PostEditorSheet({
           transition: "transform 340ms cubic-bezier(0.32, 0.94, 0.28, 1)",
         }}
       >
-        {/* ── 상단: ✕ · 게시판 알약 ······ 게시 ── */}
-        <header className="flex h-14 shrink-0 items-center gap-2 px-3">
+        {/* ── 상단 ──
+             일정 등록 바텀시트(components/BottomSheet)와 같은 모양이다:
+             왼쪽 흰 동그라미 ✕ · 가운데 굵은 제목 · 오른쪽 강조색 동그라미 ✓.
+             두 시트가 다르게 생기면 같은 앱에서 규칙이 두 개인 것처럼 보인다.
+             ⚠️ 치수를 바꿀 일이 있으면 BottomSheet의 헤더도 같이 볼 것. */}
+        <header className="flex shrink-0 items-center justify-between bg-canvas px-4 py-3">
           <button
             onClick={handleCancel}
             aria-label={kbOpen ? "키보드 내리기" : "닫기"}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-700 active:bg-slate-100"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 active:scale-95"
           >
-            {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : <XIcon className="h-[21px] w-[21px]" />}
+            {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : <XIcon className="h-[22px] w-[22px]" />}
           </button>
 
-          {/* 게시판 고르기 — 알약 하나가 '어디에 쓰는 글인지'와 '글 설정'을 겸한다 */}
+          {/* 가운데는 바텀시트의 제목 자리다. 여기서는 '어느 게시판에 쓰는 글인지'가
+              곧 제목이고, 누르면 글 설정(게시판·태그·공지)이 열린다. */}
           <button
             onClick={() => {
               (document.activeElement as HTMLElement | null)?.blur();
               setOptionsOpen(true);
             }}
-            className="flex min-w-0 items-center gap-1 rounded-full bg-surface px-3.5 py-2 active:brightness-95"
+            className="flex min-w-0 items-center gap-1 rounded-full px-2 py-1 transition active:bg-slate-200/60"
           >
-            <span className="truncate text-[15px] font-bold text-slate-900">{board || "게시판 선택"}</span>
+            <span className="truncate text-[16px] font-bold text-slate-900">{board || "게시판 선택"}</span>
             <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-500" />
           </button>
 
-          {/* 제목이 비어 있으면 회색으로 꺼 둔다 — 눌러도 경고창만 뜨던 걸 미리 알려 준다 */}
+          {/* 제목이 비어 있으면 흰 동그라미로 꺼 둔다 — 눌러도 경고창만 뜨던 걸 미리 알려 준다 */}
           <button
             onClick={submit}
             disabled={busy || !canSubmit}
-            className={`ml-auto grid h-9 shrink-0 place-items-center rounded-full px-4 text-[15px] font-bold transition ${
-              canSubmit ? "text-accent-fg" : "bg-surface text-slate-400"
+            aria-label={editing ? "수정 완료" : "게시"}
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-full shadow-sm transition active:scale-95 ${
+              canSubmit ? "text-accent-fg hover:brightness-110" : "bg-white text-slate-300"
             }`}
             style={canSubmit ? { backgroundColor: "rgb(var(--accent))" } : undefined}
           >
-            {busy ? <Spinner className="h-5 w-5" /> : editing ? "수정" : "게시"}
+            {busy ? (
+              <Spinner className="h-5 w-5" />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+                <path d="M4 13l5 5L20 7" />
+              </svg>
+            )}
           </button>
         </header>
 
@@ -675,7 +755,9 @@ export default function PostEditorSheet({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목"
-            className="w-full bg-white px-4 pb-1 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-300"
+            // 제목과 본문 사이를 벌린다 — 붙어 있으면 제목의 첫 줄처럼 읽힌다.
+            // 아래 본문의 pt-6과 합쳐 약 28px. (예전엔 4px밖에 안 됐다)
+            className="w-full bg-white px-4 pb-2 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-300"
           />
 
           <div
@@ -698,25 +780,14 @@ export default function PostEditorSheet({
             style={{ textAlign: align }}
             // 최소 높이는 화면이 아니라 고정값이다 — 툴바가 본문을 따라 내려오므로
             // 빈 글에서 툴바가 화면 밖까지 밀려나면 안 된다.
-            className="rich min-h-[168px] w-full px-4 pb-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
+            className="rich min-h-[168px] w-full px-4 pb-4 pt-6 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
           />
 
           {/* ── 툴바 — 본문 바로 밑 ──
                순서: 링크 · 사진 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 정렬 · 더보기 */}
           <div className="border-t border-slate-100">
             <div className="flex h-[52px] items-center gap-0.5 px-2">
-              <ToolBtn
-                onPress={() => {
-                  const url = prompt("링크 주소(https://...)를 입력하세요");
-                  if (!url) return;
-                  if (!/^https?:\/\//i.test(url)) {
-                    alert("http(s) 주소만 넣을 수 있어요.");
-                    return;
-                  }
-                  cmd("createLink", url);
-                }}
-                label="링크"
-              >
+              <ToolBtn onPress={openLinkSheet} label="링크">
                 <LinkIcon className="h-[20px] w-[20px]" />
               </ToolBtn>
 
@@ -731,7 +802,7 @@ export default function PostEditorSheet({
                 aria-label="사진 추가"
                 className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl text-slate-600 active:bg-slate-100"
               >
-                {imgBusy ? <Spinner className="h-5 w-5" /> : <CameraIcon className="h-[21px] w-[21px]" />}
+                {imgBusy ? <Spinner className="h-5 w-5" /> : <ImageIcon className="h-[21px] w-[21px]" />}
                 <input
                   ref={fileRef}
                   type="file"
@@ -884,6 +955,35 @@ export default function PostEditorSheet({
         )}
       </BottomSheet>
 
+      {/* ── 링크 ── */}
+      <BottomSheet open={linkOpen} title="링크" onClose={() => setLinkOpen(false)} onConfirm={applyLink}>
+        <div className="space-y-3">
+          <div>
+            <p className="label">주소</p>
+            <input
+              className="input"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="alive.example.com/글"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <p className="mt-1 text-[12px] text-slate-400">https://는 안 적어도 알아서 붙여요.</p>
+          </div>
+          <div>
+            <p className="label">보일 글자 (선택)</p>
+            <input
+              className="input"
+              value={linkText}
+              onChange={(e) => setLinkText(e.target.value)}
+              placeholder="비워 두면 주소가 그대로 보여요"
+            />
+          </div>
+        </div>
+      </BottomSheet>
+
       {/* ── 투표 ── */}
       <BottomSheet open={pollOpen} title="투표" onClose={() => setPollOpen(false)}>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -949,6 +1049,15 @@ export default function PostEditorSheet({
 }
 
 /* ── 잡다한 도우미 ─────────────────────────────── */
+
+/** 사용자가 친 글자를 HTML 안에 넣기 전에 안전하게 만든다 */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 function parseTags(s: string): string[] {
   return s

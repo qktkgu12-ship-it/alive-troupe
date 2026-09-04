@@ -106,11 +106,23 @@ export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
 
 export const PlusIcon = makeIcon(<path d="M12 5v14M5 12h14" />);
 
+// 링크 — 사슬 고리 두 개가 비스듬히 물린 모양.
+// 예전엔 사각형 두 개(복사 아이콘)였는데, 링크라기보다 '복사'로 읽혔다.
 export const LinkIcon = makeIcon(
   <>
-    {/* 복사 아이콘 — 뒤 사각형(획만), 앞 사각형(흰 배경으로 덮음) */}
-    <rect x="2" y="2" width="13" height="13" rx="3.5" />
-    <rect x="7" y="7" width="13" height="13" rx="3.5" fill="white" />
+    <path d="M9.6 14.4 14.4 9.6" />
+    <path d="M12.9 6.3 15 4.2a4.3 4.3 0 0 1 6 6l-2.1 2.1" />
+    <path d="M11.1 17.7 9 19.8a4.3 4.3 0 0 1-6-6l2.1-2.1" />
+  </>
+);
+
+// 사진 — 액자 안에 해와 산. 카메라 아이콘은 '지금 찍는다'로 읽혀서,
+// 사진첩에서 고르는 버튼에는 액자 쪽이 맞다.
+export const ImageIcon = makeIcon(
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="4" />
+    <circle cx="8.7" cy="9.7" r="1.5" />
+    <path d="M3.8 17.6 9 12.8l3.2 3 2.7-2.3 5.3 4.4" />
   </>
 );
 
@@ -220,13 +232,6 @@ export const UserPlusIcon = makeIcon(
 );
 
 // ── 글쓰기 툴바 ──────────────────────────────────────────
-export const CameraIcon = makeIcon(
-  <>
-    <path d="M3 8.8a2 2 0 0 1 2-2h1.9l1.3-2.1h7.6l1.3 2.1H19a2 2 0 0 1 2 2v8.4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.8Z" />
-    <circle cx="12" cy="12.8" r="3.6" />
-  </>
-);
-
 // 글자 서식 (T)
 export const TextIcon = makeIcon(<path d="M5 5.5h14M12 5.5V19" />);
 
