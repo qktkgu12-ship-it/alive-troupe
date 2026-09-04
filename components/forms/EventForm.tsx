@@ -482,12 +482,8 @@ export default function EventForm({
         participantUids: individual ? selectedUids : [],
         participantLabel: individual ? `${selectedUids.length}명` : "",
       };
-      const when = [
-        shortDateKo(selectedDate),
-        [shortTimeKo(startTime), endTime ? shortTimeKo(endTime) : ""].filter(Boolean).join(" ~ "),
-      ]
-        .filter(Boolean)
-        .join(" ");
+      // 알림 본문에 들어갈 때 — 24시간제 ("9월 7일 (월) 19:00–24:00")
+      const when = when24(selectedDate, startTime, endTime);
 
       if (eventId) {
         await updateDoc(doc(db, "events", eventId), data);
@@ -506,9 +502,9 @@ export default function EventForm({
           // 길이가 변하는 일정 제목은 제목줄에 둔다 — 제목은 iOS가 한 줄로 잘라 주지만
           // 본문은 줄바꿈해서 늘어난다.
           const msg = {
-            title: `[${changed} 변경] ${data.title}`,
+            title: `일정 변경 · ${data.title}`,
             // 바뀐 것만 한 줄로. 시간이 바뀌었으면 시간, 장소만 바뀌었으면 장소.
-            body: movedDate || movedTime ? when : `장소: ${data.location}`,
+            body: movedDate || movedTime ? when : `장소가 ${data.location}(으)로 변경됐어요.`,
             href: `/schedule?tab=events&date=${selectedDate}`,
             tag: `event-changed-${eventId}`,
           };
@@ -524,7 +520,7 @@ export default function EventForm({
           createdAt: Date.now(),
         });
         void pushToAll({
-          title: `[새 일정] ${data.title}`,
+          title: `새 일정 · ${data.title}`,
           body: when,
           href: `/schedule?tab=events&date=${selectedDate}`,
           tag: "event",

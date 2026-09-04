@@ -105,8 +105,8 @@ function AdminInner() {
     // 승인 대기에서 정단원이 된 순간에만 알린다 (등급을 오갈 때마다 울리지 않도록)
     if (before === "guest" && role !== "guest") {
       void pushToUsers([uid], {
-        title: "가입이 승인됐어요 🎉",
-        body: "이제 모든 기능을 쓸 수 있어요.",
+        title: "가입 승인",
+        body: "이제 모든 기능을 쓸 수 있어요. 🎉",
         href: "/",
         tag: "approval",
       });

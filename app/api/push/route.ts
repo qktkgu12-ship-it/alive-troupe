@@ -161,7 +161,7 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
     }
   } else if (audience === "self") {
     title = "테스트 알림";
-    body = "이 알림이 보이면 설정이 잘 된 거예요 🎉";
+    body = "알림이 정상적으로 도착했어요. 🎉";
     href = "/";
   } else if (!isMember) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

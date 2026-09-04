@@ -368,7 +368,7 @@ export default function EventCard({
           // 날짜·시간은 넣지 않는다 — 제목만으로 어느 일정인지 알 수 있고,
           // 눌러서 들어가면 어차피 그 일정이 열린다.
           void pushToUsers(to, {
-            title: `[참석 추가] ${e.title}`,
+            title: `참석 추가 · ${e.title}`,
             body: `${myName || "단원"}님이 참석하기로 했어요.`,
             href: `/schedule?tab=events&date=${e.date}`,
             tag: `attend-${e.id}`,
@@ -400,7 +400,7 @@ export default function EventCard({
       // 날짜·시간은 넣지 않는다 — 제목만으로 어느 일정인지 알 수 있고,
       // 여기서 정작 중요한 건 '누가, 왜'다.
       const absentMsg = {
-        title: `[불참] ${e.title}`,
+        title: `불참 · ${e.title}`,
         // 본문은 한 줄로 — 사유가 있으면 그 줄에 이어 붙인다.
         // 두 줄이 되면 "from ALIVE"까지 합쳐 알림이 네 줄로 늘어난다.
         body: reason.trim()

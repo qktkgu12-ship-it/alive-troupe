@@ -107,7 +107,7 @@ export default function ArchiveForm({
         const prod = productions.find((p) => p.id === productionId);
         if (prod?.participants?.length) {
           void pushToUsers(prod.participants, {
-            title: `[새 영상] ${fields.title}`,
+            title: `새 영상 · ${fields.title}`,
             body: "아카이브에 올라왔어요.",
             href: "/archive",
             tag: "archive",
