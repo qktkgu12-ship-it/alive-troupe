@@ -288,8 +288,8 @@ function BoardInner() {
                 {isRecent(p) && (
                   <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
                 )}
-                {p.poll && <span className="shrink-0 text-xs text-slate-400">🗳️</span>}
-                {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="shrink-0 text-xs text-slate-400">📷</span>}
+                {p.poll && <span className="tf shrink-0 text-xs text-slate-400">🗳️</span>}
+                {(p.hasImages || (p.images?.length ?? 0) > 0) && <span className="tf shrink-0 text-xs text-slate-400">📷</span>}
                 {(p.commentCount ?? 0) > 0 && (
                   <span className="shrink-0 text-sm font-bold text-accent">[{p.commentCount}]</span>
                 )}

@@ -27,8 +27,25 @@ export const viewport: Viewport = {
   colorScheme: "light", // 다크모드 기기의 '검은 로딩화면' 방지
 };
 
+// 본문 글꼴 — 원티드 산스 (wanteddev/wanted-sans, SIL OFL).
+//
+// split 빌드를 쓴다. 통짜 파일은 1.26MB지만 이건 92조각으로 나뉘어 있어
+// unicode-range로 화면에 실제로 쓰인 글자 조각만 받아 온다 (Pretendard와 같은 방식).
+//
+// ⚠️ 주소를 바꿀 땐 반드시 응답이 200인지 확인할 것.
+//    예전 Pretendard 주소가 404였는데 아무 표시가 없어서, 이 앱은 오랫동안
+//    웹폰트 없이 기기 기본 글꼴로 그려지고 있었다 (PC는 맑은 고딕, 아이폰은 애플 SD).
+//    글자 위치가 기기마다 미묘하게 다르던 것도 그 탓이었다.
 const FONT_CSS =
-  "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css";
+  "https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.css";
+
+// 토스페이스 — 이모지 글꼴 (https://github.com/toss/tossface, TossSpace License).
+// 기기마다 제각각인 시스템 이모지(애플·구글·삼성) 대신 어디서나 같은 그림이 나온다.
+//
+// ⚠️ 이 글꼴은 이모지만 있는 게 아니라 숫자·#·* 자모도 들고 있다(키캡 이모지 1️⃣ 때문).
+//    그래서 앱 전체 글꼴 목록 맨 앞에 두면 안 된다 — 본문 숫자까지 이 글꼴로 그려진다.
+//    globals.css의 .tf 클래스를 붙인 곳(이모지만 들어 있는 칸)에서만 쓴다.
+const EMOJI_CSS = "https://cdn.jsdelivr.net/gh/toss/tossface/dist/tossface.css";
 
 // 스타일시트가 오기 전에도 배경이 흰색으로 칠해지도록 최소한의 색만 인라인으로.
 // (globals.css는 별도 파일이라 로드 전 한 프레임 동안 기기 기본색 = 다크모드면 검정)
@@ -38,7 +55,7 @@ const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{backg
 // (2) 폰트 <link>를 media="print"로 받아 렌더를 막지 않다가, 다 받으면 media="all"로 전환.
 //     React는 서버 HTML에 onLoad 문자열을 넣어주지 않으므로 이 스크립트가 직접 처리한다.
 // (3) 안전장치: 인증이 실패해 auth-context가 스플래시를 못 내려도 8초 뒤엔 무조건 걷어낸다.
-const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.getElementById('alive-font');if(l){var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);}}catch(e){}setTimeout(function(){try{var p=document.getElementById('alive-splash');if(p)p.style.display='none';}catch(e){}},8000);})();`;
+const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{['alive-font','alive-emoji'].forEach(function(id){var l=document.getElementById(id);if(!l)return;var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);});}catch(e){}setTimeout(function(){try{var p=document.getElementById('alive-splash');if(p)p.style.display='none';}catch(e){}},8000);})();`;
 
 export default function RootLayout({
   children,
@@ -54,9 +71,15 @@ export default function RootLayout({
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
         {/* 폰트는 JS 파싱을 기다리지 않고 HTML 파싱 시점에 바로 요청 시작.
             media="print"라 렌더를 막지 않고, 아래 스크립트가 로드 후 all로 전환 */}
-        <link id="alive-font" rel="stylesheet" href={FONT_CSS} media="print" />
+        {/* suppressHydrationWarning: 위 스크립트가 React보다 먼저 media를 all로 바꿔 두므로
+            서버 HTML(print)과 화면(all)이 다르다. 의도된 차이라 경고만 끈다. */}
+        <link id="alive-font" rel="stylesheet" href={FONT_CSS} media="print" suppressHydrationWarning />
+        {/* 이모지 글꼴도 같은 방식으로 — 늦게 와도 시스템 이모지가 먼저 보일 뿐이라
+            글이 안 보이는 구간은 없다 */}
+        <link id="alive-emoji" rel="stylesheet" href={EMOJI_CSS} media="print" suppressHydrationWarning />
         <noscript>
           <link rel="stylesheet" href={FONT_CSS} />
+          <link rel="stylesheet" href={EMOJI_CSS} />
         </noscript>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

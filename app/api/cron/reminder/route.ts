@@ -22,11 +22,10 @@ function seoulDateStr(offsetDays = 0): string {
   return seoul.toISOString().slice(0, 10);
 }
 
-function ampm(time: string): string {
+function fmt24(time: string): string {
   const m = /^(\d{1,2}):(\d{2})$/.exec(time ?? "");
   if (!m) return time ?? "";
-  const h = Number(m[1]);
-  return `${h < 12 ? "오전" : "오후"} ${h % 12 === 0 ? 12 : h % 12}:${m[2]}`;
+  return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
 }
 
 export async function GET(req: Request) {
@@ -124,16 +123,19 @@ export async function GET(req: Request) {
     if (tokens.length === 0) continue;
 
     const when = startTime
-      ? `내일 ${ampm(startTime)}${endTime ? ` ~ ${ampm(endTime)}` : ""}`
-      : "내일";
-    const body = [when, location].filter(Boolean).join(" · ");
+      ? `${fmt24(startTime)}${endTime ? `–${fmt24(endTime)}` : ""}`
+      : "";
+    // 스튜디오 얼라이브는 기본 장소라 본문에서 생략
+    const showLocation = location && location !== "스튜디오 얼라이브" ? location : "";
+    const body = [when, showLocation].filter(Boolean).join(" · ") || "내일 일정이 있어요.";
 
+    const pushTitle = `내일 일정 · ${title}`;
     for (let i = 0; i < tokens.length; i += BATCH) {
       const part = tokens.slice(i, i + BATCH);
       const res = await messaging.sendEachForMulticast({
         tokens: part,
         data: {
-          title: `내일 일정: ${title}`,
+          title: pushTitle,
           body,
           href: `/schedule?tab=events&date=${tomorrow}`,
           tag: `reminder-${e.id}`,
@@ -141,7 +143,7 @@ export async function GET(req: Request) {
         webpush: {
           headers: { Urgency: "high", TTL: "86400" },
           notification: {
-            title: `내일 일정: ${title}`,
+            title: pushTitle,
             body,
             icon: "/icon-192.png",
             badge: "/icon-192.png",

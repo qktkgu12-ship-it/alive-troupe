@@ -232,6 +232,8 @@ export interface Poll {
   multiple: boolean; // 복수 선택 허용
   anonymous: boolean; // 익명(누가 골랐는지 숨김)
   deadline?: number; // 마감 시각(ms). 없으면 무기한
+  // 글쓴이·관리자가 손으로 끝낸 시각(ms). 마감 시각과 별개로 언제든 닫을 수 있다.
+  closedAt?: number;
 }
 
 // 개별 투표 기록 (posts/{postId}/votes/{uid})
@@ -277,6 +279,9 @@ export interface Comment {
   authorAvatar?: string; // 작성 시점의 프로필 사진(압축 data URL) — 다른 사람 프로필은 못 읽으므로 denormalize
   content: string;
   parentId?: string; // 대댓글이면 부모 댓글 id (없으면 최상위 댓글)
+  // @로 부른 단원들의 uid. 본문에도 "@이름"이 글자로 남아 있지만,
+  // 이름이 바뀌면 글자로는 못 찾으므로 부른 순간의 uid를 따로 남긴다.
+  mentionUids?: string[];
   createdAt: number;
 }
 

@@ -8,14 +8,13 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/fi
 import { db } from "@/lib/firebase";
 import { pushToAll, pushToUsers } from "@/lib/push";
 import {
-  shortDateKo,
-  shortTimeKo,
   buildMonthGrid,
   toDateStr,
   TIME_SLOTS,
   slotEnd,
   WEEKDAYS_KO,
   ampmTimeKo,
+  when24,
 } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
@@ -26,6 +25,16 @@ import { CalendarIcon } from "@/components/Icons";
 import type { ExternalBooking, PublicProfile, ScheduleEvent } from "@/lib/types";
 
 export type SavedEvent = { date: string; startTime: string; endTime: string; title: string; team: string };
+
+/** 앞말의 받침에 따라 '로 / 으로'를 고른다 ("얼라이브로", "연습실로", "지하 1층으로").
+ *  "(으)로"는 알림 문구에 그대로 보이면 어색해서 직접 고른다. */
+function ro(word: string): string {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (!last || code < 0xac00 || code > 0xd7a3) return "로"; // 한글이 아니면 그냥 '로'
+  const jong = (code - 0xac00) % 28;
+  return jong === 0 || jong === 8 ? "로" : "으로"; // 받침 없음·ㄹ 받침이면 '로'
+}
 
 // "HH:mm" → 분
 function toMinutes(t: string): number {
@@ -482,12 +491,8 @@ export default function EventForm({
         participantUids: individual ? selectedUids : [],
         participantLabel: individual ? `${selectedUids.length}명` : "",
       };
-      const when = [
-        shortDateKo(selectedDate),
-        [shortTimeKo(startTime), endTime ? shortTimeKo(endTime) : ""].filter(Boolean).join(" ~ "),
-      ]
-        .filter(Boolean)
-        .join(" ");
+      // 알림 본문에 들어갈 때 — 24시간제 ("9월 7일 (월) 19:00–24:00")
+      const when = when24(selectedDate, startTime, endTime);
 
       if (eventId) {
         await updateDoc(doc(db, "events", eventId), data);
@@ -502,9 +507,13 @@ export default function EventForm({
             movedPlace ? "장소" : "",
           ].filter(Boolean).join("·");
           const target = data.participantUids.length > 0 ? data.participantUids : null;
+          // 알림은 '제목 1줄 + from ALIVE 1줄 + 본문 1줄' 세 줄로 맞춘다.
+          // 길이가 변하는 일정 제목은 제목줄에 둔다 — 제목은 iOS가 한 줄로 잘라 주지만
+          // 본문은 줄바꿈해서 늘어난다.
           const msg = {
-            title: `일정 ${changed}이 변경됐어요`,
-            body: [data.title, when, data.location].filter(Boolean).join("\n"),
+            title: `일정 변경 · ${data.title}`,
+            // 바뀐 것만 한 줄로. 시간이 바뀌었으면 시간, 장소만 바뀌었으면 장소.
+            body: movedDate || movedTime ? when : `장소가 ${data.location}${ro(data.location)} 변경됐어요.`,
             href: `/schedule?tab=events&date=${selectedDate}`,
             tag: `event-changed-${eventId}`,
           };
@@ -520,8 +529,8 @@ export default function EventForm({
           createdAt: Date.now(),
         });
         void pushToAll({
-          title: "새 일정이 등록됐어요",
-          body: [data.title, when].filter(Boolean).join("\n"),
+          title: `새 일정 · ${data.title}`,
+          body: when,
           href: `/schedule?tab=events&date=${selectedDate}`,
           tag: "event",
         });

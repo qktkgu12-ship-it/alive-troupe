@@ -50,8 +50,17 @@ guest가 `admins`로 보내면 서버가 문구를 고정한다(가입 신청 �
 | 가입 승인 | 본인 | `app/admin` |
 | 일정방 생성 / 확정 / 재촉 | 대상자 | `CoordSection`·`CoordDetail` |
 | 새 글·공지 / 댓글 | 전체 / 관련자 | `board`·`PostEditorSheet` |
+| **@언급 (댓글·답글)** | 불린 사람 | `board/[id]` — 언급된 사람은 댓글 알림에서 제외해 두 번 안 간다 |
 | 새 아카이브·음원 | 작품 참여자 | `ArchiveForm`·`AudioForm` |
 | **내일 일정 리마인더** | 참여자(불참자 제외) | `api/cron/reminder` |
+
+**문구 규칙 — 알림은 딱 세 줄**
+아이폰은 제목 밑에 `from ALIVE` 한 줄을 강제로 그린다(애플이 그리는 것이라 못 없앤다).
+그래서 `제목 1줄 + from ALIVE 1줄 + 본문 1줄`로 맞춘다.
+- 제목은 **`행동/상태 · 대상`** 형식 (`불참 · 4주차 노래연습`). 길이가 변하는 것(일정·글·자료 제목)은 **반드시 제목줄**에 — 제목은 iOS가 한 줄로 잘라 주지만 본문은 줄바꿈해서 늘어난다.
+- 본문은 한 줄짜리 문장 하나. 시간은 **24시간제**(`when24`·`range24`, `lib/utils`).
+- 최종 재단은 `app/api/push`가 한다 (줄바꿈→가운뎃점, 한 줄 폭으로 자름). 몰라도 안전하다.
+- 같은 기기에 두 번 가지 않게 서버가 기기당 최신 토큰 하나만 고른다.
 
 **리마인더**: Vercel Cron이 매일 11:00 UTC(=한국 20시) 호출. `vercel.json`에 스케줄, 환경변수 `CRON_SECRET` 필요.
 **Cron은 프로덕션에서만 동작** — 프리뷰 브랜치에서는 안 돌아간다.
@@ -91,6 +100,7 @@ guest가 `admins`로 보내면 서버가 문구를 고정한다(가입 신청 �
 - 빨간 pill 버튼: `flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-accent-fg` + `style={{ backgroundColor: "rgb(var(--accent))" }}`
 - 원형 아이콘 버튼: `grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg`
 - 브랜드색: `rgb(var(--accent))` = `#e53535`
+- 이모지: `.tf` 클래스(토스페이스). ⚠️ **이모지만 든 칸에만** 붙일 것 — 이 글꼴은 키캡 이모지 때문에 숫자·#·*도 들고 있어서 글이 섞인 칸에 붙이면 숫자까지 바뀐다
 - 텍스트 계층(홈): 섹션 제목 `18px bold slate-900` / 항목 제목 `15px medium slate-800` / 메타 `12px slate-400`
 
 ---

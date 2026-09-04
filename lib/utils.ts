@@ -154,6 +154,42 @@ export function bookingWhenLabel(date: string, start: string, end: string): stri
   return timeL ? `${head} ${timeL}` : head;
 }
 
+// ---------- 기기 알림용 시각 표기 ----------
+//
+// 알림은 앱 화면과 표기 규칙이 다르다.
+//   화면 : "오후 7:00 ~ 11:00"  — 읽기 편한 12시간제
+//   알림 : "19:00–24:00"        — 24시간제
+// 알림은 한 줄 안에 날짜·시간·내용을 다 밀어 넣어야 해서 '오전/오후' 두 글자가 아깝고,
+// 자정을 12시간제로 쓰면 "오후 12:00"이 되어 낮 12시와 헷갈린다 (24:00은 안 헷갈린다).
+
+/** "19:00" · 자정 끝시간은 "24:00" 그대로 둔다 */
+export function time24(t: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? "");
+  if (!m) return t ?? "";
+  return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+}
+
+/** "19:00–24:00" (붙임표는 짧은 대시 –) */
+export function range24(start: string, end: string): string {
+  if (!start) return "";
+  return end ? `${time24(start)}–${time24(end)}` : time24(start);
+}
+
+/**
+ * 알림용 날짜+시간 → "9월 7일 (월) 19:00–24:00"
+ * @param weekday 제목줄처럼 자리가 빠듯한 곳에서는 false로 요일을 뺀다
+ */
+export function when24(date: string, start: string, end: string, weekday = true): string {
+  const md = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
+  const head = md
+    ? `${Number(md[2])}월 ${Number(md[3])}일${
+        weekday ? ` (${WEEKDAY_KO[new Date(`${date}T00:00:00`).getDay()]})` : ""
+      }`
+    : date ?? "";
+  const t = range24(start, end);
+  return t ? `${head} ${t}` : head;
+}
+
 // 슬롯 시작시간 → 끝시간 (+30분)
 export function slotEnd(slot: string): string {
   const [h, m] = slot.split(":").map(Number);

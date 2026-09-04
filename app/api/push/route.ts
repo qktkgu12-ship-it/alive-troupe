@@ -36,6 +36,49 @@ interface Body {
   exclude?: string[];
 }
 
+/**
+ * 알림 한 줄에 들어가는 '폭'. 한글은 1, 영문·숫자는 대략 0.5칸을 먹는다.
+ * 글자 수로만 자르면 한글 문구는 넘치고 영문 제목은 아깝게 잘린다.
+ */
+function width(s: string): number {
+  let w = 0;
+  for (const ch of s) w += /[ᄀ-ᇿ㄰-㆏가-힯　-〿＀-￯]/.test(ch) ? 1 : 0.5;
+  return w;
+}
+
+/** 폭 기준으로 자른다 (넘치면 … 을 붙인다) */
+function clipWidth(s: string, maxWidth: number): string {
+  if (width(s) <= maxWidth) return s;
+  let out = "";
+  let w = 0;
+  for (const ch of s) {
+    const cw = width(ch);
+    if (w + cw > maxWidth - 1) break; // … 자리 남겨 둔다
+    out += ch;
+    w += cw;
+  }
+  return out.trimEnd() + "…";
+}
+
+/**
+ * 본문을 반드시 '한 줄'로 만든다.
+ *
+ * 아이폰은 홈 화면 앱이 보낸 알림의 제목 밑에 "from ALIVE" 한 줄을 강제로 그려 넣는다
+ * (애플이 그리는 것이라 앱에서 없앨 수 없다). 그래서 본문이 두 줄이면 알림이 네 줄이 되어
+ * 알림 센터가 금세 어수선해진다.
+ *   제목 1줄 + from ALIVE 1줄 + 본문 1줄 = 3줄
+ * 이 규칙을 여기 한 곳에서 강제한다. 나중에 알림을 추가하는 사람이 몰라도 안전하다.
+ *
+ * ⚠️ 길이가 변하는 내용(일정 제목 등)은 본문이 아니라 '제목'에 넣어야 한다.
+ *    제목은 iOS가 알아서 한 줄로 잘라 주지만, 본문은 줄바꿈해서 늘어난다.
+ */
+const BODY_WIDTH = 24;
+function oneLine(s: string): string {
+  // 줄바꿈은 가운뎃점으로 이어 붙인다 (내용이 조용히 사라지지 않게)
+  const flat = s.replace(/\s*\n+\s*/g, " · ").replace(/\s+/g, " ").trim();
+  return clipWidth(flat, BODY_WIDTH);
+}
+
 function clip(s: unknown, max: number): string {
   return typeof s === "string" ? s.trim().slice(0, max) : "";
 }
@@ -118,13 +161,18 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
     }
   } else if (audience === "self") {
     title = "테스트 알림";
-    body = "이 알림이 보이면 설정이 잘 된 거예요 🎉";
+    body = "알림이 정상적으로 도착했어요. 🎉";
     href = "/";
   } else if (!isMember) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   if (!title) return NextResponse.json({ error: "title-required" }, { status: 400 });
+
+  // 제목은 한 줄, 본문도 한 줄 — "from ALIVE"까지 합쳐 알림을 3줄로 묶는다.
+  // 제목은 iOS가 알아서 자르지만, 알림 센터 밖(잠금화면 등)에서도 같게 보이도록 여기서도 자른다.
+  title = clipWidth(title, 26);
+  body = oneLine(body);
 
   // ---- 3-1. 알림 일시 중지 ----
   // 관리자가 settings/site 의 pushPaused 를 켜 두면 남에게 가는 알림을 전부 막는다.
@@ -173,13 +221,31 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
   // ---- 5. 토큰 모으기 ----
   step.at = "readTokens";
   const tokenSnap = await db.collection("fcmTokens").get();
-  const tokens: string[] = [];
+
+  // 기기 하나에 토큰이 여럿 남아 있으면 같은 알림이 그 기기에 여러 번 배달된다.
+  //
+  // 토큰은 '기기+브라우저' 단위인데, 알림을 껐다 켜거나 FCM이 토큰을 갱신하면
+  // 새 문서가 생기고 옛 문서는 그대로 남는다. 옛 토큰도 한동안은 살아 있어서
+  // 같은 폰에 두 번 도착한다 — 실제로 불참 알림이 두 개씩 뜨는 걸로 나타났다.
+  //
+  // 그래서 기기 하나당 가장 최근 토큰 하나만 남긴다.
+  //   · deviceId가 있으면 그걸로 (앱이 브라우저마다 심어 두는 고유값 — 정확하다)
+  //   · 없는 옛 문서는 uid+브라우저 문자열로 (같은 폰의 같은 브라우저면 같은 값)
+  const newest = new Map<string, { id: string; at: number }>();
   tokenSnap.forEach((d) => {
     const owner = d.get("uid") as string;
     if (exclude.has(owner)) return;
     if (!allowUids.has(owner)) return;
-    tokens.push(d.id);
+    const deviceId = (d.get("deviceId") as string) ?? "";
+    const key = deviceId ? `d:${deviceId}` : `u:${owner}|${(d.get("ua") as string) ?? ""}`;
+    // createdAt은 서버 타임스탬프. 옛 문서엔 없을 수도 있어 0으로 본다.
+    const ts = d.get("createdAt") as { toMillis?: () => number } | number | undefined;
+    const at =
+      typeof ts === "number" ? ts : typeof ts?.toMillis === "function" ? ts.toMillis() : 0;
+    const prev = newest.get(key);
+    if (!prev || at > prev.at) newest.set(key, { id: d.id, at });
   });
+  const tokens = [...newest.values()].map((v) => v.id);
   if (tokens.length === 0) return NextResponse.json({ sent: 0 });
 
   // ---- 6. 발송 ----

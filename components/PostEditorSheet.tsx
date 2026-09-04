@@ -464,7 +464,7 @@ export default function PostEditorSheet({
         await setDoc(doc(db, "posts", id), post);
         clearSearchCache();
         if (post.isNotice) {
-          void pushToAll({ title: "📢 새 공지", body: post.title, href: `/board/${id}`, tag: "notice" });
+          void pushToAll({ title: `📢 공지 · ${post.title}`, body: "새 공지가 올라왔어요.", href: `/board/${id}`, tag: "notice" });
         }
         try {
           localStorage.removeItem(draftKey);
@@ -819,7 +819,7 @@ export default function PostEditorSheet({
               onChange={(e) => setAsNotice(e.target.checked)}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            📢 공지로 등록 (모든 게시판 상단에 고정)
+            <span className="tf">📢</span> 공지로 등록 (모든 게시판 상단에 고정)
           </label>
         )}
       </BottomSheet>

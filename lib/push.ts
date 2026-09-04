@@ -15,6 +15,29 @@ const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? "";
 
 // 이 기기의 토큰을 기억해 둔다 (알림을 끌 때 어떤 문서를 지울지 알아야 하므로)
 const TOKEN_KEY = "alive-push-token";
+// 이 브라우저에 한 번 심어 두는 고유값 (토큰이 갱신돼도 안 바뀐다)
+const DEVICE_KEY = "alive-device-id";
+
+/**
+ * 이 브라우저를 가리키는 고정된 값.
+ *
+ * 토큰은 FCM이 마음대로 갱신한다. 갱신될 때마다 새 문서가 생기고 옛 문서는 남는데,
+ * 옛 토큰도 한동안 살아 있어서 같은 폰에 알림이 두 번 배달된다.
+ * 이 값을 문서에 같이 적어 두면 서버가 '같은 기기'임을 알아보고
+ * 가장 최근 것 하나만 골라 보낸다.
+ */
+function deviceId(): string {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return ""; // 저장을 못 하면 서버가 uid+브라우저 문자열로 대신 판단한다
+  }
+}
 
 /** 이 브라우저가 푸시를 지원하는가 (iOS는 홈 화면에 설치해야만 가능) */
 export async function pushSupported(): Promise<boolean> {
@@ -66,6 +89,7 @@ export async function enablePush(uid: string): Promise<boolean> {
   // 문서 ID = 토큰. 같은 기기에서 다시 켜도 문서가 하나로 유지된다.
   await setDoc(doc(db, "fcmTokens", token), {
     uid,
+    deviceId: deviceId(),
     ua: navigator.userAgent.slice(0, 200),
     createdAt: serverTimestamp(),
   });

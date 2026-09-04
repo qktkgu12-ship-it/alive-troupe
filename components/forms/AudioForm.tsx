@@ -65,8 +65,8 @@ export default function AudioForm({
       }
       if (people.length === 0) return;
       await pushToUsers(people, {
-        title: "새 자료가 올라왔어요",
-        body: trackTitle,
+        title: `새 자료 · ${trackTitle}`,
+        body: "자료실에 올라왔어요.",
         href: "/audio",
         tag: "audio",
       });

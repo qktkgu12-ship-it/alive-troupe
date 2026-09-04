@@ -331,7 +331,7 @@ function AudioInner() {
               <div className="flex flex-wrap gap-2">
                 {categories.map((c) => (
                   <span key={c} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
-                    {getEmoji(c)} {c}
+                    <span className="tf">{getEmoji(c)}</span> {c}
                     <button
                       onClick={() => removeCategory(c)}
                       disabled={categories.length <= 1}
@@ -385,7 +385,7 @@ function AudioInner() {
                   onKeyDown={(e) => { if (e.key === "Enter") openLink(t.url); }}
                   className={`card flex cursor-pointer items-center gap-3 !p-3 transition hover:ring-1 hover:ring-accent/30 ${highlightId === t.id ? "ring-2 ring-accent" : ""}`}
                 >
-                  <span className="text-2xl">{getEmoji(itemCategory(t))}</span>
+                  <span className="tf text-2xl">{getEmoji(itemCategory(t))}</span>
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 font-medium text-slate-900">
                       <span className="truncate">{itemTitle(t)}</span>

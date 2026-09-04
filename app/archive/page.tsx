@@ -367,7 +367,7 @@ function ArchiveInner() {
                 >
                   {/* 헤더 행: 이모지 + 날짜 + ⋮ */}
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="text-xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
+                    <span className="tf text-xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
                     <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                       <CalendarIcon className="h-3.5 w-3.5" />
                       {it.date}
@@ -430,7 +430,7 @@ function ArchiveInner() {
                 className={`card !p-3 transition ${multi ? "" : "cursor-pointer hover:ring-1 hover:ring-accent/30"} ${highlightId === it.id ? "ring-2 ring-accent" : ""}`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
+                  <span className="tf text-2xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">{it.title}</p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">

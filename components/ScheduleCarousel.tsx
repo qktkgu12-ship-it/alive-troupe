@@ -140,7 +140,12 @@ export default function ScheduleCarousel({
           openId ? "" : "snap-x snap-mandatory"
         }`}
       >
+        {/* 일정이 하나뿐이면 밀 데가 없다.
+            그때도 78%로 두면 오른쪽에 '다음 카드가 있는 척'하는 빈자리가 남는데,
+            peek은 밀 수 있다는 신호이므로 밀 게 없을 때 남겨 두면 거짓 신호가 된다.
+            한 장일 때만 아래 아카이브·자료실 카드와 폭을 맞춘다. */}
         {events.map((e, i) => {
+          const only = events.length === 1;
           const edge = i === 0 || i === events.length - 1;
           const open = openId === e.id;
           return (
@@ -161,8 +166,8 @@ export default function ScheduleCarousel({
               wrapperStyle={{
                 // 옆 카드가 살짝 보이는 peek — 밀 수 있는 줄이라는 걸 알려 주는 장치라 유지한다.
                 // 펼치면 화면 폭(좌우 16px 여백 제외)을 꽉 채워 옆 카드를 가린다.
-                width: open ? "calc(100vw - 32px)" : "78%",
-                maxWidth: open ? 520 : 330,
+                width: open || only ? "calc(100vw - 32px)" : "78%",
+                maxWidth: open || only ? 520 : 330,
                 // 위에서부터 상단 16 + 배지줄 19 + 10 + 제목 두 줄 50 = 95.
                 // 바닥 줄(시간·아바타)은 아바타 24 + 바닥 여백 14 = 38.
                 // 95 + 38 = 133이 최소치라, 제목과 바닥 줄이 붙지 않게

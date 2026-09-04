@@ -9,7 +9,12 @@ import { useAuth } from "@/lib/auth-context";
 import Guard from "@/components/Guard";
 import Spinner from "@/components/Spinner";
 import ImagePicker from "@/components/ImagePicker";
+import BottomSheet from "@/components/BottomSheet";
 import Linkify from "@/components/Linkify";
+import CommentText from "@/components/CommentText";
+import MentionInput from "@/components/MentionInput";
+import { extractMentionUids, type MentionMember } from "@/lib/mentions";
+import { getMembers } from "@/lib/members";
 import PostContent from "@/components/PostContent";
 import { usePostEditor } from "@/lib/post-editor-context";
 import { loadPostMedia, type MediaMap } from "@/lib/post-media";
@@ -61,6 +66,18 @@ function PostDetailInner() {
   const [replyTo, setReplyTo] = useState<string | null>(null); // 답글 작성 중인 부모 댓글 id
   const [replyText, setReplyText] = useState("");
   const viewedRef = useRef(false);
+
+  // @언급 후보 — 단원 명단. 캐시되어 있어 화면마다 다시 받지 않는다.
+  const [mentionable, setMentionable] = useState<MentionMember[]>([]);
+  useEffect(() => {
+    getMembers()
+      .then((list) =>
+        setMentionable(
+          list.filter((m) => m.name?.trim()).map((m) => ({ uid: m.uid, name: m.name!, avatar: m.avatar }))
+        )
+      )
+      .catch(() => setMentionable([]));
+  }, []);
 
   // 같은 게시판 안에서의 이전/다음 글
   const [prevPost, setPrevPost] = useState<{ id: string; title: string } | null>(null);
@@ -185,36 +202,58 @@ function PostDetailInner() {
     setCommentBusy(true);
     try {
       const cid = crypto.randomUUID();
+      const body = text.trim();
+      // 누구를 불렀는지는 쓰는 순간에 정해 둔다.
+      // 나중에 이름이 바뀌면 글자로는 못 찾으므로 uid를 같이 남긴다.
+      const mentionUids = extractMentionUids(body, mentionable).filter((u) => u !== user.uid);
       await setDoc(doc(db, "posts", id, "comments", cid), {
         authorUid: user.uid,
         authorName: profile?.name || profile?.displayName || "",
         authorAvatar: profile?.avatar || "",
-        content: text.trim(),
+        content: body,
+        ...(mentionUids.length > 0 ? { mentionUids } : {}),
         ...(parentId ? { parentId } : {}),
         createdAt: Date.now(),
       });
       await updateDoc(doc(db, "posts", id), { commentCount: increment(1) }).catch(() => {});
       await loadComments();
-      notifyComment(text.trim(), !!parentId);
+      notifyComment(body, !!parentId, mentionUids);
     } finally {
       setCommentBusy(false);
     }
   }
 
   // 댓글이 달렸음을 관련된 사람들에게 알린다.
+  //  - 언급된 사람 (@이름) — "회원님을 언급했어요"로 따로 간다
   //  - 글쓴이 (내 글에 댓글)
   //  - 이미 이 글에 댓글을 단 사람들 (대화에 참여 중이므로)
   // 보낸 사람 본인은 서버가 알아서 제외한다.
-  function notifyComment(text: string, isReply: boolean) {
+  function notifyComment(text: string, isReply: boolean, mentionUids: string[]) {
     if (!post) return;
+    const who = profile?.name || profile?.displayName || "누군가";
+    // 댓글은 길이를 알 수 없다. 여기서 한 번 줄이고, 알림 한 줄에 맞추는 최종 재단은
+    // 서버(app/api/push)가 한다 — 그래야 모든 알림이 같은 기준으로 세 줄에 맞는다.
+    const short = text.length > 60 ? `${text.slice(0, 60)}…` : text;
+
+    // ① 언급된 사람 — 나를 콕 집어 부른 것이므로 문구를 따로 준다
+    if (mentionUids.length > 0) {
+      void pushToUsers(mentionUids, {
+        title: `${who}님이 회원님을 언급했어요`,
+        body: short,
+        href: `/board/${id}`,
+        tag: `mention-${id}`,
+      });
+    }
+
+    // ② 나머지 관련자 — 언급된 사람은 뺀다 (같은 댓글로 알림이 두 번 오면 안 된다)
+    const mentioned = new Set(mentionUids);
     const targets = [post.authorUid, ...comments.map((c) => c.authorUid)].filter(
-      (u): u is string => !!u && u !== user?.uid
+      (u): u is string => !!u && u !== user?.uid && !mentioned.has(u)
     );
     if (targets.length === 0) return;
-    const who = profile?.name || profile?.displayName || "누군가";
     void pushToUsers(targets, {
       title: isReply ? `${who}님이 답글을 남겼어요` : `${who}님이 댓글을 남겼어요`,
-      body: text.length > 60 ? `${text.slice(0, 60)}…` : text,
+      body: short,
       href: `/board/${id}`,
       // 글 단위로 묶어서, 댓글이 연달아 달려도 알림이 하나로 갱신되게 한다
       tag: `comment-${id}`,
@@ -316,7 +355,7 @@ function PostDetailInner() {
           {isAdmin && (
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
               <input type="checkbox" checked={asNotice} onChange={(e) => setAsNotice(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-              📢 공지로 등록
+              <span className="tf">📢</span> 공지로 등록
             </label>
           )}
           <div className="flex gap-2">
@@ -351,7 +390,7 @@ function PostDetailInner() {
             </div>
           )}
 
-          {post.poll && <PollBlock post={post} />}
+          {post.poll && <PollBlock post={post} canManage={!!canEdit} />}
 
           {images.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -461,7 +500,7 @@ function PostDetailInner() {
                             <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
                           </p>
                           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
-                            <Linkify text={c.content} />
+                            <CommentText text={c.content} members={mentionable} />
                           </p>
                           <button
                             onClick={() => {
@@ -492,7 +531,7 @@ function PostDetailInner() {
                                   <span className="ml-1.5 text-xs text-slate-400">{relativeTime(r.createdAt)}</span>
                                 </p>
                                 <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
-                                  <Linkify text={r.content} />
+                                  <CommentText text={r.content} members={mentionable} />
                                 </p>
                               </div>
                               {(isAdmin || r.authorUid === user?.uid) && (
@@ -508,18 +547,13 @@ function PostDetailInner() {
                       {/* 답글 입력 */}
                       {replyTo === c.id && (
                         <div className="mt-2 flex gap-2 border-l-2 border-slate-100 pl-3 sm:ml-10">
-                          <input
-                            className="input flex-1"
+                          <MentionInput
                             value={replyText}
+                            onChange={setReplyText}
+                            onSubmit={() => submitReply(c.id)}
+                            members={mentionable}
                             autoFocus
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder={`${c.authorName}님에게 답글`}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                submitReply(c.id);
-                              }
-                            }}
+                            placeholder={`${c.authorName}님에게 답글 (@로 단원 부르기)`}
                           />
                           <button onClick={() => submitReply(c.id)} disabled={commentBusy || !replyText.trim()} className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">
                             등록
@@ -538,17 +572,12 @@ function PostDetailInner() {
             );
           })()}
           <div className="mt-3 flex gap-2">
-            <input
-              className="input flex-1"
+            <MentionInput
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="댓글을 입력하세요"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  addComment();
-                }
-              }}
+              onChange={setCommentText}
+              onSubmit={addComment}
+              members={mentionable}
+              placeholder="댓글을 입력하세요 (@로 단원 부르기)"
             />
             <button onClick={addComment} disabled={commentBusy || !commentText.trim()} className="rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">
               등록
@@ -584,14 +613,21 @@ function pollDeadlineLabel(ts: number) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function PollBlock({ post }: { post: Post }) {
+function PollBlock({ post, canManage }: { post: Post; canManage: boolean }) {
   const { user, profile } = useAuth();
   const poll = post.poll!;
   const [votes, setVotes] = useState<PollVote[]>([]);
   const [sel, setSel] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
+  // '다시 투표하기'를 누르면 결과 화면에서 고르는 화면으로 되돌아간다
+  const [editing, setEditing] = useState(false);
+  // 항목별로 누가 골랐는지 보는 시트 (실명 투표에서만 연다)
+  const [rosterSheet, setRosterSheet] = useState(false);
+  // 종료는 글 문서를 고치는 일이라 다시 읽어 오기 전까지는 화면에서만 먼저 반영한다
+  const [closedNow, setClosedNow] = useState(false);
 
-  const closed = !!poll.deadline && Date.now() > poll.deadline;
+  const closed =
+    closedNow || !!poll.closedAt || (!!poll.deadline && Date.now() > poll.deadline);
 
   const load = useCallback(async () => {
     const snap = await getDocs(collection(db, "posts", post.id, "votes"));
@@ -608,11 +644,14 @@ function PollBlock({ post }: { post: Post }) {
   const total = votes.length;
   const counts = poll.options.map((_, i) => votes.filter((v) => v.choices.includes(i)).length);
   const votersByOption = poll.options.map((_, i) => votes.filter((v) => v.choices.includes(i)));
+  const top = Math.max(0, ...counts);
 
-  const selChanged = JSON.stringify([...sel].sort()) !== JSON.stringify([...(myVote?.choices ?? [])].sort());
+  // 아직 안 냈거나 다시 고르는 중이면 '고르는 화면', 그 외에는 '결과 화면'.
+  // 마감·종료된 투표는 언제나 결과만 보여 준다.
+  const picking = !closed && (!myVote || editing);
 
   function toggle(i: number) {
-    if (closed) return;
+    if (!picking) return;
     setSel((prev) => {
       if (poll.multiple) return prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i];
       return [i];
@@ -630,103 +669,181 @@ function PollBlock({ post }: { post: Post }) {
         choices: sel,
         createdAt: Date.now(),
       });
+      setEditing(false);
       await load();
     } finally {
       setBusy(false);
     }
   }
-  async function cancelVote() {
-    if (!user || closed) return;
+
+  async function closePoll() {
+    if (!canManage || closed) return;
+    if (!confirm("투표를 종료할까요? 종료하면 더 이상 투표할 수 없어요.")) return;
     setBusy(true);
     try {
-      await deleteDoc(doc(db, "posts", post.id, "votes", user.uid));
-      setSel([]);
-      await load();
+      // 점 표기로 poll 안의 한 칸만 고친다 (나머지 설정·선택지는 건드리지 않는다)
+      await updateDoc(doc(db, "posts", post.id), { "poll.closedAt": Date.now() });
+      setClosedNow(true);
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <div className="mt-5 rounded-xl border border-slate-200 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="font-semibold text-slate-900">🗳️ {poll.question || "투표"}</p>
-        <span className="shrink-0 text-xs text-slate-400">
-          {poll.multiple ? "복수" : "단일"} · {poll.anonymous ? "익명" : "실명"}
-        </span>
-      </div>
+  // 머리 밑 한 줄 — 복수선택 · 익명투표 · 마감
+  const meta = [
+    poll.multiple ? "복수선택" : "단일선택",
+    poll.anonymous ? "익명투표" : "실명투표",
+    closed
+      ? "종료됨"
+      : poll.deadline
+        ? `${pollDeadlineLabel(poll.deadline)} 마감`
+        : "",
+  ].filter(Boolean);
 
-      <div className="space-y-2">
+  return (
+    <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+      <p className="text-[17px] font-bold tracking-tight text-slate-900">
+        {poll.question || "투표"}
+      </p>
+      <p className="mt-1 text-[12.5px] text-slate-400">{meta.join(" · ")}</p>
+
+      <div className="mt-4 space-y-3.5">
         {poll.options.map((opt, i) => {
           const count = counts[i];
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
           const chosen = sel.includes(i);
+          const isTop = count > 0 && count === top;
+          const Row = picking ? "button" : "div";
           return (
-            <div key={i}>
-              <button
-                type="button"
-                onClick={() => toggle(i)}
-                disabled={closed}
-                className={`relative w-full overflow-hidden rounded-lg border px-3 py-2.5 text-left text-sm transition ${
-                  chosen ? "border-accent bg-accent-soft" : "border-slate-200 hover:bg-slate-50"
-                } ${closed ? "cursor-default" : ""}`}
-              >
-                {/* 결과 막대 */}
-                <span className="absolute inset-y-0 left-0 -z-0 bg-accent/10" style={{ width: `${pct}%` }} aria-hidden />
-                <span className="relative z-10 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={`grid h-4 w-4 shrink-0 place-items-center border-2 ${poll.multiple ? "rounded" : "rounded-full"} ${
-                        chosen ? "border-accent bg-accent text-accent-fg" : "border-slate-300"
-                      }`}
-                    >
-                      {chosen && <span className="text-[9px] leading-none">✓</span>}
+            <Row
+              key={i}
+              {...(picking
+                ? { type: "button" as const, onClick: () => toggle(i), className: "block w-full text-left" }
+                : { className: "block w-full" })}
+            >
+              <span className="flex items-center gap-2.5">
+                {picking ? (
+                  // 고르는 중 — 왼쪽에 동그라미(단일)·네모(복수) 체크
+                  <span
+                    className={`grid h-[22px] w-[22px] shrink-0 place-items-center transition ${
+                      poll.multiple ? "rounded-md" : "rounded-full"
+                    } ${chosen ? "bg-accent text-accent-fg" : "border-2 border-slate-300"}`}
+                  >
+                    {chosen && (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                        <polyline points="4 12.5 9.5 18 20 6.5" />
+                      </svg>
+                    )}
+                  </span>
+                ) : (
+                  // 결과 — 내가 고른 항목에만 체크.
+                  // 내가 투표한 투표라면 체크가 없는 줄에도 같은 자리를 비워 둔다.
+                  // 안 그러면 고른 항목만 오른쪽으로 밀려 항목 이름이 들쭉날쭉해진다.
+                  myVote && (
+                    <span className="grid h-3.5 w-3.5 shrink-0 place-items-center text-slate-900">
+                      {chosen && (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+                          <polyline points="4 12.5 9.5 18 20 6.5" />
+                        </svg>
+                      )}
                     </span>
-                    <span className={chosen ? "font-semibold text-slate-900" : "text-slate-700"}>{opt}</span>
-                  </span>
-                  <span className="shrink-0 text-xs font-medium text-slate-500">
-                    {count}표 · {pct}%
-                  </span>
+                  )
+                )}
+                <span className={`min-w-0 flex-1 break-words text-[15px] ${chosen ? "font-bold text-slate-900" : "font-medium text-slate-800"}`}>
+                  {opt}
                 </span>
-              </button>
-              {/* 실명 투표면 각 선택지에 투표자 표시 */}
-              {!poll.anonymous && votersByOption[i].length > 0 && (
-                <div className="mt-1 flex flex-wrap items-center gap-1 pl-1">
-                  {votersByOption[i].slice(0, 12).map((v) => (
-                    <ProfileAvatar key={v.uid} uid={v.uid} name={v.name} avatar={v.avatar} className="h-6 w-6 text-[10px]" />
-                  ))}
-                  {votersByOption[i].length > 12 && (
-                    <span className="text-xs text-slate-400">+{votersByOption[i].length - 12}</span>
-                  )}
-                </div>
-              )}
-            </div>
+                <span className="shrink-0 text-[15px] text-slate-400">{count}명</span>
+              </span>
+              {/* 막대 — 가장 많이 고른 항목만 강조색, 나머지는 회색.
+                  어느 쪽으로 기울었는지 색 하나로 바로 읽힌다. */}
+              <span className="mt-2 block h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
+                <span
+                  className={`block h-full rounded-full transition-[width] duration-300 ${isTop ? "bg-accent" : "bg-slate-300"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </span>
+            </Row>
           );
         })}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-400">
-          총 {total}명 참여
-          {poll.deadline && <> · {closed ? "마감됨" : `${pollDeadlineLabel(poll.deadline)} 마감`}</>}
-        </p>
-        {!closed && (
-          <div className="flex gap-2">
-            {myVote && (
-              <button onClick={cancelVote} disabled={busy} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50">
-                투표 취소
+      {picking ? (
+        <button
+          onClick={submit}
+          disabled={busy || sel.length === 0}
+          className="mt-4 w-full rounded-xl bg-surface py-3 text-[15px] font-bold text-slate-700 transition hover:bg-surface-strong disabled:opacity-40"
+        >
+          투표하기
+        </button>
+      ) : (
+        <>
+          {/* 참여 인원 — 실명 투표면 눌러서 항목별 명단을 본다.
+              익명 투표는 '누가 골랐는지 숨기기'가 목적이라 숫자만 남긴다. */}
+          <div className="mt-3 flex justify-end">
+            {poll.anonymous || total === 0 ? (
+              <span className="text-[13.5px] text-slate-400">{total}명 참여</span>
+            ) : (
+              <button
+                onClick={() => setRosterSheet(true)}
+                className="flex items-center gap-1 text-[13.5px] text-slate-500 transition hover:text-slate-900"
+              >
+                {total}명 참여
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
               </button>
             )}
-            <button
-              onClick={submit}
-              disabled={busy || sel.length === 0 || !selChanged}
-              className="btn-accent !py-1.5 disabled:opacity-50"
-            >
-              {myVote ? "변경 저장" : "투표하기"}
-            </button>
           </div>
-        )}
-      </div>
+
+          {!closed && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => setEditing(true)}
+                className="flex-1 rounded-xl bg-surface py-3 text-[15px] font-bold text-slate-700 transition hover:bg-surface-strong"
+              >
+                다시 투표하기
+              </button>
+              {canManage && (
+                <button
+                  onClick={closePoll}
+                  disabled={busy}
+                  className="flex-1 rounded-xl bg-surface py-3 text-[15px] font-bold text-slate-700 transition hover:bg-surface-strong disabled:opacity-40"
+                >
+                  투표 종료
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 항목별 참여 명단 — 일정 카드의 '참여 인원' 시트와 같은 모양 */}
+      <BottomSheet open={rosterSheet} title="투표한 사람" onClose={() => setRosterSheet(false)}>
+        <div className="space-y-5 pb-2">
+          {poll.options.map((opt, i) => (
+            <div key={i} className={i > 0 ? "border-t border-slate-100 pt-4" : ""}>
+              <p className="mb-2.5 text-[13px] font-semibold text-slate-500">
+                {opt} : <span className="text-slate-900">{counts[i]}명</span>
+              </p>
+              {votersByOption[i].length === 0 ? (
+                <p className="py-1 text-[13px] text-slate-400">아직 고른 사람이 없어요</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                  {votersByOption[i].map((v) => (
+                    <div key={v.uid} className="flex min-w-0 items-center gap-2.5">
+                      <ProfileAvatar uid={v.uid} name={v.name} avatar={v.avatar} className="h-10 w-10" />
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-800">
+                        <ProfileName uid={v.uid} name={v.name} />
+                        {v.uid === user?.uid && <span className="text-slate-400"> (나)</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
     </div>
   );
 }
