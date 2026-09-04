@@ -23,6 +23,40 @@ import type { ScheduleEvent } from "@/lib/types";
 // 펼침/접힘 — 높이가 늘어나는 건 차분하게
 export const EXPAND = "360ms cubic-bezier(0.32, 0.72, 0.28, 1)";
 
+// 참석 여부 세 가지.
+//   참석 = 초록 · 늦참 = 주황(호박색) · 불참 = 빨강
+// 신호등과 같은 순서라 색만 봐도 뜻이 읽힌다. 늦참을 회색으로 두면
+// '아직 안 고름'처럼 보여서, 고른 상태라는 게 드러나는 색을 줬다.
+type AttendKey = "going" | "late" | "absent";
+const ATTEND_CHOICES: { key: AttendKey; label: string; tone: string }[] = [
+  { key: "going", label: "참석", tone: "text-emerald-600" },
+  { key: "late", label: "늦참", tone: "text-amber-600" },
+  { key: "absent", label: "불참", tone: "text-red-500" },
+];
+
+/** 토글에서 켜진 칸에만 붙는 표시 — 체크 / 시계 / 엑스 */
+function AttendMark({ kind, className = "" }: { kind: AttendKey; className?: string }) {
+  if (kind === "going")
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polyline points="4 12.5 9.5 18 20 6.5" />
+      </svg>
+    );
+  if (kind === "late")
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5V12l3 1.8" />
+      </svg>
+    );
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="5.5" y1="5.5" x2="18.5" y2="18.5" />
+    </svg>
+  );
+}
+
 // D-day 칩(흰 알약) 안 글자색.
 // 캐러셀 카드는 컬러 배경 + 흰 글씨라 본문에는 색을 따로 두지 않는다.
 // 색이 붙는 곳은 이 칩 하나뿐이고, 그마저도 '오늘'에만 준다 —
@@ -261,6 +295,7 @@ export default function EventCard({
   members,
   absences,
   extraUids,
+  lateBy = [],
   myUid,
   myName,
   onChanged,
@@ -281,6 +316,13 @@ export default function EventCard({
   members: Member[];
   absences: { uid: string; reason: string }[];
   extraUids: string[];
+  /**
+   * 늦참을 알린 사람들 (uid → 사유·도착 예정 메모).
+   * 저장 자리는 attendees/{uid}의 late 플래그다 — 컬렉션을 새로 파면
+   * firestore 규칙을 사용자가 콘솔에 직접 붙여넣어야 해서 일부러 피했다.
+   * 늦참도 '오긴 온다'라서 참여 인원(going)에는 그대로 들어간다.
+   */
+  lateBy?: { uid: string; reason: string }[];
   myUid: string;
   myName: string;
   onChanged: () => void;
@@ -307,7 +349,9 @@ export default function EventCard({
 }) {
   const dt = parseDate(e.date);
   const [busy, setBusy] = useState(false);
-  const [reasonSheet, setReasonSheet] = useState(false);
+  // 사유 시트는 '불참'과 '늦참' 둘 다 쓴다 (묻는 게 똑같이 '왜/언제'라서).
+  // null이면 닫힌 상태.
+  const [reasonSheet, setReasonSheet] = useState<null | "absent" | "late">(null);
   const [rosterSheet, setRosterSheet] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -349,18 +393,64 @@ export default function EventCard({
     [members, absences]
   );
 
-  // 참석으로 전환 — 불참 기록을 지우고, 기본 명단 밖이면 attendees에 넣는다
-  async function setAttend() {
+  // 늦참 — going 안에 있으면서 late 표시가 붙은 사람
+  const lateSet = useMemo(() => new Set(lateBy.map((l) => l.uid)), [lateBy]);
+  const lateMembers = useMemo(
+    () =>
+      going
+        .filter((m) => lateSet.has(m.uid))
+        .map((m) => ({ ...m, reason: lateBy.find((l) => l.uid === m.uid)?.reason ?? "" })),
+    [going, lateSet, lateBy]
+  );
+  // 제때 오는 사람 — 명단 시트에서 늦참과 나눠 보여 주기 위한 것.
+  // 참여 인원 수(going.length)는 늦참을 포함한 그대로 둔다.
+  const onTimeMembers = useMemo(() => going.filter((m) => !lateSet.has(m.uid)), [going, lateSet]);
+
+  // 내 상태 — 토글에서 어느 칸이 켜져 있는지
+  const myStatus: "going" | "late" | "absent" = !iAmGoing
+    ? "absent"
+    : lateSet.has(myUid)
+      ? "late"
+      : "going";
+
+  // 참석으로 전환 — 불참 기록을 지우고, 기본 명단 밖이면 attendees에 넣는다.
+  // late=true면 '늦참' — 기본 명단 안이어도 attendees에 표시용 문서를 남긴다.
+  async function setAttend(late = false) {
     if (!myUid || busy) return;
     setBusy(true);
     try {
       await deleteDoc(doc(db, "events", e.id, "absences", myUid)).catch(() => {});
-      if (!iAmBase) {
+      if (!iAmBase || late) {
         await setDoc(doc(db, "events", e.id, "attendees", myUid), {
           uid: myUid,
           name: myName,
           createdAt: Date.now(),
+          ...(late ? { late: true, lateReason: reason.trim() } : {}),
         });
+      } else {
+        // 기본 명단 사람이 '참석'으로 돌아왔다 → 늦참 표시를 지운다
+        await deleteDoc(doc(db, "events", e.id, "attendees", myUid)).catch(() => {});
+      }
+      if (late) {
+        // 늦참 알림 — 받는 사람은 불참과 같은 기준이다.
+        //   전체·팀 일정  → 관리자 / 개별 지정 일정 → 같이 하기로 한 인원
+        const lateMsg = {
+          title: `늦참 · ${e.title}`,
+          body: reason.trim()
+            ? `${myName || "단원"}님 늦참 · ${reason.trim()}`
+            : `${myName || "단원"}님이 늦게 온다고 알렸어요.`,
+          href: `/schedule?tab=events&date=${e.date}`,
+          tag: `late-${e.id}`,
+        };
+        if (isIndividual) {
+          const to = baseUids.filter((u) => u && u !== myUid);
+          if (to.length > 0) void pushToUsers(to, lateMsg);
+        } else {
+          void pushToAdmins(lateMsg);
+        }
+        setReason("");
+        setReasonSheet(null);
+      } else if (!iAmBase && !iAmGoing) {
         // 대상이 아닌 사람이 합류하면 인원이 늘어난다 —
         // 원래 대상 인원 전원에게 알려 준비(자리·대본 등)를 맞출 수 있게 한다.
         // (이미 대상인 사람이 참석을 누른 건 알릴 일이 아니다)
@@ -393,8 +483,8 @@ export default function EventCard({
         reason: reason.trim(),
         createdAt: Date.now(),
       });
-      // 기본 명단 밖에서 참여했던 사람이면 추가참석 기록도 정리
-      if (!iAmBase) await deleteDoc(doc(db, "events", e.id, "attendees", myUid)).catch(() => {});
+      // 추가참석·늦참 기록을 정리한다 (기본 명단 사람은 원래 없어서 그냥 지나간다)
+      await deleteDoc(doc(db, "events", e.id, "attendees", myUid)).catch(() => {});
       // 불참 알림 — 누가 알아야 하는지는 일정 성격에 따라 다르다.
       //   전체·팀 일정  → 관리자 (인원 파악은 관리자 몫)
       //   개별 지정 일정 → 같이 하기로 한 대상 인원 (소수라 서로 조율이 필요하다)
@@ -417,7 +507,7 @@ export default function EventCard({
         void pushToAdmins(absentMsg);
       }
       setReason("");
-      setReasonSheet(false);
+      setReasonSheet(null);
       onChanged();
     } finally {
       setBusy(false);
@@ -664,6 +754,9 @@ export default function EventCard({
                   </svg>
                   <span className="text-[14px] text-slate-700">
                     <strong className="font-bold text-slate-900">{going.length}명</strong> 참여
+                    {lateMembers.length > 0 && (
+                      <span className="text-slate-400"> · 늦참 {lateMembers.length}명</span>
+                    )}
                     {absentMembers.length > 0 && (
                       <span className="text-slate-400"> · 불참 {absentMembers.length}명</span>
                     )}
@@ -703,54 +796,42 @@ export default function EventCard({
                       선택 안 된 쪽 흰 글씨에는 미세 그림자를 남겨 뒀다 —
                       흰 판 위 흰 글씨라 그것마저 빼면 읽기 어렵다. */}
                   <div
-                    className={`flex gap-1.5 rounded-2xl p-1 ${
+                    className={`flex gap-1 rounded-2xl p-1 ${
                       variant === "carousel" ? "bg-white/30" : "bg-slate-100"
                     }`}
                   >
-                    <button
-                      onClick={setAttend}
-                      disabled={busy}
-                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[14px] font-bold transition ${
-                        iAmGoing
-                          ? "bg-white text-emerald-600 shadow-sm"
-                          : variant === "carousel"
-                            ? "text-white"
-                            : "text-slate-400"
-                      }`}
-                      // 선택 안 된 쪽만 그라데이션 위에 흰 글씨로 놓인다 → 미세 그림자
-                      style={
-                        variant === "carousel" && !iAmGoing ? { textShadow: ON_MESH_SHADOW } : undefined
-                      }
-                    >
-                      {iAmGoing && (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-[14px] w-[14px]">
-                          <polyline points="4 12.5 9.5 18 20 6.5" />
-                        </svg>
-                      )}
-                      참석
-                    </button>
-                    <button
-                      onClick={() => setReasonSheet(true)}
-                      disabled={busy}
-                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[14px] font-bold transition ${
-                        !iAmGoing
-                          ? "bg-white text-red-500 shadow-sm"
-                          : variant === "carousel"
-                            ? "text-white"
-                            : "text-slate-400"
-                      }`}
-                      style={
-                        variant === "carousel" && iAmGoing ? { textShadow: ON_MESH_SHADOW } : undefined
-                      }
-                    >
-                      {!iAmGoing && (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" className="h-[14px] w-[14px]">
-                          <circle cx="12" cy="12" r="9" />
-                          <line x1="5.5" y1="5.5" x2="18.5" y2="18.5" />
-                        </svg>
-                      )}
-                      불참
-                    </button>
+                    {/* 세 칸이 되어 한 칸이 좁아졌다 — 아이콘은 켜진 칸에만 그리고
+                        칸 사이 틈만 1.5 → 1로 줄였다. 글자 크기는 14px 그대로 둔다
+                        (여기서 글자를 줄이면 카드에서 제일 먼저 안 읽히는 줄이 된다) */}
+                    {ATTEND_CHOICES.map((c) => {
+                      const on = myStatus === c.key;
+                      return (
+                        <button
+                          key={c.key}
+                          onClick={() => {
+                            if (c.key === "going") return void setAttend(false);
+                            // 늦참·불참은 '왜/언제'를 물어보고 나서 저장한다
+                            setReason("");
+                            setReasonSheet(c.key);
+                          }}
+                          disabled={busy}
+                          className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[14px] font-bold transition ${
+                            on
+                              ? `bg-white shadow-sm ${c.tone}`
+                              : variant === "carousel"
+                                ? "text-white"
+                                : "text-slate-400"
+                          }`}
+                          // 선택 안 된 쪽만 그라데이션 위에 흰 글씨로 놓인다 → 미세 그림자
+                          style={
+                            variant === "carousel" && !on ? { textShadow: ON_MESH_SHADOW } : undefined
+                          }
+                        >
+                          {on && <AttendMark kind={c.key} className="h-[14px] w-[14px]" />}
+                          {c.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -855,13 +936,13 @@ export default function EventCard({
           {/* 참석 */}
           <div>
             <p className="mb-2.5 text-[13px] font-semibold text-slate-500">
-              참석 : <span className="text-slate-900">{going.length}명</span>
+              참석 : <span className="text-slate-900">{onTimeMembers.length}명</span>
             </p>
-            {going.length === 0 ? (
+            {onTimeMembers.length === 0 ? (
               <p className="py-3 text-center text-[13px] text-slate-400">아직 참석자가 없어요</p>
             ) : (
               <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-                {going.map((m) => (
+                {onTimeMembers.map((m) => (
                   <div key={m.uid} className="flex min-w-0 items-center gap-2.5">
                     <Avatar src={m.avatar} name={m.name} className="h-10 w-10" />
                     <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-800">
@@ -873,6 +954,36 @@ export default function EventCard({
               </div>
             )}
           </div>
+
+          {/* 늦참 — 오긴 오는 사람이라 참석과 같은 밝기로 두되, 시계 배지로 구분한다 */}
+          {lateMembers.length > 0 && (
+            <div className="border-t border-slate-100 pt-4">
+              <p className="mb-2.5 text-[13px] font-semibold text-slate-500">
+                늦참 : <span className="text-slate-900">{lateMembers.length}명</span>
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                {lateMembers.map((m) => (
+                  <div key={m.uid} className="flex min-w-0 items-center gap-2.5">
+                    <span className="relative shrink-0">
+                      <Avatar src={m.avatar} name={m.name} className="h-10 w-10" />
+                      <span className="absolute -bottom-0.5 -right-0.5 grid h-[18px] w-[18px] place-items-center rounded-full border-2 border-white bg-amber-500">
+                        <AttendMark kind="late" className="h-2.5 w-2.5 text-white" />
+                      </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-medium text-slate-800">
+                        {m.name}
+                        {m.uid === myUid && <span className="text-slate-400"> (나)</span>}
+                      </span>
+                      {m.reason && (
+                        <span className="block truncate text-[12px] text-slate-400">{m.reason}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 불참 */}
           {absentMembers.length > 0 && (
@@ -908,42 +1019,55 @@ export default function EventCard({
         </div>
       </BottomSheet>
 
-      {/* 불참 사유 — 사유는 선택, 비워도 그냥 불참 처리 */}
-      <BottomSheet open={reasonSheet} title="불참 신청" onClose={() => setReasonSheet(false)}>
-        <div className="space-y-3">
-          <p className="text-[13.5px] text-slate-500">
-            <strong className="text-slate-800">{e.title}</strong> 일정에 참석이 어려우신가요?
-          </p>
-          {absentMembers.length > 0 && (
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-[12px] font-semibold text-slate-500">
-                이미 불참한 단원 {absentMembers.length}명
-              </p>
-              <p className="mt-1 text-[13px] text-slate-400">
-                {absentMembers.map((m) => m.name).join(", ")}
-              </p>
-            </div>
-          )}
-
-          <input
-            value={reason}
-            onChange={(ev) => setReason(ev.target.value)}
-            placeholder="사유 (선택)"
-            className="input w-full"
-            onKeyDown={(ev) => {
-              if (ev.key === "Enter") setAbsent();
-            }}
-          />
-          <button
-            onClick={setAbsent}
-            disabled={busy}
-            style={{ backgroundColor: "rgb(var(--accent))" }}
-            className="w-full rounded-2xl py-3 text-[15px] font-bold text-accent-fg transition active:brightness-90 disabled:opacity-50"
+      {/* 늦참·불참 사유 — 둘 다 묻는 게 '왜/언제'라 시트 하나를 같이 쓴다.
+          사유는 선택이라 비워 두고 눌러도 그대로 처리된다. */}
+      {(() => {
+        const isLate = reasonSheet === "late";
+        const others = isLate ? lateMembers : absentMembers;
+        const confirm = () => (isLate ? setAttend(true) : setAbsent());
+        return (
+          <BottomSheet
+            open={!!reasonSheet}
+            title={isLate ? "늦참 알리기" : "불참 신청"}
+            onClose={() => setReasonSheet(null)}
           >
-            불참으로 표시하기
-          </button>
-        </div>
-      </BottomSheet>
+            <div className="space-y-3">
+              <p className="text-[13.5px] text-slate-500">
+                <strong className="text-slate-800">{e.title}</strong>{" "}
+                {isLate ? "일정에 늦게 오시나요?" : "일정에 참석이 어려우신가요?"}
+              </p>
+              {others.length > 0 && (
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-[12px] font-semibold text-slate-500">
+                    이미 {isLate ? "늦참을 알린" : "불참한"} 단원 {others.length}명
+                  </p>
+                  <p className="mt-1 text-[13px] text-slate-400">
+                    {others.map((m) => m.name).join(", ")}
+                  </p>
+                </div>
+              )}
+
+              <input
+                value={reason}
+                onChange={(ev) => setReason(ev.target.value)}
+                placeholder={isLate ? "도착 예정 시간·사유 (선택)" : "사유 (선택)"}
+                className="input w-full"
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter") confirm();
+                }}
+              />
+              <button
+                onClick={confirm}
+                disabled={busy}
+                style={{ backgroundColor: "rgb(var(--accent))" }}
+                className="w-full rounded-2xl py-3 text-[15px] font-bold text-accent-fg transition active:brightness-90 disabled:opacity-50"
+              >
+                {isLate ? "늦참으로 표시하기" : "불참으로 표시하기"}
+              </button>
+            </div>
+          </BottomSheet>
+        );
+      })()}
     </div>
   );
 }

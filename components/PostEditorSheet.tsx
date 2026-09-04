@@ -3,13 +3,16 @@
 // 게시판 글쓰기 · 수정 — 화면을 통째로 덮는 시트 (모바일)
 //
 // 구성
-//   상단  : 취소(키보드 올라오면 '키보드 내리기') · 게시판 이름 · 등록
-//   본문  : 제목 + 내용(contentEditable). 사진은 본문 안에 글자처럼 들어간다
-//   하단  : 사진 · 글자서식 · 정렬 · 더보기 … 임시저장
-//           서식/더보기는 툴바 위로 미끄러져 올라온다
+//   상단  : ✕ · 게시판 알약(누르면 글 설정) ······ 게시
+//   본문  : 제목 → 내용(contentEditable) → 툴바 → 임시저장
+//
+// ⚠️ 툴바는 화면 아래에 붙어 있지 않고 '본문 바로 밑'에 흐름대로 놓인다.
+//    글이 길어지면 툴바도 같이 아래로 내려간다 (사용자가 고른 레퍼런스 형식).
+//    그래서 제목·본문·툴바가 전부 같은 스크롤 영역 안에 들어 있다 —
+//    툴바만 밖으로 빼면 자리가 고정돼 버려서 이 형식이 깨진다.
 //
 // 키보드가 올라오면 visualViewport 높이가 줄어드는데, 시트 높이를 그 값에 맞춰
-// 두면 툴바가 늘 키보드 바로 위에 붙는다.
+// 두면 스크롤 영역이 키보드 위까지로 줄어 커서를 따라갈 수 있다.
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -47,7 +50,7 @@ import {
   ListOrderedIcon,
   PollIcon,
   QuoteIcon,
-  TextIcon,
+  TextSizeIcon,
   XIcon,
 } from "@/components/Icons";
 
@@ -56,12 +59,13 @@ const MAX_LEN = 50000;
 type Align = "left" | "center" | "right";
 const ALIGN_CYCLE: Align[] = ["left", "center", "right"];
 
-const FONT_SIZES = [
-  { label: "작게", value: "2" },
-  { label: "보통", value: "3" },
-  { label: "크게", value: "4" },
-  { label: "아주 크게", value: "5" },
-];
+// 글자 크기는 두 단계뿐이다 — 기본과 크게.
+// 네 단계 목록을 펼치던 것을 없앴다: 좁은 화면에서 목록이 툴바를 가렸고,
+// '작게'와 '아주 크게'는 실제로 거의 안 쓰였다.
+// 값은 execCommand("fontSize")가 쓰는 1~7 척도다. 3 = 편집칸 기본 크기(16px),
+// 5 = 그보다 확실히 큰 크기라 눌렀을 때 바뀐 게 눈에 보인다.
+const SIZE_NORMAL = "3";
+const SIZE_LARGE = "5";
 
 export type EditorTarget = { post: Post; onSaved?: (p: Post) => void } | { cat?: string } | null;
 
@@ -143,9 +147,6 @@ export default function PostEditorSheet({
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  const sizeBtnRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [sizeLeft, setSizeLeft] = useState(0);
   const savedRange = useRef<Range | null>(null);
   // 커서 자리에 걸려 있는 서식 — 툴바 버튼을 켜서 보여 준다
   const [marks, setMarks] = useState<Marks>(NO_MARKS);
@@ -159,11 +160,8 @@ export default function PostEditorSheet({
   const [imgBusy, setImgBusy] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // 열려 있는 패널: 글자서식 / 더보기
-  const [panel, setPanel] = useState<null | "text" | "more">(null);
-  // 지금 글자 크기 (버튼에는 이것만 보이고, 누르면 목록이 펼쳐진다)
-  const [fontSize, setFontSize] = useState("3");
-  const [sizeOpen, setSizeOpen] = useState(false);
+  // 툴바 오른쪽 '⋯'로 펼치는 나머지 서식 (취소선·목록·인용·투표)
+  const [moreOpen, setMoreOpen] = useState(false);
   // 아래에서 올라오는 애니메이션
   const [enter, setEnter] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -264,10 +262,9 @@ export default function PostEditorSheet({
   // 열릴 때마다 패널은 닫아 둔다
   useEffect(() => {
     if (!open) {
-      setPanel(null);
+      setMoreOpen(false);
       setOptionsOpen(false);
       setPollOpen(false);
-      setSizeOpen(false);
       setEnter(false);
       setSelectedImg(null);
     }
@@ -362,6 +359,39 @@ export default function PostEditorSheet({
     [restoreCaret, rememberCaret]
   );
 
+  /**
+   * 커서 자리에 HTML을 끼워 넣는다 — execCommand("insertHTML")을 안 쓴다.
+   *
+   * ⚠️ 사진이 안 들어가던 이유가 여기였다. 사진첩을 다녀오면 편집칸이 포커스를
+   *    잃은 상태라, insertHTML은 "지금 편집 중인 곳"을 못 찾고 조용히 아무 일도
+   *    안 한 채 끝난다(예외도 안 난다). 그래서 사진을 골라도 화면에 안 나타났다.
+   *    기억해 둔 Range에 DOM으로 직접 꽂으면 포커스와 무관하게 들어간다.
+   */
+  const insertAtCaret = useCallback((html: string) => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const frag = document.createRange().createContextualFragment(html);
+    const last = frag.lastChild;
+    const r = savedRange.current;
+    if (r && body.contains(r.commonAncestorContainer)) {
+      r.deleteContents();
+      r.insertNode(frag);
+    } else {
+      // 커서를 둔 적이 없으면(사진부터 넣는 경우) 글 맨 끝에 붙인다
+      body.appendChild(frag);
+    }
+    // 다음 입력이 사진 뒤로 이어지도록 커서를 옮겨 둔다
+    if (last) {
+      const next = document.createRange();
+      next.setStartAfter(last);
+      next.collapse(true);
+      savedRange.current = next;
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(next);
+    }
+  }, []);
+
   /* ── 사진 삭제 ───────────────────────────────────── */
   const handleBodyClick = useCallback((e: React.MouseEvent) => {
     const el = e.target as HTMLElement;
@@ -425,8 +455,8 @@ export default function PostEditorSheet({
       }
       setMedia((prev) => ({ ...prev, ...next }));
       // 커서 자리에 끼워 넣는다 — 사진도 글자와 같은 흐름 안에 놓인다
-      restoreCaret();
-      document.execCommand("insertHTML", false, html + "<div><br></div>");
+      insertAtCaret(html + "<div><br></div>");
+      bodyRef.current?.focus();
       rememberCaret();
     } catch {
       alert("사진을 불러오지 못했어요. 다른 사진으로 시도해 주세요.");
@@ -573,7 +603,13 @@ export default function PostEditorSheet({
 
   if (!open) return null;
 
-  const sizeLabel = FONT_SIZES.find((f) => f.value === fontSize)?.label ?? "보통";
+  // 게시 버튼을 켤 조건. 본문은 contentEditable이라 상태로 안 들고 있어서
+  // 여기선 못 본다 — 제목·게시판까지만 미리 보고, 본문 검사는 submit()이 한다.
+  const canSubmit = !!board && !!title.trim();
+
+  // '크게'가 켜져 있는가. sizeNow는 커서가 본문 안에 있을 때만 값이 있고,
+  // 글자를 치기 전에 눌러 둔 것까지 잡아 준다 (lib/rich-text 참고).
+  const largeOn = marks.sizeNow === SIZE_LARGE;
 
   return (
     <div className="fixed inset-0 z-[80]">
@@ -596,178 +632,52 @@ export default function PostEditorSheet({
           transition: "transform 340ms cubic-bezier(0.32, 0.94, 0.28, 1)",
         }}
       >
-        {/* ── 상단: 취소 · 게시판 · 등록 ── */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-2">
+        {/* ── 상단: ✕ · 게시판 알약 ······ 게시 ── */}
+        <header className="flex h-14 shrink-0 items-center gap-2 px-3">
           <button
             onClick={handleCancel}
-            className="grid h-10 min-w-[52px] place-items-center rounded-xl px-2 text-[15px] font-semibold text-slate-600 active:bg-slate-100"
-            aria-label={kbOpen ? "키보드 내리기" : "취소"}
+            aria-label={kbOpen ? "키보드 내리기" : "닫기"}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-700 active:bg-slate-100"
           >
-            {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : "취소"}
+            {kbOpen ? <KeyboardDownIcon className="h-[22px] w-[22px]" /> : <XIcon className="h-[21px] w-[21px]" />}
           </button>
 
+          {/* 게시판 고르기 — 알약 하나가 '어디에 쓰는 글인지'와 '글 설정'을 겸한다 */}
           <button
             onClick={() => {
               (document.activeElement as HTMLElement | null)?.blur();
               setOptionsOpen(true);
             }}
-            className="flex min-w-0 items-center gap-1 rounded-xl px-2 py-1.5 active:bg-slate-100"
+            className="flex min-w-0 items-center gap-1 rounded-full bg-surface px-3.5 py-2 active:brightness-95"
           >
-            <span className="truncate text-[17px] font-bold text-slate-900">{board || "게시판"}</span>
+            <span className="truncate text-[15px] font-bold text-slate-900">{board || "게시판 선택"}</span>
             <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-500" />
           </button>
 
+          {/* 제목이 비어 있으면 회색으로 꺼 둔다 — 눌러도 경고창만 뜨던 걸 미리 알려 준다 */}
           <button
             onClick={submit}
-            disabled={busy}
-            className="grid h-10 min-w-[52px] place-items-center rounded-xl px-2 text-[15px] font-bold text-accent active:bg-slate-100 disabled:text-slate-300"
+            disabled={busy || !canSubmit}
+            className={`ml-auto grid h-9 shrink-0 place-items-center rounded-full px-4 text-[15px] font-bold transition ${
+              canSubmit ? "text-accent-fg" : "bg-surface text-slate-400"
+            }`}
+            style={canSubmit ? { backgroundColor: "rgb(var(--accent))" } : undefined}
           >
-            {busy ? <Spinner className="h-5 w-5" /> : editing ? "수정" : "등록"}
+            {busy ? <Spinner className="h-5 w-5" /> : editing ? "수정" : "게시"}
           </button>
         </header>
 
-        {/* ── 제목 ── */}
-        <input
-          ref={titleRef}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목"
-          className="w-full shrink-0 border-b border-slate-100 bg-white px-4 py-4 text-[22px] font-bold outline-none placeholder:text-slate-300"
-        />
+        {/* ── 제목 · 본문 · 툴바 — 셋이 한 스크롤 안에 있다 ──
+             툴바가 본문 밑에 흐름대로 놓여, 글이 길어지면 같이 내려간다. */}
+        <div ref={scrollRef} className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
+          <input
+            ref={titleRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="제목"
+            className="w-full bg-white px-4 pb-1 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-300"
+          />
 
-        {/* ── 툴바 (제목 바로 아래) ── */}
-        <div className="relative z-10 flex h-[52px] shrink-0 items-center gap-0.5 border-b border-slate-200 bg-white px-2">
-          <ToolBtn onPress={() => fileRef.current?.click()} label="사진 추가">
-            {imgBusy ? <Spinner className="h-5 w-5" /> : <CameraIcon className="h-[22px] w-[22px]" />}
-          </ToolBtn>
-          <ToolBtn
-            onPress={() => { setSizeOpen(false); setPanel((p) => (p === "text" ? null : "text")); }}
-            label="글자 서식"
-            active={panel === "text"}
-          >
-            <TextIcon className="h-[21px] w-[21px]" />
-          </ToolBtn>
-          {/* 정렬 — 누를 때마다 왼쪽→가운데→오른쪽, 글 전체가 바로 바뀐다 */}
-          <ToolBtn
-            onPress={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
-            label={`정렬 (지금 ${align === "left" ? "왼쪽" : align === "center" ? "가운데" : "오른쪽"})`}
-          >
-            <AlignIcon align={align} className="h-[21px] w-[21px]" />
-          </ToolBtn>
-          <ToolBtn
-            onPress={() => { setSizeOpen(false); setPanel((p) => (p === "more" ? null : "more")); }}
-            label="더보기"
-            active={panel === "more"}
-          >
-            <DotsIcon className="h-[21px] w-[21px]" />
-          </ToolBtn>
-
-          <button
-            onClick={saveDraft}
-            className="ml-auto rounded-xl px-3 py-2 text-[15px] font-semibold text-slate-500 active:bg-slate-100"
-          >
-            저장
-          </button>
-        </div>
-
-        {/* ── 툴바 아래로 미끄러져 내려오는 하위 툴바 ──
-             글을 쓰는 동안에도 닫히지 않고 그대로 남는다 */}
-        <div
-          ref={panelRef}
-          className="relative shrink-0 overflow-visible bg-white transition-[height] duration-250 ease-out"
-          style={{ height: panel ? 52 : 0 }}
-        >
-          <div className={`h-[52px] overflow-hidden${panel ? " border-b border-slate-100" : ""}`}>
-            {panel === "text" && (
-              <div className="flex h-[52px] items-center gap-0.5 overflow-x-auto px-2">
-                <ToolBtn onPress={() => cmd("bold")} label="굵게" active={marks.bold}><span className="text-[16px] font-bold">B</span></ToolBtn>
-                <ToolBtn onPress={() => cmd("italic")} label="기울임" active={marks.italic}><span className="font-serif text-[16px] italic">I</span></ToolBtn>
-                <ToolBtn onPress={() => cmd("underline")} label="밑줄" active={marks.underline}><span className="text-[16px] underline">U</span></ToolBtn>
-                <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}><span className="text-[16px] line-through">S</span></ToolBtn>
-                <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
-                {/* 글자 크기 — 지금 크기만 보이고, 누르면 목록이 펼쳐진다 */}
-                <ToolTextBtn
-                  btnRef={sizeBtnRef}
-                  onPress={() => {
-                    // 버튼이 지금 있는 자리 바로 아래에 목록을 편다
-                    const b = sizeBtnRef.current?.getBoundingClientRect();
-                    const p = panelRef.current?.getBoundingClientRect();
-                    if (b && p) setSizeLeft(Math.max(8, Math.min(b.left - p.left, p.width - 120)));
-                    setSizeOpen((v) => !v);
-                  }}
-                  className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition ${
-                    sizeOpen ? "bg-slate-900/[0.07] text-slate-900" : "text-slate-600 active:bg-slate-100"
-                  }`}
-                >
-                  {sizeLabel}
-                  <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${sizeOpen ? "rotate-180" : ""}`} />
-                </ToolTextBtn>
-                <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
-                <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}><ListBulletIcon className="h-[19px] w-[19px]" /></ToolBtn>
-                <ToolBtn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={marks.ol}><ListOrderedIcon className="h-[19px] w-[19px]" /></ToolBtn>
-                <ToolBtn onPress={() => cmd("formatBlock", marks.quote ? "div" : "blockquote")} label="인용" active={marks.quote}><QuoteIcon className="h-[19px] w-[19px]" /></ToolBtn>
-              </div>
-            )}
-
-            {panel === "more" && (
-              <div className="flex h-[52px] items-center gap-1 px-2">
-                <ToolTextBtn
-                  onPress={() => {
-                    const url = prompt("링크 주소(https://...)를 입력하세요");
-                    if (!url) return;
-                    if (!/^https?:\/\//i.test(url)) {
-                      alert("http(s) 주소만 넣을 수 있어요.");
-                      return;
-                    }
-                    cmd("createLink", url);
-                  }}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
-                >
-                  <LinkIcon className="h-[18px] w-[18px]" /> 링크
-                </ToolTextBtn>
-                <ToolTextBtn
-                  onPress={() => {
-                    (document.activeElement as HTMLElement | null)?.blur();
-                    setPollOpen(true);
-                  }}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
-                >
-                  <PollIcon className="h-[18px] w-[18px]" /> 투표
-                  {pollOn && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-fg">켜짐</span>}
-                </ToolTextBtn>
-              </div>
-            )}
-          </div>
-
-          {/* 글자 크기 드롭다운 */}
-          {panel === "text" && sizeOpen && (
-            <div
-              className="absolute top-[46px] z-20 min-w-[112px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-              style={{ left: sizeLeft }}
-            >
-              {FONT_SIZES.map((f) => (
-                <ToolTextBtn
-                  key={f.value}
-                  onPress={() => {
-                    setFontSize(f.value);
-                    cmd("fontSize", f.value);
-                    setSizeOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] ${
-                    f.value === fontSize ? "font-bold text-accent" : "font-medium text-slate-700"
-                  }`}
-                >
-                  {f.value === fontSize ? <CheckIcon className="h-3.5 w-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
-                  {f.label}
-                </ToolTextBtn>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── 본문 ──
-             남은 자리를 전부 차지해서, 키보드가 올라와도 뒤가 비치지 않는다 */}
-        <div ref={scrollRef} className="editor-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4">
           <div
             ref={bodyRef}
             contentEditable
@@ -781,14 +691,127 @@ export default function PostEditorSheet({
             onClick={handleBodyClick}
             onInput={() => {
               rememberCaret();
-              setSizeOpen(false);
               setSelectedImg(null);
               scrollToCaret();
             }}
-            data-placeholder="내용을 입력하세요"
+            data-placeholder="본문 텍스트(선택 사항)"
             style={{ textAlign: align }}
-            className="rich min-h-[70vh] w-full py-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
+            // 최소 높이는 화면이 아니라 고정값이다 — 툴바가 본문을 따라 내려오므로
+            // 빈 글에서 툴바가 화면 밖까지 밀려나면 안 된다.
+            className="rich min-h-[168px] w-full px-4 pb-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
           />
+
+          {/* ── 툴바 — 본문 바로 밑 ──
+               순서: 링크 · 사진 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 정렬 · 더보기 */}
+          <div className="border-t border-slate-100">
+            <div className="flex h-[52px] items-center gap-0.5 px-2">
+              <ToolBtn
+                onPress={() => {
+                  const url = prompt("링크 주소(https://...)를 입력하세요");
+                  if (!url) return;
+                  if (!/^https?:\/\//i.test(url)) {
+                    alert("http(s) 주소만 넣을 수 있어요.");
+                    return;
+                  }
+                  cmd("createLink", url);
+                }}
+                label="링크"
+              >
+                <LinkIcon className="h-[20px] w-[20px]" />
+              </ToolBtn>
+
+              {/*
+               * 사진 — 버튼이 아니라 <label>이다.
+               * ⚠️ 사진이 안 열리던 이유: 숨긴 input.click()을 pointerdown에서 부르면
+               *    아이폰 사파리가 '사용자가 직접 누른 것'으로 안 쳐서 사진첩이 안 뜬다.
+               *    label 안에 input을 넣으면 브라우저가 직접 이어 주므로 그 규칙을 안 탄다.
+               *    input도 display:none이면 같은 이유로 막혀서, 보이지 않게만 눌러 뒀다.
+               */}
+              <label
+                aria-label="사진 추가"
+                className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl text-slate-600 active:bg-slate-100"
+              >
+                {imgBusy ? <Spinner className="h-5 w-5" /> : <CameraIcon className="h-[21px] w-[21px]" />}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  onChange={(e) => onFiles(e.target.files)}
+                />
+              </label>
+
+              <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
+
+              <ToolBtn onPress={() => cmd("bold")} label="굵게" active={marks.bold}>
+                <span className="text-[16px] font-bold">B</span>
+              </ToolBtn>
+              <ToolBtn onPress={() => cmd("italic")} label="기울임" active={marks.italic}>
+                <span className="font-serif text-[16px] italic">I</span>
+              </ToolBtn>
+              <ToolBtn onPress={() => cmd("underline")} label="밑줄" active={marks.underline}>
+                <span className="text-[16px] underline">U</span>
+              </ToolBtn>
+              {/* 글자 크기 — 목록을 펼치지 않고 기본↔크게를 오간다 */}
+              <ToolBtn
+                onPress={() => cmd("fontSize", largeOn ? SIZE_NORMAL : SIZE_LARGE)}
+                label={largeOn ? "글자 크기 (지금 크게)" : "글자 크기 (지금 기본)"}
+                active={largeOn}
+              >
+                <TextSizeIcon className="h-[21px] w-[21px]" />
+              </ToolBtn>
+              {/* 정렬 — 누를 때마다 왼쪽→가운데→오른쪽, 글 전체가 바로 바뀐다 */}
+              <ToolBtn
+                onPress={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
+                label={`정렬 (지금 ${align === "left" ? "왼쪽" : align === "center" ? "가운데" : "오른쪽"})`}
+              >
+                <AlignIcon align={align} className="h-[21px] w-[21px]" />
+              </ToolBtn>
+              <ToolBtn onPress={() => setMoreOpen((v) => !v)} label="더보기" active={moreOpen}>
+                <DotsIcon className="h-[21px] w-[21px]" />
+              </ToolBtn>
+            </div>
+
+            {/* 더보기 — 자주 안 쓰는 서식은 여기로 내렸다 */}
+            {moreOpen && (
+              <div className="flex h-[52px] items-center gap-0.5 border-t border-slate-100 px-2">
+                <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}>
+                  <span className="text-[16px] line-through">S</span>
+                </ToolBtn>
+                <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}>
+                  <ListBulletIcon className="h-[19px] w-[19px]" />
+                </ToolBtn>
+                <ToolBtn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={marks.ol}>
+                  <ListOrderedIcon className="h-[19px] w-[19px]" />
+                </ToolBtn>
+                <ToolBtn onPress={() => cmd("formatBlock", marks.quote ? "div" : "blockquote")} label="인용" active={marks.quote}>
+                  <QuoteIcon className="h-[19px] w-[19px]" />
+                </ToolBtn>
+                <ToolTextBtn
+                  onPress={() => {
+                    (document.activeElement as HTMLElement | null)?.blur();
+                    setPollOpen(true);
+                  }}
+                  className="ml-1 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
+                >
+                  <PollIcon className="h-[18px] w-[18px]" /> 투표
+                  {pollOn && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-fg">켜짐</span>}
+                </ToolTextBtn>
+              </div>
+            )}
+          </div>
+
+          {/* 임시저장 — 레퍼런스처럼 툴바 밑 오른쪽. 툴바를 따라 같이 내려간다 */}
+          <div className="flex justify-end px-3 py-2.5">
+            <button
+              onClick={saveDraft}
+              className="rounded-full bg-surface px-4 py-2 text-[14px] font-semibold text-slate-600 active:brightness-95"
+            >
+              임시저장
+            </button>
+          </div>
+
           {/* 사진 삭제 오버레이 */}
           {selectedImg && (
             <div
@@ -805,18 +828,10 @@ export default function PostEditorSheet({
               </button>
             </div>
           )}
+
           {/* 키보드가 내려가 있을 때도 아래가 흰 화면으로 이어지도록 */}
           <div className="h-[40vh]" />
         </div>
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => onFiles(e.target.files)}
-        />
       </div>
 
       {/* ── 게시판 종류 · 태그 · 공지 ── */}

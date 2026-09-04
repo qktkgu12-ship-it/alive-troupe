@@ -41,6 +41,8 @@ export default function ScheduleCarousel({
   // 일정별 불참(absences, 사유 포함) · 추가참석(attendees) 목록
   const [absentBy, setAbsentBy] = useState<Record<string, { uid: string; reason: string }[]>>({});
   const [extraBy, setExtraBy] = useState<Record<string, string[]>>({});
+  // 늦참 — attendees 문서에 late 플래그로 같이 들어 있어 조회가 늘지 않는다
+  const [lateBy, setLateBy] = useState<Record<string, { uid: string; reason: string }[]>>({});
 
   const loadAttendance = useCallback(async () => {
     if (events.length === 0) return;
@@ -52,11 +54,16 @@ export default function ScheduleCarousel({
         ]);
         const absList =
           abs?.docs.map((d) => ({ uid: d.id, reason: (d.data().reason as string) ?? "" })) ?? [];
-        return [e.id, absList, att?.docs.map((d) => d.id) ?? []] as const;
+        const lateList =
+          att?.docs
+            .filter((d) => (d.data() as { late?: boolean }).late)
+            .map((d) => ({ uid: d.id, reason: (d.data().lateReason as string) ?? "" })) ?? [];
+        return [e.id, absList, att?.docs.map((d) => d.id) ?? [], lateList] as const;
       })
     );
     setAbsentBy(Object.fromEntries(rows.map(([id, a]) => [id, a])));
     setExtraBy(Object.fromEntries(rows.map(([id, , x]) => [id, x])));
+    setLateBy(Object.fromEntries(rows.map(([id, , , l]) => [id, l])));
   }, [events]);
 
   useEffect(() => {
@@ -158,6 +165,7 @@ export default function ScheduleCarousel({
               members={members}
               absences={absentBy[e.id] ?? []}
               extraUids={extraBy[e.id] ?? []}
+              lateBy={lateBy[e.id] ?? []}
               myUid={user?.uid ?? ""}
               myName={profile?.name || profile?.displayName || ""}
               onChanged={loadAttendance}

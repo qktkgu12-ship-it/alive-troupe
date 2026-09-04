@@ -19,6 +19,16 @@ export type Marks = {
   align: string;
   /** <font size="n">이 걸려 있을 때만 값이 있다 (지정 안 했으면 빈 문자열) */
   size: string;
+  /**
+   * '지금 커서 자리의 실제 글자 크기' (1~7).
+   *
+   * size와 다르다 — size는 태그가 실제로 만들어졌을 때만 값이 있어서,
+   * 커서만 두고 '크게'를 누른 직후(아직 글자를 안 친 상태)에는 빈 값이다.
+   * 이 값은 브라우저가 픽셀 크기를 환산해 주는 것이라 그 순간도 잡힌다.
+   * 대신 손도 안 댄 기본 글자도 2나 3을 돌려주므로
+   * '어떤 크기가 켜져 있나'가 아니라 '특정 크기인가'를 물어볼 때만 쓸 것.
+   */
+  sizeNow: string;
 };
 
 export const NO_MARKS: Marks = {
@@ -31,6 +41,7 @@ export const NO_MARKS: Marks = {
   quote: false,
   align: "justifyLeft",
   size: "",
+  sizeNow: "",
 };
 
 function q(c: string): boolean {
@@ -57,9 +68,13 @@ function v(c: string): string {
  */
 export function readMarks(root: HTMLElement | null): Marks {
   const found = { ...NO_MARKS, align: "", size: "" };
+  // 커서가 편집칸 '안'에 있는가. 밖(제목칸 등)에 있으면 크기를 읽지 않는다 —
+  // 제목칸은 글자가 크니까 손도 안 댄 빈 글에서 '크게'가 켜진 것처럼 보인다.
+  let inside = false;
 
   const sel = typeof window !== "undefined" ? window.getSelection() : null;
   if (sel && sel.rangeCount > 0 && root) {
+    inside = root.contains(sel.getRangeAt(0).commonAncestorContainer);
     let n: Node | null = sel.getRangeAt(0).commonAncestorContainer;
     while (n && n !== root) {
       if (n instanceof HTMLElement) {
@@ -105,6 +120,9 @@ export function readMarks(root: HTMLElement | null): Marks {
     // 2나 3이 나온다 → 툴바가 늘 켜져 있게 된다.
     // execCommand가 실제로 넣는 <font size="n">만 인정한다.
     size: found.size,
+    // 반대로 sizeNow는 그 환산값을 그대로 쓴다. 아직 태그가 안 생긴
+    // '눌러만 둔' 상태까지 잡아야 툴바가 바로 켜지기 때문이다.
+    sizeNow: inside ? v("fontSize") : "",
   };
 }
 

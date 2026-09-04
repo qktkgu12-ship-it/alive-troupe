@@ -627,11 +627,8 @@ export default function EventForm({
                   >
                     <Avatar src={m.avatar} name={m.name} className="h-7 w-7 text-xs" />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{m.name}</span>
-                    {m.team && (
-                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-                        {m.team}
-                      </span>
-                    )}
+                    {/* 팀 배지는 안 붙인다 — 여기서 고르는 건 '이름을 콕 집는 것'이라
+                        팀과 무관하고, 팀 없음(비활성)이 명단에 드러나 버린다 */}
                     <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
                       {on && (
                         <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">

@@ -1057,7 +1057,7 @@ function CoordCreateForm({
                   >
                     <ProfileAvatar uid={m.uid} name={m.name} avatar={m.avatar} className="h-7 w-7 text-xs" />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{m.name}</span>
-                    {m.team && <TeamBadge team={m.team} />}
+                    {/* 팀 배지 없음 — 개별 지정은 팀과 무관하게 이름을 고르는 것 */}
                     <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
                       {on && (
                         <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
@@ -2287,7 +2287,7 @@ function BookingRequestSheet({
                       <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
                         {m.name}{isMe ? " (나)" : ""}
                       </span>
-                      {m.team && <TeamBadge team={m.team} />}
+                      {/* 팀 배지 없음 — 개별 지정은 팀과 무관하게 이름을 고르는 것 */}
                       <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition ${on ? "border-slate-800 bg-slate-800" : "border-slate-300"}`}>
                         {on && (
                           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
@@ -3173,6 +3173,8 @@ function EventsSection({
 
   const [absences, setAbsences] = useState<Record<string, Absence[]>>({});
   const [attendees, setAttendees] = useState<Record<string, string[]>>({});
+  // 늦참 — attendees 문서의 late 플래그에 같이 들어 있어 조회가 늘지 않는다
+  const [lateBy, setLateBy] = useState<Record<string, { uid: string; reason: string }[]>>({});
   const loadAbsences = useCallback(async () => {
     // 불참·추가참석은 '아직 안 지난 일정'만 필요 → 지난 일정은 조회 생략(읽기 절감)
     const upcoming = events.filter((e) => !eventPassed(e));
@@ -3182,11 +3184,21 @@ function EventsSection({
           getDocs(collection(db, "events", e.id, "absences")),
           getDocs(collection(db, "events", e.id, "attendees")).catch(() => null),
         ]);
-        return [e.id, abs.docs.map((d) => d.data() as Absence), att?.docs.map((d) => d.id) ?? []] as const;
+        const lateList =
+          att?.docs
+            .filter((d) => (d.data() as { late?: boolean }).late)
+            .map((d) => ({ uid: d.id, reason: (d.data().lateReason as string) ?? "" })) ?? [];
+        return [
+          e.id,
+          abs.docs.map((d) => d.data() as Absence),
+          att?.docs.map((d) => d.id) ?? [],
+          lateList,
+        ] as const;
       })
     );
     setAbsences(Object.fromEntries(entries.map(([id, a]) => [id, a])));
     setAttendees(Object.fromEntries(entries.map(([id, , x]) => [id, x])));
+    setLateBy(Object.fromEntries(entries.map(([id, , , l]) => [id, l])));
   }, [events]);
   useEffect(() => {
     loadAbsences();
@@ -3502,6 +3514,7 @@ function EventsSection({
                       members={cardMembers}
                       absences={absences[e.id] ?? []}
                       extraUids={attendees[e.id] ?? []}
+                      lateBy={lateBy[e.id] ?? []}
                       myUid={uid}
                       myName={myName}
                       onChanged={loadAbsences}

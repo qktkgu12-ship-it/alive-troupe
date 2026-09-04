@@ -230,6 +230,17 @@ export const CameraIcon = makeIcon(
 // 글자 서식 (T)
 export const TextIcon = makeIcon(<path d="M5 5.5h14M12 5.5V19" />);
 
+// 글자 크기 (작은 T + 큰 T) — 누르면 기본↔크게로 오간다.
+// 크기 목록을 펼치는 대신 두 단계만 오가는 버튼이라, 아이콘 하나로 뜻이 통한다.
+export const TextSizeIcon = makeIcon(
+  <>
+    {/* 작은 T */}
+    <path d="M2.5 7h7M6 7v10" />
+    {/* 큰 T */}
+    <path d="M12.5 4.5h9M17 4.5V19" />
+  </>
+);
+
 // 정렬 — 지금 정렬 상태에 맞춰 줄 길이가 바뀐다
 export const AlignIcon = ({ align = "left", className }: { align?: "left" | "center" | "right"; className?: string }) => {
   // 짧은 줄 두 개의 좌우 위치만 바꿔 정렬을 나타낸다

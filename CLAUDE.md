@@ -27,6 +27,18 @@ Next.js 15 + Firebase(Firestore/FCM). 단원/관리자 역할. 브랜드색 `#e5
 PC 쪽만 세 번 고친 적이 있다. 공통 로직은 `lib/rich-text.ts`(서식 읽기)와
 `lib/use-press.ts`(폰에서 먹히는 버튼 누름)에 두고 **둘이 같이 쓴다.**
 
+툴바 순서는 둘이 같다: `링크 · 사진 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 정렬 │ 나머지`.
+글자 크기는 **기본(3)↔크게(5) 두 단계뿐**이고 `тT` 아이콘 하나로 오간다.
+
+**폰 툴바는 본문 '밑'에 흐름대로 놓인다** — 화면 아래 고정이 아니라, 글이 길어지면
+같이 내려간다. 제목·본문·툴바가 한 스크롤 영역 안에 있어야 이 형식이 유지된다.
+
+⚠️ 사진 넣기에서 조심할 것 두 가지 (둘 다 겪은 버그다):
+- 숨긴 `input[type=file]`을 `pointerdown`에서 `.click()`하면 아이폰이 사진첩을 안 연다
+  → `<label>` 안에 input을 넣어 브라우저가 직접 잇게 한다 (`display:none`도 금지).
+- 사진첩을 다녀오면 편집칸이 포커스를 잃어서 `execCommand("insertHTML")`이
+  **조용히 아무 일도 안 한다** → 기억해 둔 Range에 DOM으로 직접 꽂는다(`insertAtCaret`).
+
 ## 단원의 '팀' = 일정·알림 대상 (`lib/teams.ts`)
 
 | 팀 값 | 들어가는 일정 | 전체 알림 |
@@ -36,8 +48,23 @@ PC 쪽만 세 번 고친 적이 있다. 공통 로직은 `lib/rich-text.ts`(서�
 | **원캐스트** | **전부** (팀 일정이든 전체든) | 감 |
 
 개별 지정 일정(`participantUids`)은 이름을 콕 집은 것이라 이 규칙과 무관 — 팀 없음도 들어간다.
+그래서 **참여 인원을 개별로 고르는 목록에는 팀 배지를 안 붙인다** (일정 등록·예약 신청·일정방 만들기).
 개인 알림(가입 승인·댓글·언급·예약 결과)과 관리자 알림도 이 필터를 안 탄다.
 관리 페이지 → 회원 관리에서 사람마다 고른다.
+
+## 참석 여부는 3단 (참석 · 늦참 · 불참)
+
+`EventCard`의 세그먼트 토글. 저장 자리는 이렇다 —
+
+| 상태 | 어디에 | 참여 인원(going)에 |
+|---|---|---|
+| 참석 | 기록 없음 (기본 명단 밖이면 `attendees/{uid}`) | 들어간다 |
+| **늦참** | `attendees/{uid}`에 `late:true` + `lateReason` | **들어간다** (오긴 온다) |
+| 불참 | `absences/{uid}` | 빠진다 |
+
+늦참을 새 하위 컬렉션으로 파지 않은 이유: `firestore.rules`는 CLI가 없어 사용자가
+콘솔에 직접 붙여넣어야 한다. `attendees/{uid}`는 이미 필드를 더 넣어도 통과하는
+규칙이라, 여기 얹으면 **규칙을 안 건드려도 된다.** 조회 횟수도 안 늘어난다.
 
 ## 컬렉션
 `events`(+`absences`/`attendees` 하위) · `bookingRequests` · `externalBookings` · `coordinations`(+`availability`) · `fcmTokens` · `posts` · `users` · `publicProfiles` · `productions` · `settings/site`(pushPaused)
@@ -68,6 +95,7 @@ guest가 `admins`로 보내면 서버가 문구를 고정한다(가입 신청 �
 | 예약 승인 / 거절 | 신청자 | `PendingApprovals` |
 | 불참 — 전체·팀 일정 | 관리자 | `EventCard.setAbsent` |
 | 불참 — 개별 지정 일정 | 대상 인원 | `EventCard.setAbsent` |
+| **늦참** | 불참과 같은 기준 (전체·팀→관리자 / 개별→대상 인원) | `EventCard.setAttend(true)` |
 | 대상 아닌 사람이 참석 | 원래 대상 인원 | `EventCard.setAttend` |
 | 새 가입 신청 | 관리자 | `lib/auth-context` |
 | 가입 승인 | 본인 | `app/admin` |

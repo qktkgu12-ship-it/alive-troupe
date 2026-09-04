@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { sanitizeRichHtml } from "@/lib/sanitize";
-import { LinkIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon } from "@/components/Icons";
+import { LinkIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, TextSizeIcon } from "@/components/Icons";
 // ⚠️ 글쓰기 편집기는 둘이다 — PC는 이 파일, 폰은 components/PostEditorSheet.
 //    공통 로직은 아래 두 곳에 두고 둘이 같이 쓴다. 한쪽만 고치면 폰이 그대로 남는다.
 import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
 import { usePress } from "@/lib/use-press";
 
-const FONT_SIZES: { label: string; value: string }[] = [
-  { label: "작게", value: "2" },
-  { label: "보통", value: "3" },
-  { label: "크게", value: "4" },
-  { label: "아주 크게", value: "5" },
-];
+// 글자 크기는 두 단계뿐 — 기본과 크게. 폰 편집기와 같은 값이어야 한다.
+// execCommand("fontSize")가 쓰는 1~7 척도로, 3 = 편집칸 기본, 5 = 확실히 큰 글자.
+const SIZE_NORMAL = "3";
+const SIZE_LARGE = "5";
 
 const ALIGNMENTS: { label: string; value: string; icon: string }[] = [
   { label: "왼쪽", value: "justifyLeft", icon: "≡" },
@@ -219,52 +217,38 @@ export default function RichEditor({
     cmd("createLink", url);
   }
 
-  const [sizeOpen, setSizeOpen] = useState(false);
   const [alignOpen, setAlignOpen] = useState(false);
+
+  // '크게'가 켜져 있는가. sizeNow는 커서가 편집칸 안에 있을 때만 값이 있고,
+  // 글자를 치기 전에 눌러 둔 것까지 잡아 준다 (lib/rich-text 참고).
+  const largeOn = on.sizeNow === SIZE_LARGE;
 
   return (
     <div className="rounded-xl border border-slate-200 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
       <div className="flex flex-wrap items-center gap-0.5 border-b border-slate-100 p-1">
+        {/* 폰 편집기(PostEditorSheet)와 같은 순서다 —
+            링크 │ 굵게 · 기울임 · 밑줄 · 취소선 · 글자크기 · 정렬 │ 목록 · 번호목록 · 인용
+            두 편집기가 다른 순서를 갖고 있으면 기기를 바꿀 때마다 손이 헷갈린다. */}
+        {/* 링크는 '상태'가 아니라 '한 번 하는 일'이라 켜짐 표시가 없다 */}
+        <Btn onPress={addLink} label="링크"><LinkIcon className="h-4 w-4" /></Btn>
+        <span className="mx-1 h-5 w-px bg-slate-200" />
         <Btn onPress={() => cmd("bold")} label="굵게" active={on.bold}><span className="text-[15px] font-bold">B</span></Btn>
         <Btn onPress={() => cmd("italic")} label="기울임" active={on.italic}><span className="font-serif text-[15px] italic">I</span></Btn>
         <Btn onPress={() => cmd("underline")} label="밑줄" active={on.underline}><span className="text-[15px] underline">U</span></Btn>
         <Btn onPress={() => cmd("strikeThrough")} label="취소선" active={on.strike}><span className="text-[15px] line-through">S</span></Btn>
-        <span className="mx-1 h-5 w-px bg-slate-200" />
-        {/* 글자 크기 — 크기를 지정했을 때만 그 이름을 옆에 띄운다.
-            늘 띄우면 툴바가 넓어져 폰에서 한 줄이 더 접히는데,
-            '보통'은 어차피 기본값이라 굳이 알려 줄 게 없다. */}
-        <Dropdown
-          open={sizeOpen}
-          onToggle={() => { setAlignOpen(false); setSizeOpen((v) => !v); }}
-          onClose={() => setSizeOpen(false)}
-          label="글자 크기"
-          // 크기를 한 번도 안 건드렸으면 빈 값이다 (lib/rich-text 참고)
-          active={on.size !== ""}
-          icon={
-            <span className="flex items-center gap-1">
-              <span className="text-xs font-medium">가</span>
-              {on.size !== "" && (
-                <span className="text-[11px] font-semibold">
-                  {FONT_SIZES.find((s) => s.value === on.size)?.label ?? ""}
-                </span>
-              )}
-            </span>
-          }
+        {/* 글자 크기 — 목록을 펼치지 않고 기본↔크게만 오간다.
+            네 단계 목록은 좁은 화면에서 툴바를 가렸고 '작게'·'아주 크게'는 거의 안 쓰였다. */}
+        <Btn
+          onPress={() => cmd("fontSize", largeOn ? SIZE_NORMAL : SIZE_LARGE)}
+          label={largeOn ? "글자 크기 (지금 크게)" : "글자 크기 (지금 기본)"}
+          active={largeOn}
         >
-          {FONT_SIZES.map((s) => (
-            <MenuItem
-              key={s.value}
-              active={on.size === s.value || (on.size === "" && s.value === "3")}
-              onPress={() => { cmd("fontSize", s.value); setSizeOpen(false); }}
-            >
-              {s.label}
-            </MenuItem>
-          ))}
-        </Dropdown>
+          <TextSizeIcon className="h-4 w-4" />
+        </Btn>
         {/* 정렬 */}
         <Dropdown
           open={alignOpen}
-          onToggle={() => { setSizeOpen(false); setAlignOpen((v) => !v); }}
+          onToggle={() => setAlignOpen((v) => !v)}
           onClose={() => setAlignOpen(false)}
           label="정렬"
           // 왼쪽 정렬은 기본값이라 켜 두지 않는다 — 늘 켜져 있으면 표시가 아니다
@@ -305,8 +289,6 @@ export default function RichEditor({
         >
           <QuoteIcon className="h-4 w-4" />
         </Btn>
-        {/* 링크는 '상태'가 아니라 '한 번 하는 일'이라 켜짐 표시가 없다 */}
-        <Btn onPress={addLink} label="링크"><LinkIcon className="h-4 w-4" /></Btn>
       </div>
       <div
         ref={ref}

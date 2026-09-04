@@ -101,23 +101,26 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* 게시글 에디터 스크롤바 — 얇고 둥근 인디케이터 */
+/* 게시글 에디터 스크롤바 — 얇고 둥근 인디케이터.
+   알파 0.15는 흰 배경 위에서 거의 안 보였다(밝기 차 약 15%).
+   0.38로 올리면 '지금 어디쯤인지'가 눈에 들어오면서도 막대처럼 튀지는 않는다.
+   되돌리려면 아래 세 곳의 0.38 → 0.15, 0.55 → 0.3, 폭 6px → 4px. */
 .editor-scroll::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 .editor-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 .editor-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.38);
+  border-radius: 6px;
 }
 .editor-scroll::-webkit-scrollbar-thumb:active {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(15, 23, 42, 0.55);
 }
 .editor-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  scrollbar-color: rgba(15, 23, 42, 0.38) transparent;
 }
 
 /* 리치 본문(에디터/표시 공용) 서식 */
