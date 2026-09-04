@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ONE_CAST } from "@/lib/teams";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Guard from "@/components/Guard";
@@ -95,10 +96,14 @@ function MembersInner() {
                   {m.team && (() => {
                     const idx = teams.indexOf(m.team!);
                     const c = TEAM_PALETTE[idx] ?? null;
+                    // 원캐스트는 팀 목록에 없다 — 모든 일정에 들어가는 사람이라 강조색으로
+                    const one = m.team === ONE_CAST;
                     return (
                       <span
                         style={c ? { backgroundColor: c.bg, color: c.color } : {}}
-                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${!c ? "bg-slate-100 text-slate-500" : ""}`}
+                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                          c ? "" : one ? "bg-accent-soft text-accent" : "bg-slate-100 text-slate-500"
+                        }`}
                       >
                         {m.team}
                       </span>

@@ -211,9 +211,20 @@ async function handle(req: Request, step: { at: string; test: boolean }) {
     // 'all' = 승인된 단원 전체.
     // 승인 대기(guest)도 '승인됐어요' 알림을 받으려고 토큰을 등록해 두므로,
     // 전체 발송에 그대로 태우면 공지 내용이 미승인자에게 새어 나간다. 반드시 걸러낸다.
+    //
+    // 팀이 '팀 없음'인 단원도 뺀다 — 쉬고 있거나 아직 배정 안 된 사람이라
+    // 일정에도 안 잡히는데 단체 알림만 울리면 앞뒤가 안 맞는다 (lib/teams 참고).
+    // ⚠️ 개인에게 가는 알림(가입 승인·댓글·언급·예약 결과)은 audience가 'uids'라
+    //    여기 걸리지 않는다. 관리자 알림('admins')도 그대로 간다.
     const users = await db.collection("users").get();
     allowUids = new Set(
-      users.docs.filter((d) => ["member", "admin"].includes((d.get("role") as string) ?? "")).map((d) => d.id)
+      users.docs
+        .filter(
+          (d) =>
+            ["member", "admin"].includes((d.get("role") as string) ?? "") &&
+            !!((d.get("team") as string) ?? "").trim()
+        )
+        .map((d) => d.id)
     );
   }
   if (allowUids.size === 0) return NextResponse.json({ sent: 0 });

@@ -24,6 +24,7 @@ import BottomSheet from "@/components/BottomSheet";
 import EventForm from "@/components/forms/EventForm";
 import { useCreateSheet } from "@/lib/create-sheet-context";
 import { pushToAdmins, pushToAll, pushToUsers } from "@/lib/push";
+import { ONE_CAST, inEventAudience } from "@/lib/teams";
 import { getMembers } from "@/lib/members";
 import { ProfileAvatar } from "@/components/ProfileViewer";
 import EmptyState from "@/components/EmptyState";
@@ -174,6 +175,14 @@ function TeamBadge({ team, className = "" }: { team?: string; className?: string
   const { settings } = useTheme();
   const teams = settings.teams ?? [];
   if (!team) return null;
+  // 원캐스트는 설정된 팀 목록에 없으므로 색을 따로 준다 (강조색 계열)
+  if (team === ONE_CAST) {
+    return (
+      <span className={`inline-flex shrink-0 items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent ${className}`}>
+        {team}
+      </span>
+    );
+  }
   const c = getTeamColor(team, teams);
   const style: React.CSSProperties = c ? { backgroundColor: c.bg, color: c.color } : {};
   return (
@@ -1535,7 +1544,7 @@ function CoordDetail({
         targets = coord.participantUids;
       } else {
         targets = (await getMembers())
-          .filter((p) => p.role !== "guest" && (!coord.team || p.team === coord.team))
+          .filter((p) => p.role !== "guest" && inEventAudience(p.team, coord.team))
           .map((p) => p.uid);
       }
       const to = targets.filter((u) => u && !submitted.has(u) && u !== uid);

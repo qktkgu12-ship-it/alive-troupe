@@ -23,6 +23,7 @@ import {
   type ScheduleEvent,
 } from "@/lib/types";
 import { chunk, relativeTime, toDateStr } from "@/lib/utils";
+import { ONE_CAST } from "@/lib/teams";
 
 function parseDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -271,7 +272,13 @@ function HomeInner() {
 
   // 내 팀 일정만 (공통 + 내 팀). 팀 미지정이거나 관리자면 전체 (네이버 예약 일정도 포함)
   const myTeam = role === "admin" ? "" : (profile?.team ?? "");
-  const myEvents = upcoming.filter((e) => !myTeam || !e.team || e.team === myTeam);
+  // ⚠️ 여기는 '누가 참여자로 세어지는가'가 아니라 '누가 볼 수 있는가'다. 둘은 다르다.
+  //    팀이 없는(비활성) 단원도 일정은 볼 수 있어야 한다 — 안 그러면 홈이 텅 빈다.
+  //    참여 인원 계산과 알림 대상만 lib/teams의 규칙을 쓴다.
+  //    원캐스트는 팀 일정도 자기 일정이라 같이 보여 준다.
+  const myEvents = upcoming.filter(
+    (e) => !myTeam || myTeam === ONE_CAST || !e.team || e.team === myTeam
+  );
   const shownEvents = myEvents.slice(0, 5);
 
   return (

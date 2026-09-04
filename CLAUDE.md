@@ -27,6 +27,18 @@ Next.js 15 + Firebase(Firestore/FCM). 단원/관리자 역할. 브랜드색 `#e5
 PC 쪽만 세 번 고친 적이 있다. 공통 로직은 `lib/rich-text.ts`(서식 읽기)와
 `lib/use-press.ts`(폰에서 먹히는 버튼 누름)에 두고 **둘이 같이 쓴다.**
 
+## 단원의 '팀' = 일정·알림 대상 (`lib/teams.ts`)
+
+| 팀 값 | 들어가는 일정 | 전체 알림 |
+|---|---|---|
+| **팀 없음(`""`)** | **없음 — 비활성** (막 가입했거나 쉬는 단원) | **안 감** |
+| A팀 / B팀 | 그 팀 일정 + 전체 일정 | 감 |
+| **원캐스트** | **전부** (팀 일정이든 전체든) | 감 |
+
+개별 지정 일정(`participantUids`)은 이름을 콕 집은 것이라 이 규칙과 무관 — 팀 없음도 들어간다.
+개인 알림(가입 승인·댓글·언급·예약 결과)과 관리자 알림도 이 필터를 안 탄다.
+관리 페이지 → 회원 관리에서 사람마다 고른다.
+
 ## 컬렉션
 `events`(+`absences`/`attendees` 하위) · `bookingRequests` · `externalBookings` · `coordinations`(+`availability`) · `fcmTokens` · `posts` · `users` · `publicProfiles` · `productions` · `settings/site`(pushPaused)
 
