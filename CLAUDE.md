@@ -16,6 +16,17 @@ Next.js 15 + Firebase(Firestore/FCM). 단원/관리자 역할. 브랜드색 `#e5
 - `lib/types.ts`, `lib/push.ts`, `lib/utils.ts`, `lib/notifications.ts`
 - `components/BottomSheet.tsx` — 공용 바텀시트 (onConfirm이 false 반환 시 닫히지 않음)
 
+### ⚠️ 글쓰기 편집기는 **둘**이다
+`lib/post-editor-context`가 `isMobileDevice()`로 갈라 연다.
+| | 어디 |
+|---|---|
+| PC | `app/board/write` → `components/RichEditor.tsx` |
+| **폰** | **`components/PostEditorSheet.tsx`** (자체 툴바를 따로 갖고 있다) |
+
+한쪽만 고치면 다른 쪽은 그대로다 — 실제로 "폰 툴바가 안 먹는다"를 고친다며
+PC 쪽만 세 번 고친 적이 있다. 공통 로직은 `lib/rich-text.ts`(서식 읽기)와
+`lib/use-press.ts`(폰에서 먹히는 버튼 누름)에 두고 **둘이 같이 쓴다.**
+
 ## 컬렉션
 `events`(+`absences`/`attendees` 하위) · `bookingRequests` · `externalBookings` · `coordinations`(+`availability`) · `fcmTokens` · `posts` · `users` · `publicProfiles` · `productions` · `settings/site`(pushPaused)
 

@@ -33,6 +33,8 @@ import {
   type MediaMap,
 } from "@/lib/post-media";
 import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
+import { NO_MARKS, readMarks, type Marks } from "@/lib/rich-text";
+import { usePress } from "@/lib/use-press";
 import {
   AlignIcon,
   CameraIcon,
@@ -63,6 +65,59 @@ const FONT_SIZES = [
 
 export type EditorTarget = { post: Post; onSaved?: (p: Post) => void } | { cat?: string } | null;
 
+// ⚠️ 툴바 버튼은 반드시 컴포넌트 '밖'에 둘 것.
+//    안에 두면 글자를 칠 때마다 새 컴포넌트로 취급돼 툴바가 통째로 다시 그려지고,
+//    그 순간 누르고 있던 버튼이 사라져 탭이 먹히지 않는다.
+function ToolBtn({
+  onPress,
+  label,
+  active,
+  children,
+}: {
+  onPress: () => void;
+  label: string;
+  /** 지금 커서 자리에 이 서식이 걸려 있는가 */
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  const press = usePress(onPress);
+  return (
+    <button
+      type="button"
+      {...press}
+      aria-label={label}
+      aria-pressed={!!active}
+      className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition ${
+        active ? "bg-accent/10 text-accent" : "text-slate-600 active:bg-slate-100"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** 툴바 안의 글자 버튼 (링크·투표·글자크기처럼 폭이 있는 것) */
+function ToolTextBtn({
+  onPress,
+  active,
+  className = "",
+  children,
+  btnRef,
+}: {
+  onPress: () => void;
+  active?: boolean;
+  className?: string;
+  children: React.ReactNode;
+  btnRef?: React.Ref<HTMLButtonElement>;
+}) {
+  const press = usePress(onPress);
+  return (
+    <button ref={btnRef} type="button" {...press} className={className}>
+      {children}
+    </button>
+  );
+}
+
 export default function PostEditorSheet({
   open,
   target,
@@ -92,6 +147,8 @@ export default function PostEditorSheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const [sizeLeft, setSizeLeft] = useState(0);
   const savedRange = useRef<Range | null>(null);
+  // 커서 자리에 걸려 있는 서식 — 툴바 버튼을 켜서 보여 준다
+  const [marks, setMarks] = useState<Marks>(NO_MARKS);
 
   const [board, setBoard] = useState("");
   const [title, setTitle] = useState("");
@@ -235,8 +292,20 @@ export default function PostEditorSheet({
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && bodyRef.current?.contains(sel.anchorNode)) {
       savedRange.current = sel.getRangeAt(0).cloneRange();
+      setMarks(readMarks(bodyRef.current));
     }
   }, []);
+
+  // ⚠️ selectionchange를 꼭 들어야 한다.
+  //    폰에서 파란 손잡이를 끌어 글자를 선택하면 keyup·mouseup·input이 하나도 안 온다.
+  //    그 경우 기억해 둔 커서가 '아까 탭했던 한 점'에 머물러서,
+  //    굵게를 눌러도 빈 자리에 서식이 걸릴 뿐 화면에는 아무 일도 안 일어난다.
+  //    (폰에서 툴바가 안 먹던 진짜 이유다)
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener("selectionchange", rememberCaret);
+    return () => document.removeEventListener("selectionchange", rememberCaret);
+  }, [open, rememberCaret]);
 
   const restoreCaret = useCallback(() => {
     bodyRef.current?.focus();
@@ -285,6 +354,8 @@ export default function PostEditorSheet({
       restoreCaret();
       document.execCommand(command, false, arg);
       rememberCaret();
+      // selectionchange가 안 올 수도 있어(선택 범위가 그대로일 때) 한 번 더 맞춘다
+      setMarks(readMarks(bodyRef.current));
     },
     [restoreCaret, rememberCaret]
   );
@@ -500,30 +571,6 @@ export default function PostEditorSheet({
 
   if (!open) return null;
 
-  const ToolBtn = ({
-    onClick,
-    label,
-    active,
-    children,
-  }: {
-    onClick: () => void;
-    label: string;
-    active?: boolean;
-    children: React.ReactNode;
-  }) => (
-    <button
-      type="button"
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      aria-label={label}
-      className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition ${
-        active ? "bg-slate-900/[0.07] text-slate-900" : "text-slate-600 active:bg-slate-100"
-      }`}
-    >
-      {children}
-    </button>
-  );
-
   const sizeLabel = FONT_SIZES.find((f) => f.value === fontSize)?.label ?? "보통";
 
   return (
@@ -588,11 +635,11 @@ export default function PostEditorSheet({
 
         {/* ── 툴바 (제목 바로 아래) ── */}
         <div className="relative z-10 flex h-[52px] shrink-0 items-center gap-0.5 border-b border-slate-200 bg-white px-2">
-          <ToolBtn onClick={() => fileRef.current?.click()} label="사진 추가">
+          <ToolBtn onPress={() => fileRef.current?.click()} label="사진 추가">
             {imgBusy ? <Spinner className="h-5 w-5" /> : <CameraIcon className="h-[22px] w-[22px]" />}
           </ToolBtn>
           <ToolBtn
-            onClick={() => { setSizeOpen(false); setPanel((p) => (p === "text" ? null : "text")); }}
+            onPress={() => { setSizeOpen(false); setPanel((p) => (p === "text" ? null : "text")); }}
             label="글자 서식"
             active={panel === "text"}
           >
@@ -600,13 +647,13 @@ export default function PostEditorSheet({
           </ToolBtn>
           {/* 정렬 — 누를 때마다 왼쪽→가운데→오른쪽, 글 전체가 바로 바뀐다 */}
           <ToolBtn
-            onClick={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
+            onPress={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
             label={`정렬 (지금 ${align === "left" ? "왼쪽" : align === "center" ? "가운데" : "오른쪽"})`}
           >
             <AlignIcon align={align} className="h-[21px] w-[21px]" />
           </ToolBtn>
           <ToolBtn
-            onClick={() => { setSizeOpen(false); setPanel((p) => (p === "more" ? null : "more")); }}
+            onPress={() => { setSizeOpen(false); setPanel((p) => (p === "more" ? null : "more")); }}
             label="더보기"
             active={panel === "more"}
           >
@@ -631,17 +678,15 @@ export default function PostEditorSheet({
           <div className={`h-[52px] overflow-hidden${panel ? " border-b border-slate-100" : ""}`}>
             {panel === "text" && (
               <div className="flex h-[52px] items-center gap-0.5 overflow-x-auto px-2">
-                <ToolBtn onClick={() => cmd("bold")} label="굵게"><span className="text-[16px] font-bold">B</span></ToolBtn>
-                <ToolBtn onClick={() => cmd("italic")} label="기울임"><span className="font-serif text-[16px] italic">I</span></ToolBtn>
-                <ToolBtn onClick={() => cmd("underline")} label="밑줄"><span className="text-[16px] underline">U</span></ToolBtn>
-                <ToolBtn onClick={() => cmd("strikeThrough")} label="취소선"><span className="text-[16px] line-through">S</span></ToolBtn>
+                <ToolBtn onPress={() => cmd("bold")} label="굵게" active={marks.bold}><span className="text-[16px] font-bold">B</span></ToolBtn>
+                <ToolBtn onPress={() => cmd("italic")} label="기울임" active={marks.italic}><span className="font-serif text-[16px] italic">I</span></ToolBtn>
+                <ToolBtn onPress={() => cmd("underline")} label="밑줄" active={marks.underline}><span className="text-[16px] underline">U</span></ToolBtn>
+                <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}><span className="text-[16px] line-through">S</span></ToolBtn>
                 <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
                 {/* 글자 크기 — 지금 크기만 보이고, 누르면 목록이 펼쳐진다 */}
-                <button
-                  ref={sizeBtnRef}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
+                <ToolTextBtn
+                  btnRef={sizeBtnRef}
+                  onPress={() => {
                     // 버튼이 지금 있는 자리 바로 아래에 목록을 편다
                     const b = sizeBtnRef.current?.getBoundingClientRect();
                     const p = panelRef.current?.getBoundingClientRect();
@@ -654,20 +699,18 @@ export default function PostEditorSheet({
                 >
                   {sizeLabel}
                   <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${sizeOpen ? "rotate-180" : ""}`} />
-                </button>
+                </ToolTextBtn>
                 <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
-                <ToolBtn onClick={() => cmd("insertUnorderedList")} label="목록"><ListBulletIcon className="h-[19px] w-[19px]" /></ToolBtn>
-                <ToolBtn onClick={() => cmd("insertOrderedList")} label="번호 목록"><ListOrderedIcon className="h-[19px] w-[19px]" /></ToolBtn>
-                <ToolBtn onClick={() => cmd("formatBlock", "blockquote")} label="인용"><QuoteIcon className="h-[19px] w-[19px]" /></ToolBtn>
+                <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}><ListBulletIcon className="h-[19px] w-[19px]" /></ToolBtn>
+                <ToolBtn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={marks.ol}><ListOrderedIcon className="h-[19px] w-[19px]" /></ToolBtn>
+                <ToolBtn onPress={() => cmd("formatBlock", marks.quote ? "div" : "blockquote")} label="인용" active={marks.quote}><QuoteIcon className="h-[19px] w-[19px]" /></ToolBtn>
               </div>
             )}
 
             {panel === "more" && (
               <div className="flex h-[52px] items-center gap-1 px-2">
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
+                <ToolTextBtn
+                  onPress={() => {
                     const url = prompt("링크 주소(https://...)를 입력하세요");
                     if (!url) return;
                     if (!/^https?:\/\//i.test(url)) {
@@ -679,11 +722,9 @@ export default function PostEditorSheet({
                   className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
                 >
                   <LinkIcon className="h-[18px] w-[18px]" /> 링크
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
+                </ToolTextBtn>
+                <ToolTextBtn
+                  onPress={() => {
                     (document.activeElement as HTMLElement | null)?.blur();
                     setPollOpen(true);
                   }}
@@ -691,7 +732,7 @@ export default function PostEditorSheet({
                 >
                   <PollIcon className="h-[18px] w-[18px]" /> 투표
                   {pollOn && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-fg">켜짐</span>}
-                </button>
+                </ToolTextBtn>
               </div>
             )}
           </div>
@@ -703,11 +744,9 @@ export default function PostEditorSheet({
               style={{ left: sizeLeft }}
             >
               {FONT_SIZES.map((f) => (
-                <button
+                <ToolTextBtn
                   key={f.value}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
+                  onPress={() => {
                     setFontSize(f.value);
                     cmd("fontSize", f.value);
                     setSizeOpen(false);
@@ -718,7 +757,7 @@ export default function PostEditorSheet({
                 >
                   {f.value === fontSize ? <CheckIcon className="h-3.5 w-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
                   {f.label}
-                </button>
+                </ToolTextBtn>
               ))}
             </div>
           )}
@@ -733,6 +772,8 @@ export default function PostEditorSheet({
             suppressContentEditableWarning
             onKeyUp={() => { rememberCaret(); scrollToCaret(); }}
             onMouseUp={rememberCaret}
+            onTouchEnd={rememberCaret}
+            onFocus={rememberCaret}
             onClick={handleBodyClick}
             onInput={() => {
               rememberCaret();
