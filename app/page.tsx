@@ -286,7 +286,7 @@ function HomeInner() {
           날짜 줄은 없다 (폰 상단바와 겹친다). */}
       <section>
         <h1 className="pt-1 text-[26px] font-extrabold leading-tight tracking-tight text-slate-900">
-          안녕하세요, {profile?.name || profile?.displayName}님 <span aria-hidden>👋</span>
+          안녕하세요, {profile?.name || profile?.displayName}님 <span className="tf" aria-hidden>👋</span>
         </h1>
         {/* 캐치프라이즈 — 예전엔 font-mono + 대문자 + 자간 0.2em이었는데,
             고정폭 서체는 이미 글자 사이가 넓어서 자간까지 더하면 흩어져 보였다.
