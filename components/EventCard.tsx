@@ -15,7 +15,7 @@ import { db } from "@/lib/firebase";
 import Avatar from "@/components/Avatar";
 import BottomSheet from "@/components/BottomSheet";
 import { ClockIcon, PinIcon } from "@/components/Icons";
-import { ampmTimeKo, bookingWhenLabel, WEEKDAYS_KO } from "@/lib/utils";
+import { ampmTimeKo, WEEKDAYS_KO } from "@/lib/utils";
 import { pushToAdmins, pushToUsers } from "@/lib/push";
 import type { ScheduleEvent } from "@/lib/types";
 
@@ -365,14 +365,11 @@ export default function EventCard({
         // (이미 대상인 사람이 참석을 누른 건 알릴 일이 아니다)
         const to = baseUids.filter((u) => u && u !== myUid);
         if (to.length > 0) {
+          // 날짜·시간은 넣지 않는다 — 제목만으로 어느 일정인지 알 수 있고,
+          // 눌러서 들어가면 어차피 그 일정이 열린다.
           void pushToUsers(to, {
             title: `[참석 추가] ${e.title}`,
-            body: [
-              `${myName || "단원"}님이 참석하기로 했어요.`,
-              bookingWhenLabel(e.date, e.startTime ?? "", e.endTime ?? ""),
-            ]
-              .filter(Boolean)
-              .join("\n"),
+            body: `${myName || "단원"}님이 참석하기로 했어요.`,
             href: `/schedule?tab=events&date=${e.date}`,
             tag: `attend-${e.id}`,
           });
@@ -400,11 +397,12 @@ export default function EventCard({
       // 불참 알림 — 누가 알아야 하는지는 일정 성격에 따라 다르다.
       //   전체·팀 일정  → 관리자 (인원 파악은 관리자 몫)
       //   개별 지정 일정 → 같이 하기로 한 대상 인원 (소수라 서로 조율이 필요하다)
+      // 날짜·시간은 넣지 않는다 — 제목만으로 어느 일정인지 알 수 있고,
+      // 여기서 정작 중요한 건 '누가, 왜'다.
       const absentMsg = {
         title: `[불참] ${e.title}`,
         body: [
           `${myName || "단원"}님이 불참을 알렸어요.`,
-          bookingWhenLabel(e.date, e.startTime ?? "", e.endTime ?? ""),
           reason.trim() ? `사유: ${reason.trim()}` : "",
         ]
           .filter(Boolean)

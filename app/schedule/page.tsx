@@ -2655,10 +2655,11 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
     // 사유는 선택 — 비워 두면 사유 없이 거절 알림만 간다
     const reason = (prompt("거절 사유를 적어 주세요. (선택 — 비워 두고 확인을 눌러도 됩니다)") ?? "").trim();
     await deleteDoc(doc(db, "bookingRequests", r.id));
-    // 신청 단원에게 거절 알림 — 승인만 알리고 거절은 안 알리면 계속 기다리게 된다
-    const whenLabel = bookingWhenLabel(r.date, r.startTime, r.endTime);
+    // 신청 단원에게 거절 알림 — 승인만 알리고 거절은 안 알리면 계속 기다리게 된다.
+    // 날짜·시간은 넣지 않는다 (승인 알림과 달리, 안 잡힌 시간을 다시 읽어 봐야 소용이 없다).
+    // 대신 본문 첫 줄에 신청 제목이 있어 어느 신청인지는 바로 보인다.
     await pushToUsers([r.requesterUid], {
-      title: `[예약거절] ${whenLabel}`,
+      title: "[예약거절]",
       body: reason
         ? `${r.title}\n사유: ${reason}`
         : `${r.title}\n예약이 어렵게 되었어요. 다른 시간으로 신청해 주세요.`,
@@ -3200,11 +3201,11 @@ function EventsSection({
     await deleteDoc(doc(db, "events", id));
     // 취소를 모르면 헛걸음하게 된다 — 지난 일정은 알릴 필요 없음
     if (gone && !eventPassed(gone)) {
+      // 날짜·시간은 넣지 않는다 — 제목만으로 어느 일정인지 알 수 있고,
+      // 이미 없어진 일정의 시간을 다시 읽어 봐야 할 일이 없다.
       const msg = {
         title: "일정이 취소됐어요",
-        body: [gone.title, bookingWhenLabel(gone.date, gone.startTime ?? "", gone.endTime ?? "")]
-          .filter(Boolean)
-          .join("\n"),
+        body: gone.title,
         href: "/schedule?tab=events",
         tag: `event-cancelled-${id}`,
       };
