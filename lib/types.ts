@@ -232,6 +232,8 @@ export interface Poll {
   multiple: boolean; // 복수 선택 허용
   anonymous: boolean; // 익명(누가 골랐는지 숨김)
   deadline?: number; // 마감 시각(ms). 없으면 무기한
+  // 글쓴이·관리자가 손으로 끝낸 시각(ms). 마감 시각과 별개로 언제든 닫을 수 있다.
+  closedAt?: number;
 }
 
 // 개별 투표 기록 (posts/{postId}/votes/{uid})
