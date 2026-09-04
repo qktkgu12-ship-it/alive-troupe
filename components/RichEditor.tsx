@@ -5,7 +5,7 @@ import { sanitizeRichHtml } from "@/lib/sanitize";
 import { LinkIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon } from "@/components/Icons";
 // ⚠️ 글쓰기 편집기는 둘이다 — PC는 이 파일, 폰은 components/PostEditorSheet.
 //    공통 로직은 아래 두 곳에 두고 둘이 같이 쓴다. 한쪽만 고치면 폰이 그대로 남는다.
-import { NO_MARKS, readMarks, type Marks } from "@/lib/rich-text";
+import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
 import { usePress } from "@/lib/use-press";
 
 const FONT_SIZES: { label: string; value: string }[] = [
@@ -28,7 +28,7 @@ const ALIGNMENTS: { label: string; value: string; icon: string }[] = [
 // 켜져 있는 버튼은 강조색 알약으로 바뀐다.
 // 굵게/기울임처럼 '지금 상태'가 있는 기능은, 눌러서 켠 건지 원래 켜져 있던 건지
 // 표시가 없으면 글을 쓰다가 알 수가 없다.
-const ON = "bg-accent/10 text-accent";
+const ON = "text-accent";
 const OFF = "text-slate-600 hover:bg-slate-100 active:bg-slate-200";
 
 function Btn({
@@ -184,7 +184,9 @@ export default function RichEditor({
     if (!el) return;
     el.focus();
     const r = savedRange.current;
-    if (!r) return;
+    // 기억해 둔 자리가 없으면(= 아직 한 글자도 안 썼거나 커서를 둔 적이 없으면)
+    // 맨 끝에 커서를 놓는다. 그래야 바로 서식부터 켜도 그대로 먹힌다.
+    if (!r) return placeCaretAtEnd(el);
     const sel = window.getSelection();
     if (!sel) return;
     sel.removeAllRanges();
@@ -311,6 +313,7 @@ export default function RichEditor({
         contentEditable
         suppressContentEditableWarning
         onInput={() => { remember(); emit(); }}
+        onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(ref.current); }}
         onKeyUp={remember}
         onMouseUp={remember}
         onTouchEnd={remember}

@@ -107,3 +107,60 @@ export function readMarks(root: HTMLElement | null): Marks {
     size: found.size,
   };
 }
+
+/**
+ * 커서를 편집칸 맨 끝에 놓는다.
+ *
+ * 아무것도 안 쓴 상태에서 툴바부터 누르는 경우를 위한 것.
+ * 그때는 기억해 둔 커서가 없어서, 포커스만 줘서는 execCommand가 걸릴 자리가 없다
+ * → 서식을 켜도 아무 일도 안 일어난다.
+ */
+export function placeCaretAtEnd(el: HTMLElement | null): void {
+  if (!el) return;
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.collapse(false);
+  const s = window.getSelection();
+  s?.removeAllRanges();
+  s?.addRange(r);
+}
+
+/** 줄바꿈을 넘어가도 이어져야 하는 서식 (한 글자에 걸리는 것들) */
+const INLINE: [keyof Marks, string][] = [
+  ["bold", "bold"],
+  ["italic", "italic"],
+  ["underline", "underline"],
+  ["strike", "strikeThrough"],
+];
+
+/**
+ * Enter를 누르기 '직전'에 불러 둘 것.
+ *
+ * 브라우저는 줄이 바뀌면 켜 두었던 서식을 놓아 버리는 경우가 있다.
+ * 굵게를 켜고 쓰다가 엔터를 치면 다음 줄부터 슬그머니 풀리는 게 그것이다.
+ * 줄이 바뀐 직후에 다시 확인해서, 빠진 것만 도로 켠다.
+ */
+export function keepMarksAcrossNewline(root: HTMLElement | null): void {
+  const before = readMarks(root);
+  // requestAnimationFrame이 아니라 setTimeout을 쓴다 — rAF는 화면이 안 그려지는
+  // 상황(백그라운드 탭 등)에서 아예 안 돌아서 서식이 조용히 풀릴 수 있다.
+  setTimeout(() => {
+    const after = readMarks(root);
+    for (const [key, command] of INLINE) {
+      if (before[key] && !after[key]) {
+        try {
+          document.execCommand(command, false);
+        } catch {
+          /* 무시 */
+        }
+      }
+    }
+    if (before.size && after.size !== before.size) {
+      try {
+        document.execCommand("fontSize", false, before.size);
+      } catch {
+        /* 무시 */
+      }
+    }
+  }, 0);
+}

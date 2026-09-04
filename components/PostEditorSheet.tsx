@@ -33,7 +33,7 @@ import {
   type MediaMap,
 } from "@/lib/post-media";
 import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
-import { NO_MARKS, readMarks, type Marks } from "@/lib/rich-text";
+import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
 import { usePress } from "@/lib/use-press";
 import {
   AlignIcon,
@@ -88,7 +88,7 @@ function ToolBtn({
       aria-label={label}
       aria-pressed={!!active}
       className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition ${
-        active ? "bg-accent/10 text-accent" : "text-slate-600 active:bg-slate-100"
+        active ? "text-accent" : "text-slate-600 active:bg-slate-100"
       }`}
     >
       {children}
@@ -310,7 +310,9 @@ export default function PostEditorSheet({
   const restoreCaret = useCallback(() => {
     bodyRef.current?.focus();
     const r = savedRange.current;
-    if (!r) return;
+    // 기억해 둔 자리가 없으면(= 아직 한 글자도 안 썼거나 커서를 둔 적이 없으면)
+    // 맨 끝에 커서를 놓는다. 그래야 바로 서식부터 켜도 그대로 먹힌다.
+    if (!r) return placeCaretAtEnd(bodyRef.current);
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(r);
@@ -770,6 +772,8 @@ export default function PostEditorSheet({
             ref={bodyRef}
             contentEditable
             suppressContentEditableWarning
+            // 줄이 바뀌어도 켜 둔 서식이 풀리지 않게 (엔터 직전 상태를 기억해 뒀다 되살린다)
+            onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(bodyRef.current); }}
             onKeyUp={() => { rememberCaret(); scrollToCaret(); }}
             onMouseUp={rememberCaret}
             onTouchEnd={rememberCaret}
