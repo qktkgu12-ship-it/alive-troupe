@@ -30,6 +30,14 @@ export const viewport: Viewport = {
 const FONT_CSS =
   "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendard-dynamic-subset.min.css";
 
+// 토스페이스 — 이모지 글꼴 (https://github.com/toss/tossface, TossSpace License).
+// 기기마다 제각각인 시스템 이모지(애플·구글·삼성) 대신 어디서나 같은 그림이 나온다.
+//
+// ⚠️ 이 글꼴은 이모지만 있는 게 아니라 숫자·#·* 자모도 들고 있다(키캡 이모지 1️⃣ 때문).
+//    그래서 앱 전체 글꼴 목록 맨 앞에 두면 안 된다 — 본문 숫자까지 이 글꼴로 그려진다.
+//    globals.css의 .tf 클래스를 붙인 곳(이모지만 들어 있는 칸)에서만 쓴다.
+const EMOJI_CSS = "https://cdn.jsdelivr.net/gh/toss/tossface/dist/tossface.css";
+
 // 스타일시트가 오기 전에도 배경이 흰색으로 칠해지도록 최소한의 색만 인라인으로.
 // (globals.css는 별도 파일이라 로드 전 한 프레임 동안 기기 기본색 = 다크모드면 검정)
 const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{background:#f7f8fa;color:#0f172a;margin:0;padding:0}`;
@@ -38,7 +46,7 @@ const criticalCss = `:root{color-scheme:light}html{background:#f7f8fa}body{backg
 // (2) 폰트 <link>를 media="print"로 받아 렌더를 막지 않다가, 다 받으면 media="all"로 전환.
 //     React는 서버 HTML에 onLoad 문자열을 넣어주지 않으므로 이 스크립트가 직접 처리한다.
 // (3) 안전장치: 인증이 실패해 auth-context가 스플래시를 못 내려도 8초 뒤엔 무조건 걷어낸다.
-const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{var l=document.getElementById('alive-font');if(l){var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);}}catch(e){}setTimeout(function(){try{var p=document.getElementById('alive-splash');if(p)p.style.display='none';}catch(e){}},8000);})();`;
+const themeInitScript = `(function(){try{var r=document.documentElement;var s=function(k,v){var x=localStorage.getItem(k);if(x)r.style.setProperty(v,x);};s('alive-accent','--accent');s('alive-accent-fg','--accent-fg');s('alive-accent-2','--accent-2');}catch(e){}try{['alive-font','alive-emoji'].forEach(function(id){var l=document.getElementById(id);if(!l)return;var go=function(){l.media='all';};if(l.sheet)go();else l.addEventListener('load',go);});}catch(e){}setTimeout(function(){try{var p=document.getElementById('alive-splash');if(p)p.style.display='none';}catch(e){}},8000);})();`;
 
 export default function RootLayout({
   children,
@@ -55,8 +63,12 @@ export default function RootLayout({
         {/* 폰트는 JS 파싱을 기다리지 않고 HTML 파싱 시점에 바로 요청 시작.
             media="print"라 렌더를 막지 않고, 아래 스크립트가 로드 후 all로 전환 */}
         <link id="alive-font" rel="stylesheet" href={FONT_CSS} media="print" />
+        {/* 이모지 글꼴도 같은 방식으로 — 늦게 와도 시스템 이모지가 먼저 보일 뿐이라
+            글이 안 보이는 구간은 없다 */}
+        <link id="alive-emoji" rel="stylesheet" href={EMOJI_CSS} media="print" />
         <noscript>
           <link rel="stylesheet" href={FONT_CSS} />
+          <link rel="stylesheet" href={EMOJI_CSS} />
         </noscript>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

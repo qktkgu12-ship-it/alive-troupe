@@ -205,7 +205,7 @@ function WriteInner() {
         <div className="rounded-xl border border-slate-200 p-3">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
             <input type="checkbox" checked={pollOn} onChange={(e) => setPollOn(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-            🗳️ 투표 추가
+            <span className="tf">🗳️</span> 투표 추가
           </label>
           {pollOn && (
             <div className="mt-3 space-y-2">
@@ -241,7 +241,7 @@ function WriteInner() {
         {isAdmin && (
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
             <input type="checkbox" checked={asNotice} onChange={(e) => setAsNotice(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-            📢 공지로 등록 (모든 게시판 상단에 고정)
+            <span className="tf">📢</span> 공지로 등록 (모든 게시판 상단에 고정)
           </label>
         )}
       </div>

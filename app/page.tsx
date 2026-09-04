@@ -148,7 +148,7 @@ function MediaRow({
     <Link href={href} className="flex items-center gap-3 px-4 py-2 transition hover:bg-slate-50">
       {/* 아이콘 배경은 이모지를 얹을 자리만 잡아 주면 된다 —
           회색 면이 진하면 목록을 훑을 때 눈이 아이콘마다 걸린다 */}
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-50 text-lg leading-none">
+      <span className="tf grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-50 text-lg leading-none">
         {emoji}
       </span>
       <span className="min-w-0 flex-1">

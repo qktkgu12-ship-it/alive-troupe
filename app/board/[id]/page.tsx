@@ -10,6 +10,10 @@ import Guard from "@/components/Guard";
 import Spinner from "@/components/Spinner";
 import ImagePicker from "@/components/ImagePicker";
 import Linkify from "@/components/Linkify";
+import CommentText from "@/components/CommentText";
+import MentionInput from "@/components/MentionInput";
+import { extractMentionUids, type MentionMember } from "@/lib/mentions";
+import { getMembers } from "@/lib/members";
 import PostContent from "@/components/PostContent";
 import { usePostEditor } from "@/lib/post-editor-context";
 import { loadPostMedia, type MediaMap } from "@/lib/post-media";
@@ -61,6 +65,18 @@ function PostDetailInner() {
   const [replyTo, setReplyTo] = useState<string | null>(null); // 답글 작성 중인 부모 댓글 id
   const [replyText, setReplyText] = useState("");
   const viewedRef = useRef(false);
+
+  // @언급 후보 — 단원 명단. 캐시되어 있어 화면마다 다시 받지 않는다.
+  const [mentionable, setMentionable] = useState<MentionMember[]>([]);
+  useEffect(() => {
+    getMembers()
+      .then((list) =>
+        setMentionable(
+          list.filter((m) => m.name?.trim()).map((m) => ({ uid: m.uid, name: m.name!, avatar: m.avatar }))
+        )
+      )
+      .catch(() => setMentionable([]));
+  }, []);
 
   // 같은 게시판 안에서의 이전/다음 글
   const [prevPost, setPrevPost] = useState<{ id: string; title: string } | null>(null);
@@ -185,36 +201,56 @@ function PostDetailInner() {
     setCommentBusy(true);
     try {
       const cid = crypto.randomUUID();
+      const body = text.trim();
+      // 누구를 불렀는지는 쓰는 순간에 정해 둔다.
+      // 나중에 이름이 바뀌면 글자로는 못 찾으므로 uid를 같이 남긴다.
+      const mentionUids = extractMentionUids(body, mentionable).filter((u) => u !== user.uid);
       await setDoc(doc(db, "posts", id, "comments", cid), {
         authorUid: user.uid,
         authorName: profile?.name || profile?.displayName || "",
         authorAvatar: profile?.avatar || "",
-        content: text.trim(),
+        content: body,
+        ...(mentionUids.length > 0 ? { mentionUids } : {}),
         ...(parentId ? { parentId } : {}),
         createdAt: Date.now(),
       });
       await updateDoc(doc(db, "posts", id), { commentCount: increment(1) }).catch(() => {});
       await loadComments();
-      notifyComment(text.trim(), !!parentId);
+      notifyComment(body, !!parentId, mentionUids);
     } finally {
       setCommentBusy(false);
     }
   }
 
   // 댓글이 달렸음을 관련된 사람들에게 알린다.
+  //  - 언급된 사람 (@이름) — "회원님을 언급했어요"로 따로 간다
   //  - 글쓴이 (내 글에 댓글)
   //  - 이미 이 글에 댓글을 단 사람들 (대화에 참여 중이므로)
   // 보낸 사람 본인은 서버가 알아서 제외한다.
-  function notifyComment(text: string, isReply: boolean) {
+  function notifyComment(text: string, isReply: boolean, mentionUids: string[]) {
     if (!post) return;
+    const who = profile?.name || profile?.displayName || "누군가";
+    const short = text.length > 60 ? `${text.slice(0, 60)}…` : text;
+
+    // ① 언급된 사람 — 나를 콕 집어 부른 것이므로 문구를 따로 준다
+    if (mentionUids.length > 0) {
+      void pushToUsers(mentionUids, {
+        title: `${who}님이 회원님을 언급했어요`,
+        body: short,
+        href: `/board/${id}`,
+        tag: `mention-${id}`,
+      });
+    }
+
+    // ② 나머지 관련자 — 언급된 사람은 뺀다 (같은 댓글로 알림이 두 번 오면 안 된다)
+    const mentioned = new Set(mentionUids);
     const targets = [post.authorUid, ...comments.map((c) => c.authorUid)].filter(
-      (u): u is string => !!u && u !== user?.uid
+      (u): u is string => !!u && u !== user?.uid && !mentioned.has(u)
     );
     if (targets.length === 0) return;
-    const who = profile?.name || profile?.displayName || "누군가";
     void pushToUsers(targets, {
       title: isReply ? `${who}님이 답글을 남겼어요` : `${who}님이 댓글을 남겼어요`,
-      body: text.length > 60 ? `${text.slice(0, 60)}…` : text,
+      body: short,
       href: `/board/${id}`,
       // 글 단위로 묶어서, 댓글이 연달아 달려도 알림이 하나로 갱신되게 한다
       tag: `comment-${id}`,
@@ -316,7 +352,7 @@ function PostDetailInner() {
           {isAdmin && (
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
               <input type="checkbox" checked={asNotice} onChange={(e) => setAsNotice(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-              📢 공지로 등록
+              <span className="tf">📢</span> 공지로 등록
             </label>
           )}
           <div className="flex gap-2">
@@ -461,7 +497,7 @@ function PostDetailInner() {
                             <span className="ml-1.5 text-xs text-slate-400">{relativeTime(c.createdAt)}</span>
                           </p>
                           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
-                            <Linkify text={c.content} />
+                            <CommentText text={c.content} members={mentionable} />
                           </p>
                           <button
                             onClick={() => {
@@ -492,7 +528,7 @@ function PostDetailInner() {
                                   <span className="ml-1.5 text-xs text-slate-400">{relativeTime(r.createdAt)}</span>
                                 </p>
                                 <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">
-                                  <Linkify text={r.content} />
+                                  <CommentText text={r.content} members={mentionable} />
                                 </p>
                               </div>
                               {(isAdmin || r.authorUid === user?.uid) && (
@@ -508,18 +544,13 @@ function PostDetailInner() {
                       {/* 답글 입력 */}
                       {replyTo === c.id && (
                         <div className="mt-2 flex gap-2 border-l-2 border-slate-100 pl-3 sm:ml-10">
-                          <input
-                            className="input flex-1"
+                          <MentionInput
                             value={replyText}
+                            onChange={setReplyText}
+                            onSubmit={() => submitReply(c.id)}
+                            members={mentionable}
                             autoFocus
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder={`${c.authorName}님에게 답글`}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                submitReply(c.id);
-                              }
-                            }}
+                            placeholder={`${c.authorName}님에게 답글 (@로 단원 부르기)`}
                           />
                           <button onClick={() => submitReply(c.id)} disabled={commentBusy || !replyText.trim()} className="rounded-lg bg-[#1a2744] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">
                             등록
@@ -538,17 +569,12 @@ function PostDetailInner() {
             );
           })()}
           <div className="mt-3 flex gap-2">
-            <input
-              className="input flex-1"
+            <MentionInput
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="댓글을 입력하세요"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  addComment();
-                }
-              }}
+              onChange={setCommentText}
+              onSubmit={addComment}
+              members={mentionable}
+              placeholder="댓글을 입력하세요 (@로 단원 부르기)"
             />
             <button onClick={addComment} disabled={commentBusy || !commentText.trim()} className="rounded-xl bg-[#1a2744] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#243258] disabled:opacity-40">
               등록
@@ -650,7 +676,7 @@ function PollBlock({ post }: { post: Post }) {
   return (
     <div className="mt-5 rounded-xl border border-slate-200 p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="font-semibold text-slate-900">🗳️ {poll.question || "투표"}</p>
+        <p className="font-semibold text-slate-900"><span className="tf">🗳️</span> {poll.question || "투표"}</p>
         <span className="shrink-0 text-xs text-slate-400">
           {poll.multiple ? "복수" : "단일"} · {poll.anonymous ? "익명" : "실명"}
         </span>

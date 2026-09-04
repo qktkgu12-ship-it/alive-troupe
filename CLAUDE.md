@@ -50,6 +50,7 @@ guest가 `admins`로 보내면 서버가 문구를 고정한다(가입 신청 �
 | 가입 승인 | 본인 | `app/admin` |
 | 일정방 생성 / 확정 / 재촉 | 대상자 | `CoordSection`·`CoordDetail` |
 | 새 글·공지 / 댓글 | 전체 / 관련자 | `board`·`PostEditorSheet` |
+| **@언급 (댓글·답글)** | 불린 사람 | `board/[id]` — 언급된 사람은 댓글 알림에서 제외해 두 번 안 간다 |
 | 새 아카이브·음원 | 작품 참여자 | `ArchiveForm`·`AudioForm` |
 | **내일 일정 리마인더** | 참여자(불참자 제외) | `api/cron/reminder` |
 
@@ -91,6 +92,7 @@ guest가 `admins`로 보내면 서버가 문구를 고정한다(가입 신청 �
 - 빨간 pill 버튼: `flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-accent-fg` + `style={{ backgroundColor: "rgb(var(--accent))" }}`
 - 원형 아이콘 버튼: `grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg`
 - 브랜드색: `rgb(var(--accent))` = `#e53535`
+- 이모지: `.tf` 클래스(토스페이스). ⚠️ **이모지만 든 칸에만** 붙일 것 — 이 글꼴은 키캡 이모지 때문에 숫자·#·*도 들고 있어서 글이 섞인 칸에 붙이면 숫자까지 바뀐다
 - 텍스트 계층(홈): 섹션 제목 `18px bold slate-900` / 항목 제목 `15px medium slate-800` / 메타 `12px slate-400`
 
 ---

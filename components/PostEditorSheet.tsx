@@ -819,7 +819,7 @@ export default function PostEditorSheet({
               onChange={(e) => setAsNotice(e.target.checked)}
               className="h-4 w-4 accent-[rgb(var(--accent))]"
             />
-            📢 공지로 등록 (모든 게시판 상단에 고정)
+            <span className="tf">📢</span> 공지로 등록 (모든 게시판 상단에 고정)
           </label>
         )}
       </BottomSheet>

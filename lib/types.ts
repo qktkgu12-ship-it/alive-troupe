@@ -277,6 +277,9 @@ export interface Comment {
   authorAvatar?: string; // 작성 시점의 프로필 사진(압축 data URL) — 다른 사람 프로필은 못 읽으므로 denormalize
   content: string;
   parentId?: string; // 대댓글이면 부모 댓글 id (없으면 최상위 댓글)
+  // @로 부른 단원들의 uid. 본문에도 "@이름"이 글자로 남아 있지만,
+  // 이름이 바뀌면 글자로는 못 찾으므로 부른 순간의 uid를 따로 남긴다.
+  mentionUids?: string[];
   createdAt: number;
 }
 
