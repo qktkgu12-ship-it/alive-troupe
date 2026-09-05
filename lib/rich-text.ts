@@ -158,27 +158,52 @@ const INLINE: [keyof Marks, string][] = [
  * 굵게를 켜고 쓰다가 엔터를 치면 다음 줄부터 슬그머니 풀리는 게 그것이다.
  * 줄이 바뀐 직후에 다시 확인해서, 빠진 것만 도로 켠다.
  */
-export function keepMarksAcrossNewline(root: HTMLElement | null): void {
+export function keepMarksAcrossNewline(
+  root: HTMLElement | null,
+  /**
+   * 되살린 뒤의 서식 상태를 돌려준다 — 툴바 버튼의 켜짐 표시를 여기에 맞춰야 한다.
+   *
+   * ⚠️ 이걸 안 넘기면 서식은 되살아나는데 툴바만 꺼져 보인다.
+   *    엔터의 keyup이 이 되살리기보다 먼저 올 때가 있어서,
+   *    편집기가 keyup에서 읽은 '풀린 상태'가 그대로 화면에 남기 때문이다.
+   */
+  onRestored?: (marks: Marks) => void
+): void {
   const before = readMarks(root);
-  // requestAnimationFrame이 아니라 setTimeout을 쓴다 — rAF는 화면이 안 그려지는
-  // 상황(백그라운드 탭 등)에서 아예 안 돌아서 서식이 조용히 풀릴 수 있다.
-  setTimeout(() => {
+
+  const reapply = () => {
     const after = readMarks(root);
+    let touched = false;
     for (const [key, command] of INLINE) {
       if (before[key] && !after[key]) {
         try {
           document.execCommand(command, false);
+          touched = true;
         } catch {
           /* 무시 */
         }
       }
     }
-    if (before.size && after.size !== before.size) {
+    // 크기는 size가 아니라 sizeNow로 본다.
+    // size는 <font size> 태그가 실제로 만들어졌을 때만 값이 있어서,
+    // '크게'를 눌러만 두고 아직 글자를 안 친 상태에서는 늘 비어 있었다
+    // → 바로 그 상태에서 엔터를 치면 크기가 조용히 풀렸다.
+    if (before.sizeNow && after.sizeNow !== before.sizeNow) {
       try {
-        document.execCommand("fontSize", false, before.size);
+        document.execCommand("fontSize", false, before.sizeNow);
+        touched = true;
       } catch {
         /* 무시 */
       }
     }
-  }, 0);
+    if (touched) onRestored?.(readMarks(root));
+    return touched;
+  };
+
+  // requestAnimationFrame이 아니라 setTimeout을 쓴다 — rAF는 화면이 안 그려지는
+  // 상황(백그라운드 탭 등)에서 아예 안 돌아서 서식이 조용히 풀릴 수 있다.
+  setTimeout(reapply, 0);
+  // 새 줄을 늦게 만드는 기기가 있어 한 번 더 확인한다.
+  // 첫 번째에서 이미 되살아났으면 after가 켜진 상태라 두 번 걸리지 않는다.
+  setTimeout(reapply, 60);
 }

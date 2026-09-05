@@ -562,7 +562,8 @@ export default function EventCard({
 
   // 상태 배지 — 오늘만 빨강, 나머지는 진한 회색.
   const dday = ddayLabel(e.date);
-  const statusColor = dday.startsWith("D+") ? PAST : dday === "오늘" ? TODAY : UPCOMING;
+  const isPast = dday.startsWith("D+");
+  const statusColor = isPast ? PAST : dday === "오늘" ? TODAY : UPCOMING;
 
   // ===== 접힘 머리 ① 홈 캐러셀 =====
   // 참고 시안 구조 — 읽는 순서: 언제(배지·날짜) → 무엇(제목) → 몇 시(시간) → 누가(아바타).
@@ -788,7 +789,9 @@ export default function EventCard({
                     // 그림자는 윤곽만 잡아 주는 정도(알파 0.08)로만 — 글자에 테를 두르지 않는다.
                     style={variant === "carousel" ? { textShadow: ON_MESH_SHADOW } : undefined}
                   >
-                    내 참석 여부
+                    {/* 지난 일정은 고를 수 없다 — 왜 안 눌리는지 여기서 알려 준다.
+                        (아무 설명 없이 안 눌리면 고장으로 읽힌다) */}
+                    {isPast ? "내 참석 여부 · 지난 일정" : "내 참석 여부"}
                   </p>
                   {/* 토글 트랙 — 컬러 위에서는 반투명 흰색, 테두리 없이.
                       22%로는 잘 안 보여서 30%로 잡았다. 이보다 낮추면
@@ -798,7 +801,7 @@ export default function EventCard({
                   <div
                     className={`flex gap-1 rounded-2xl p-1 ${
                       variant === "carousel" ? "bg-white/30" : "bg-slate-100"
-                    }`}
+                    } ${isPast ? "opacity-55" : ""}`}
                   >
                     {/* 세 칸이 되어 한 칸이 좁아졌다 — 아이콘은 켜진 칸에만 그리고
                         칸 사이 틈만 1.5 → 1로 줄였다. 글자 크기는 14px 그대로 둔다
@@ -814,7 +817,9 @@ export default function EventCard({
                             setReason("");
                             setReasonSheet(c.key);
                           }}
-                          disabled={busy}
+                          // 지난 일정은 이제 와서 참석 여부를 바꿀 일이 없다.
+                          // 고른 값은 그대로 보여 주되 누르지만 못하게 한다.
+                          disabled={busy || isPast}
                           className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[14px] font-bold transition ${
                             on
                               ? `bg-white shadow-sm ${c.tone}`

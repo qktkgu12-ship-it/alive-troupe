@@ -39,10 +39,8 @@ import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
 import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
 import { usePress } from "@/lib/use-press";
 import {
-  AlignIcon,
   CheckIcon,
   ChevronDownIcon,
-  DotsIcon,
   ImageIcon,
   KeyboardDownIcon,
   LinkIcon,
@@ -56,8 +54,9 @@ import {
 
 const MAX_LEN = 50000;
 
+// 정렬 버튼은 없앴다(거의 안 쓰였고 툴바 자리만 차지했다). 다만 값 자체는 남겨 둔다 —
+// 예전에 가운데·오른쪽으로 맞춰 둔 글을 열었다가 저장하면 정렬이 풀려 버리기 때문이다.
 type Align = "left" | "center" | "right";
-const ALIGN_CYCLE: Align[] = ["left", "center", "right"];
 
 // 글자 크기는 두 단계뿐이다 — 기본과 크게.
 // 네 단계 목록을 펼치던 것을 없앴다: 좁은 화면에서 목록이 툴바를 가렸고,
@@ -95,28 +94,6 @@ function ToolBtn({
         active ? "text-accent" : "text-slate-600 active:bg-slate-100"
       }`}
     >
-      {children}
-    </button>
-  );
-}
-
-/** 툴바 안의 글자 버튼 (링크·투표·글자크기처럼 폭이 있는 것) */
-function ToolTextBtn({
-  onPress,
-  active,
-  className = "",
-  children,
-  btnRef,
-}: {
-  onPress: () => void;
-  active?: boolean;
-  className?: string;
-  children: React.ReactNode;
-  btnRef?: React.Ref<HTMLButtonElement>;
-}) {
-  const press = usePress(onPress);
-  return (
-    <button ref={btnRef} type="button" {...press} className={className}>
       {children}
     </button>
   );
@@ -160,8 +137,6 @@ export default function PostEditorSheet({
   const [imgBusy, setImgBusy] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // 툴바 오른쪽 '⋯'로 펼치는 나머지 서식 (취소선·목록·인용·투표)
-  const [moreOpen, setMoreOpen] = useState(false);
   // 아래에서 올라오는 애니메이션
   const [enter, setEnter] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -279,7 +254,6 @@ export default function PostEditorSheet({
   // 열릴 때마다 패널은 닫아 둔다
   useEffect(() => {
     if (!open) {
-      setMoreOpen(false);
       setOptionsOpen(false);
       setPollOpen(false);
       setLinkOpen(false);
@@ -310,10 +284,15 @@ export default function PostEditorSheet({
         /* 무시 */
       }
     };
+    // 시트가 올라오는 것과 거의 동시에 커서를 놓는다 — 열자마자 바로 칠 수 있게.
+    // 뒤의 두 번은 애니메이션이 늦게 끝나는 기기를 위한 확인용이다
+    // (이미 제목칸에 커서가 있으면 아무 일도 안 하므로 여러 번 불러도 안전하다).
+    const t0 = setTimeout(focusTitle, 50);
     const t1 = setTimeout(focusTitle, 380);
     const t2 = setTimeout(focusTitle, 700);
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
     };
@@ -779,8 +758,9 @@ export default function PostEditorSheet({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목"
             // 제목과 본문 사이를 벌린다 — 붙어 있으면 제목의 첫 줄처럼 읽힌다.
-            // 아래 본문의 pt-6과 합쳐 약 28px. (예전엔 4px밖에 안 됐다)
-            className="w-full bg-transparent px-4 pb-2 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-300"
+            // 아래 본문의 pt-4와 합쳐 약 24px.
+            // 예시 글자는 slate-300이면 화면에서 거의 안 보여 slate-400으로 올렸다.
+            className="w-full bg-transparent px-4 pb-2 pt-3 text-[24px] font-bold outline-none placeholder:text-slate-400"
           />
 
           <div
@@ -788,7 +768,8 @@ export default function PostEditorSheet({
             contentEditable
             suppressContentEditableWarning
             // 줄이 바뀌어도 켜 둔 서식이 풀리지 않게 (엔터 직전 상태를 기억해 뒀다 되살린다)
-            onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(bodyRef.current); }}
+            // setMarks를 같이 넘겨야 툴바의 켜짐 표시까지 되살아난다 (lib/rich-text 참고)
+            onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(bodyRef.current, setMarks); }}
             onKeyUp={() => { rememberCaret(); scrollToCaret(); }}
             onMouseUp={rememberCaret}
             onTouchEnd={rememberCaret}
@@ -803,13 +784,23 @@ export default function PostEditorSheet({
             style={{ textAlign: align }}
             // 최소 높이는 화면이 아니라 고정값이다 — 툴바가 본문을 따라 내려오므로
             // 빈 글에서 툴바가 화면 밖까지 밀려나면 안 된다.
-            className="rich min-h-[168px] w-full px-4 pb-4 pt-6 text-[16px] leading-relaxed outline-none empty:before:text-slate-300 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
+            className="rich min-h-[168px] w-full px-4 pb-4 pt-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
           />
 
           {/* ── 툴바 — 본문 바로 밑 ──
-               순서: 링크 · 사진 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 정렬 · 더보기 */}
-          <div className="border-t border-slate-200/70">
-            <div className="flex h-[52px] items-center gap-0.5 px-2">
+               순서: 링크 · 사진 · 투표 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 취소선 · 목록 · 번호목록 · 인용
+
+               레퍼런스처럼 '떠 있는 타원 바' 하나다. 구분선(border-t)으로 칸을 나누지 않는다.
+               바 색은 --surface — 캔버스(--bg)보다 한 단계 어두워서, 흰 본문 위에
+               얹힌 판으로 읽힌다. 그림자는 테두리처럼 보이지 않게 넓고 옅게만 준다.
+
+               ⚠️ 더보기(⋯)는 없앴다. 항목이 화면을 넘치면 접는 대신 가로로 민다 —
+                  접어 두면 어떤 기능이 있는지 자체를 모른다. */}
+          <div className="px-3 pb-1 pt-2">
+            <div
+              className="no-scrollbar flex h-[52px] items-center gap-0.5 overflow-x-auto rounded-full bg-surface px-1.5"
+              style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.05), 0 8px 24px -12px rgba(16,24,40,0.08)" }}
+            >
               <ToolBtn onPress={openLinkSheet} label="링크">
                 <LinkIcon className="h-[20px] w-[20px]" />
               </ToolBtn>
@@ -836,7 +827,19 @@ export default function PostEditorSheet({
                 />
               </label>
 
-              <span className="mx-1 h-5 w-px shrink-0 bg-slate-200" />
+              {/* 투표 — 사진 바로 오른쪽. '넣는 것'끼리 묶여야 손이 헷갈리지 않는다 */}
+              <ToolBtn
+                onPress={() => {
+                  (document.activeElement as HTMLElement | null)?.blur();
+                  setPollOpen(true);
+                }}
+                label="투표"
+                active={pollOn}
+              >
+                <PollIcon className="h-[20px] w-[20px]" />
+              </ToolBtn>
+
+              <span className="mx-1 h-5 w-px shrink-0 bg-slate-300/70" />
 
               <ToolBtn onPress={() => cmd("bold")} label="굵게" active={marks.bold}>
                 <span className="text-[16px] font-bold">B</span>
@@ -855,45 +858,21 @@ export default function PostEditorSheet({
               >
                 <TextSizeIcon className="h-[21px] w-[21px]" />
               </ToolBtn>
-              {/* 정렬 — 누를 때마다 왼쪽→가운데→오른쪽, 글 전체가 바로 바뀐다 */}
-              <ToolBtn
-                onPress={() => setAlign((a) => ALIGN_CYCLE[(ALIGN_CYCLE.indexOf(a) + 1) % 3])}
-                label={`정렬 (지금 ${align === "left" ? "왼쪽" : align === "center" ? "가운데" : "오른쪽"})`}
-              >
-                <AlignIcon align={align} className="h-[21px] w-[21px]" />
+              {/* 예전엔 여기부터가 '더보기(⋯)' 안에 접혀 있었다.
+                  글자크기 오른쪽으로 펼쳐 두고, 넘치면 바를 가로로 민다. */}
+              <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}>
+                <span className="text-[16px] line-through">S</span>
               </ToolBtn>
-              <ToolBtn onPress={() => setMoreOpen((v) => !v)} label="더보기" active={moreOpen}>
-                <DotsIcon className="h-[21px] w-[21px]" />
+              <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}>
+                <ListBulletIcon className="h-[20px] w-[20px]" />
+              </ToolBtn>
+              <ToolBtn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={marks.ol}>
+                <ListOrderedIcon className="h-[20px] w-[20px]" />
+              </ToolBtn>
+              <ToolBtn onPress={() => cmd("formatBlock", marks.quote ? "div" : "blockquote")} label="인용" active={marks.quote}>
+                <QuoteIcon className="h-[20px] w-[20px]" />
               </ToolBtn>
             </div>
-
-            {/* 더보기 — 자주 안 쓰는 서식은 여기로 내렸다 */}
-            {moreOpen && (
-              <div className="flex h-[52px] items-center gap-0.5 border-t border-slate-200/70 px-2">
-                <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}>
-                  <span className="text-[16px] line-through">S</span>
-                </ToolBtn>
-                <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}>
-                  <ListBulletIcon className="h-[19px] w-[19px]" />
-                </ToolBtn>
-                <ToolBtn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={marks.ol}>
-                  <ListOrderedIcon className="h-[19px] w-[19px]" />
-                </ToolBtn>
-                <ToolBtn onPress={() => cmd("formatBlock", marks.quote ? "div" : "blockquote")} label="인용" active={marks.quote}>
-                  <QuoteIcon className="h-[19px] w-[19px]" />
-                </ToolBtn>
-                <ToolTextBtn
-                  onPress={() => {
-                    (document.activeElement as HTMLElement | null)?.blur();
-                    setPollOpen(true);
-                  }}
-                  className="ml-1 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[14px] font-semibold text-slate-700 active:bg-slate-100"
-                >
-                  <PollIcon className="h-[18px] w-[18px]" /> 투표
-                  {pollOn && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-fg">켜짐</span>}
-                </ToolTextBtn>
-              </div>
-            )}
           </div>
 
           {/* 임시저장 — 레퍼런스처럼 툴바 밑 오른쪽. 툴바를 따라 같이 내려간다 */}
