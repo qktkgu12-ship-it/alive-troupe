@@ -791,14 +791,14 @@ export default function PostEditorSheet({
                순서: 링크 · 사진 · 투표 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 취소선 · 목록 · 번호목록 · 인용
 
                레퍼런스처럼 '떠 있는 타원 바' 하나다. 구분선(border-t)으로 칸을 나누지 않는다.
-               바 색은 --surface — 캔버스(--bg)보다 한 단계 어두워서, 흰 본문 위에
-               얹힌 판으로 읽힌다. 그림자는 테두리처럼 보이지 않게 넓고 옅게만 준다.
+               바 색은 흰색 — 캔버스(--bg)보다 밝아서 위에 떠 있는 판으로 읽힌다.
+               (카드가 흰색인 것과 같은 관계다) 그림자는 테두리처럼 보이지 않게 넓고 옅게만.
 
                ⚠️ 더보기(⋯)는 없앴다. 항목이 화면을 넘치면 접는 대신 가로로 민다 —
                   접어 두면 어떤 기능이 있는지 자체를 모른다. */}
           <div className="px-3 pb-1 pt-2">
             <div
-              className="no-scrollbar flex h-[52px] items-center gap-0.5 overflow-x-auto rounded-full bg-surface px-1.5"
+              className="no-scrollbar flex h-[52px] items-center gap-0.5 overflow-x-auto rounded-full bg-white px-1.5"
               style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.05), 0 8px 24px -12px rgba(16,24,40,0.08)" }}
             >
               <ToolBtn onPress={openLinkSheet} label="링크">
