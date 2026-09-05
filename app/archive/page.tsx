@@ -72,19 +72,38 @@ function CopyActionRow({ url, label }: { url: string; label: string }) {
   );
 }
 
-// 재생 칩 (카드/리스트에 표시, 탭하면 바로 열기)
+// 재생 버튼 (카드/리스트에 표시, 탭하면 바로 열기)
+//
+// 예전엔 '연한 강조색 판 + 같은 색 글씨'의 작은 알약이었는데, 그건 이 앱에서
+// 이미 배지·태그의 모양이라(globals.css의 .chip) 누를 수 있는 것으로 안 읽혔다.
+// 바로 윗줄이 '올린이 · 종류 · 날짜' 메타 텍스트라 더 그랬다.
+//
+// 버튼으로 읽히게 하는 신호 세 가지를 같이 준다. 하나만 바꾸면 어중간하다.
+//   ① 경계   — 흰 판 + 얇은 테두리 (.btn-ghost와 같은 계열 = 이 앱에서 '버튼'인 모양)
+//   ② 아이콘 — 채운 원 안의 ▶. 유튜브에서 익힌 '누르면 재생' 언어라 설명이 필요 없다
+//   ③ 크기   — 40px. 작은 것은 라벨로, 큰 것은 버튼으로 읽힌다 (터치 타깃 권장치이기도 하다)
+//
+// 빨강은 아이콘 원에만 남긴다. 글씨까지 빨가면 카드마다 3~4개씩 늘어서서
+// 화면이 시끄러워지고 로고(빨강)와도 부딪힌다.
 function ClipChips({ clips }: { clips: ArchiveClip[] }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {clips.map((c, i) => (
         <button
           key={i}
           onClick={(e) => { e.stopPropagation(); openLink(c.url); }}
-          className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent transition hover:brightness-95"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-4 text-[13px] font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-95"
         >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-            <path d="M3 2l7 4-7 4z" />
-          </svg>
+          <span
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-accent-fg"
+            style={{ backgroundColor: "rgb(var(--accent))" }}
+            aria-hidden="true"
+          >
+            {/* ▶는 시각적으로 왼쪽이 무거워서, 원 가운데에 놓으면 왼쪽으로 쏠려 보인다 */}
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" className="ml-px">
+              <path d="M3 2l7 4-7 4z" />
+            </svg>
+          </span>
           {c.label || `영상 ${i + 1}`}
         </button>
       ))}
@@ -439,7 +458,8 @@ function ArchiveInner() {
                       <span>{prodLabel(it)}</span>
                       {it.date && <><span>·</span><span>{it.date}</span></>}
                     </div>
-                    {multi && <div className="mt-1.5"><ClipChips clips={clips} /></div>}
+                    {/* 재생 버튼이 40px로 커져서 6px로는 메타 줄에 붙어 보인다 */}
+                    {multi && <div className="mt-2.5"><ClipChips clips={clips} /></div>}
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); setActionItem(it); }}
