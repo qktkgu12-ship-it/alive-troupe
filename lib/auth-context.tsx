@@ -9,7 +9,8 @@ import {
 } from "react";
 import {
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as fbSignOut,
   type User,
 } from "firebase/auth";
@@ -116,6 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // 리다이렉트 로그인 결과 수신 (signInWithRedirect 후 돌아온 경우)
+    getRedirectResult(auth).catch(() => {
+      // 리다이렉트 결과가 없거나 실패해도 onAuthStateChanged가 최종 판단하므로 무시
+    });
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -136,7 +142,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn() {
-    await signInWithPopup(auth, googleProvider);
+    // 팝업 대신 리다이렉트 방식으로 로그인.
+    // 안드로이드 크롬(특히 PWA)에서 팝업이 차단되거나 OS가 백그라운드 탭을 죽일 때
+    // 팝업 결과가 유실되어 로그인이 풀리는 현상을 방지한다.
+    // 리다이렉트 완료 후 Google에서 돌아오면 getRedirectResult()가 결과를 처리한다.
+    await signInWithRedirect(auth, googleProvider);
   }
 
   async function signOut() {
