@@ -123,6 +123,74 @@ export async function disablePush(): Promise<void> {
   }
 }
 
+/**
+ * 앱을 열 때마다 조용히 토큰을 다시 확인한다.
+ *
+ * 이게 없으면 알림이 영영 안 온다. 두 가지 경우 때문이다.
+ *  - FCM이 토큰을 갱신하면 Firestore에 적힌 옛 토큰은 죽은 값이 된다.
+ *  - 안드로이드 크롬은 저장공간이 부족하면 오리진 스토리지를 통째로 회수한다.
+ *    (이 앱은 Firestore 오프라인 캐시까지 IndexedDB를 써서 회수 대상이 되기 쉽다)
+ * 둘 다 화면의 스위치는 '켜짐'으로 보이는데 알림만 안 오는 상태를 만들고,
+ * 단원이 직접 스위치를 껐다 켜기 전에는 스스로 회복되지 않는다.
+ *
+ * 권한을 새로 묻지 않는다 — 이미 'granted'인 기기만 손본다.
+ * 실패해도 앱 동작을 막으면 안 되므로 절대 throw하지 않는다.
+ */
+export async function refreshPushToken(uid: string): Promise<void> {
+  try {
+    // 권한을 요청하지 않는다. 이미 허용한 기기만 대상.
+    if (pushPermission() !== "granted") return;
+    if (!(await pushSupported())) return;
+
+    // 서비스 워커 등록이 없으면 ready는 영영 resolve되지 않는다 → 시간 제한을 둔다
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((r) => setTimeout(() => r(null), 5000)),
+    ]);
+    if (!reg) return;
+
+    const messaging = await messagingOrNull();
+    if (!messaging) return;
+
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: reg,
+    });
+    if (!token) return;
+
+    let stored = "";
+    try {
+      stored = localStorage.getItem(TOKEN_KEY) ?? "";
+    } catch {
+      /* 무시 */
+    }
+
+    // 그대로면 Firestore에 살아있는 문서가 있다는 뜻 — 쓸데없이 쓰지 않는다
+    if (stored === token) return;
+
+    // 토큰이 바뀌었거나(회전) 저장소가 비워졌다(회수) → 다시 등록한다
+    await setDoc(doc(db, "fcmTokens", token), {
+      uid,
+      deviceId: deviceId(),
+      ua: navigator.userAgent.slice(0, 200),
+      createdAt: serverTimestamp(),
+    });
+
+    // 옛 문서는 지운다. 안 지우면 같은 폰에 알림이 두 번 간다.
+    if (stored) {
+      await deleteDoc(doc(db, "fcmTokens", stored)).catch(() => {});
+    }
+
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch {
+      /* 무시 */
+    }
+  } catch {
+    /* 알림은 부가 기능이므로 실패해도 넘어간다 */
+  }
+}
+
 /** 이 기기에서 알림을 켜 둔 상태인가 */
 export function pushEnabledHere(): boolean {
   if (typeof window === "undefined") return false;

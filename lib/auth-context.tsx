@@ -16,7 +16,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider, ADMIN_EMAIL } from "./firebase";
-import { pushSignupRequest } from "./push";
+import { pushSignupRequest, refreshPushToken } from "./push";
 import type { Role, UserProfile } from "./types";
 
 interface AuthState {
@@ -132,6 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("프로필 로드 실패", e);
           setProfile(null);
         }
+        // 이 기기의 푸시 토큰이 아직 살아있는지 조용히 확인한다.
+        // 토큰이 갱신됐거나 저장소가 회수됐으면 다시 등록해 준다.
+        // 화면을 막지 않도록 기다리지 않는다.
+        void refreshPushToken(u.uid);
       } else {
         setProfile(null);
       }
