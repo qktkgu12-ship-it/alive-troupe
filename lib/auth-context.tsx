@@ -9,7 +9,7 @@ import {
 } from "react";
 import {
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
   signOut as fbSignOut,
   type User,
@@ -117,9 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // 리다이렉트 로그인 결과 수신 (signInWithRedirect 후 돌아온 경우)
+    // 리다이렉트 방식을 잠깐 배포했던 동안 리다이렉트 도중에 멈춘 기기가 있을 수 있어
+    // 결과를 한 번 받아 준다. 평소에는 아무것도 하지 않는다.
     getRedirectResult(auth).catch(() => {
-      // 리다이렉트 결과가 없거나 실패해도 onAuthStateChanged가 최종 판단하므로 무시
+      // 대기 중인 리다이렉트가 없으면 그냥 넘어간다 (onAuthStateChanged가 최종 판단)
     });
 
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -142,11 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn() {
-    // 팝업 대신 리다이렉트 방식으로 로그인.
-    // 안드로이드 크롬(특히 PWA)에서 팝업이 차단되거나 OS가 백그라운드 탭을 죽일 때
-    // 팝업 결과가 유실되어 로그인이 풀리는 현상을 방지한다.
-    // 리다이렉트 완료 후 Google에서 돌아오면 getRedirectResult()가 결과를 처리한다.
-    await signInWithRedirect(auth, googleProvider);
+    // 팝업 방식을 쓴다. signInWithRedirect는 쓰면 안 된다 —
+    // authDomain(alive-troupe.firebaseapp.com)이 앱 도메인과 다른 교차 출처라,
+    // Chrome 115+의 스토리지 파티셔닝 때문에 리다이렉트로 돌아와도
+    // getRedirectResult()가 결과를 읽지 못하고 로그인 화면으로 되돌아온다.
+    // (리다이렉트를 쓰려면 /__/auth/** 를 앱 도메인으로 리버스 프록시해야 한다)
+    await signInWithPopup(auth, googleProvider);
   }
 
   async function signOut() {
