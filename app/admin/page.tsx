@@ -252,59 +252,73 @@ function AdminInner() {
             {approvedFiltered.map((u) => {
               const isMe = u.uid === user?.uid;
               return (
-                <div key={u.uid} className="flex items-center gap-3 py-3">
-                  <Avatar src={u.avatar} name={u.name || u.displayName} className="h-10 w-10 text-sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-slate-900">
-                      {u.name || u.displayName} {isMe && <span className="text-xs font-normal text-slate-400">(나)</span>}
-                    </p>
-                    {u.bio && <p className="truncate text-xs text-slate-400">{u.bio}</p>}
+                /*
+                 * 한 줄이 아니라 두 줄이다.
+                 *
+                 * ⚠️ 한 줄에 다 넣으면 폰에서 이름이 통째로 잘린다. 375px 화면에서 재 보면
+                 *    아바타 40 + 팀 선택 119 + 등급 67 + 삭제 28 + 사이 여백 48 = 302px라
+                 *    행 폭 303px 중 이름칸에 **1px**만 남았다("박…"으로 보이던 이유).
+                 *    팀 선택이 119px인 건 가장 긴 항목 '팀 없음 (비활성)'에 폭을 맞추기 때문이라
+                 *    글자만 줄여서는 35px(두 글자)까지밖에 안 늘어난다.
+                 *    두 줄로 나누면 이름칸이 251px(약 18자)이 되어 어떤 이름도 안 잘린다.
+                 */
+                <div key={u.uid} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar src={u.avatar} name={u.name || u.displayName} className="h-10 w-10 text-sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-slate-900">
+                        {u.name || u.displayName} {isMe && <span className="text-xs font-normal text-slate-400">(나)</span>}
+                      </p>
+                      {u.bio && <p className="truncate text-xs text-slate-400">{u.bio}</p>}
+                    </div>
                   </div>
-                  {/* 팀은 '어느 일정에 들어가는가'를 정한다 (lib/teams 참고).
-                      팀 없음 = 비활성 — 일정에도 안 잡히고 단체 알림도 안 간다.
-                      원캐스트 = 팀을 가리지 않고 모든 일정에 들어간다.
-                      팀을 하나도 안 만들었어도 이 두 가지는 골라야 하므로 항상 보여 준다. */}
-                  {(() => {
-                    const idx = u.team ? teams.indexOf(u.team) : -1;
-                    const c = idx >= 0 ? (TEAM_PALETTE[idx] ?? null) : null;
-                    const one = u.team === ONE_CAST;
-                    return (
-                      <select
-                        value={u.team ?? ""}
-                        onChange={(e) => changeTeam(u.uid, e.target.value)}
-                        style={c ? { backgroundColor: c.bg, color: c.color } : {}}
-                        className={`shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold outline-none transition ${
-                          c ? "" : one ? "bg-accent-soft text-accent" : "bg-slate-100 text-slate-400"
-                        }`}
-                      >
-                        <option value="">팀 없음 (비활성)</option>
-                        <option value={ONE_CAST}>{ONE_CAST}</option>
-                        {teams.map((t) => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
-                      </select>
-                    );
-                  })()}
-                  <select
-                    value={u.role}
-                    disabled={isMe}
-                    onChange={(e) => changeRole(u.uid, e.target.value as Role)}
-                    className={`shrink-0 cursor-pointer rounded-full border px-2 py-0.5 text-[11px] font-semibold outline-none transition disabled:cursor-default disabled:opacity-70 ${ROLE_SELECT_CLASS[u.role]}`}
-                  >
-                    <option value="member">정단원</option>
-                    <option value="admin">관리자</option>
-                  </select>
-                  {!isMe ? (
-                    <button
-                      onClick={() => rejectUser(u.uid)}
-                      aria-label="삭제"
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+
+                  {/* 아래 줄 — 아바타 폭(40) + 사이 여백(12)만큼 들여써서 이름 아래에 붙는다 */}
+                  <div className="mt-2 flex items-center gap-2 pl-[52px]">
+                    {/* 팀은 '어느 일정에 들어가는가'를 정한다 (lib/teams 참고).
+                        팀 없음 = 비활성 — 일정에도 안 잡히고 단체 알림도 안 간다.
+                        원캐스트 = 팀을 가리지 않고 모든 일정에 들어간다.
+                        팀을 하나도 안 만들었어도 이 두 가지는 골라야 하므로 항상 보여 준다. */}
+                    {(() => {
+                      const idx = u.team ? teams.indexOf(u.team) : -1;
+                      const c = idx >= 0 ? (TEAM_PALETTE[idx] ?? null) : null;
+                      const one = u.team === ONE_CAST;
+                      return (
+                        <select
+                          value={u.team ?? ""}
+                          onChange={(e) => changeTeam(u.uid, e.target.value)}
+                          style={c ? { backgroundColor: c.bg, color: c.color } : {}}
+                          className={`min-w-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold outline-none transition ${
+                            c ? "" : one ? "bg-accent-soft text-accent" : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          <option value="">팀 없음 (비활성)</option>
+                          <option value={ONE_CAST}>{ONE_CAST}</option>
+                          {teams.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      );
+                    })()}
+                    <select
+                      value={u.role}
+                      disabled={isMe}
+                      onChange={(e) => changeRole(u.uid, e.target.value as Role)}
+                      className={`min-w-0 cursor-pointer rounded-full border px-2 py-1 text-[11px] font-semibold outline-none transition disabled:cursor-default disabled:opacity-70 ${ROLE_SELECT_CLASS[u.role]}`}
                     >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  ) : (
-                    <span className="w-8 shrink-0" />
-                  )}
+                      <option value="member">정단원</option>
+                      <option value="admin">관리자</option>
+                    </select>
+                    {!isMe && (
+                      <button
+                        onClick={() => rejectUser(u.uid)}
+                        aria-label="삭제"
+                        className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
