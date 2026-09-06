@@ -274,9 +274,12 @@ export const DotsIcon: FC<IconProps> = ({ className }) => (
 // 위는 채워진 점 + 긴 줄, 아래는 빈 점 + 짧은 줄이다.
 export const PollIcon = makeIcon(
   <>
-    <circle cx="5" cy="8.5" r="2" fill="currentColor" stroke="none" />
+    {/* ⚠️ 두 점이 같은 크기로 보이려면 반지름을 다르게 줘야 한다.
+        빈 점은 선(1.8)이 바깥으로 half씩 번져서 겉지름이 r+0.9다.
+        그래서 채운 점은 2.9, 빈 점은 2 — 둘 다 겉지름 5.8로 같아진다. */}
+    <circle cx="5" cy="8.5" r="2.9" fill="currentColor" stroke="none" />
     <circle cx="5" cy="15.5" r="2" />
-    <path d="M10.5 8.5H20M10.5 15.5h6.5" />
+    <path d="M10.5 8.5H20M10.5 15.5H20" />
   </>
 );
 

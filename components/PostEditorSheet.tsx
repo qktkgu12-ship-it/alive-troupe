@@ -48,7 +48,7 @@ import {
   readMarks,
   type Marks,
 } from "@/lib/rich-text";
-import PollComposer, { EMPTY_POLL, type PollDraft } from "@/components/PollComposer";
+import PollComposer, { newPoll, type PollDraft } from "@/components/PollComposer";
 import { usePress } from "@/lib/use-press";
 import {
   CheckIcon,
@@ -1008,7 +1008,7 @@ export default function PostEditorSheet({
               {/* 투표 — 사진 바로 오른쪽. '넣는 것'끼리 묶여야 손이 헷갈리지 않는다.
                   누르면 본문 아래에 카드가 바로 붙는다 (창을 따로 안 띄운다) */}
               <ToolBtn
-                onPress={() => setPoll((p) => (p ? null : { ...EMPTY_POLL }))}
+                onPress={() => setPoll((p) => (p ? null : newPoll()))}
                 label={poll ? "투표 빼기" : "투표 넣기"}
                 active={!!poll}
               >

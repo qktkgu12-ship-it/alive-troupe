@@ -10,7 +10,7 @@ import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import Select from "@/components/Select";
 import RichEditor from "@/components/RichEditor";
-import PollComposer, { EMPTY_POLL, type PollDraft } from "@/components/PollComposer";
+import PollComposer, { newPoll, type PollDraft } from "@/components/PollComposer";
 import { savePostMedia, usedMediaIds, type MediaMap } from "@/lib/post-media";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { clearSearchCache } from "@/lib/search";
@@ -181,7 +181,7 @@ function WriteInner() {
           media={media}
           onMedia={setMedia}
           pollOn={!!poll}
-          onTogglePoll={() => setPoll((p) => (p ? null : { ...EMPTY_POLL }))}
+          onTogglePoll={() => setPoll((p) => (p ? null : newPoll()))}
         />
         <p className="text-right text-xs text-slate-400">{textLen.toLocaleString()} / {MAX_LEN.toLocaleString()}</p>
 
