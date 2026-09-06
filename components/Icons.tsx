@@ -259,6 +259,14 @@ export const AlignIcon = ({ align = "left", className }: { align?: "left" | "cen
   );
 };
 
+// 재생 — 채운 삼각형.
+// 선으로만 그리면 작은 크기에서 속이 비어 '멈춤'이나 '다음'처럼 읽힌다.
+export const PlayIcon: FC<IconProps> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M7.5 5.2v13.6L19 12z" />
+  </svg>
+);
+
 // 가로 점 세 개 (더보기)
 export const DotsIcon: FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>

@@ -29,6 +29,7 @@ import {
   DotsVerticalIcon,
   LinkIcon,
   PencilIcon,
+  PlayIcon,
   PlusIcon,
   ShareIcon,
   TrashIcon,
@@ -72,38 +73,29 @@ function CopyActionRow({ url, label }: { url: string; label: string }) {
   );
 }
 
-// 재생 버튼 (카드/리스트에 표시, 탭하면 바로 열기)
+// 재생 버튼 (영상이 여러 개인 자료에만 표시, 탭하면 바로 열기)
 //
-// 예전엔 '연한 강조색 판 + 같은 색 글씨'의 작은 알약이었는데, 그건 이 앱에서
-// 이미 배지·태그의 모양이라(globals.css의 .chip) 누를 수 있는 것으로 안 읽혔다.
-// 바로 윗줄이 '올린이 · 종류 · 날짜' 메타 텍스트라 더 그랬다.
+// 이 앱의 버튼 문법을 그대로 따른다 — 새 모양을 만들지 않는다.
+//   · 모양  : rounded-xl + 흰 판 + 얇은 테두리 = .btn-ghost (이 앱에서 '보조 버튼')
+//             ⚠️ rounded-full은 칩·배지와 주 동작 알약이 쓰는 모양이라 여기 쓰면
+//                바로 위 종류 필터 칩과 똑같이 생겨 버린다
+//   · 높이  : 36px(h-9) — 빨간 알약 버튼·원형 아이콘 버튼과 같은 높이
+//   · 글자  : text-sm / slate-700 (레퍼런스의 보조 버튼 계열)
+//   · 그림자: 없음 — 이 앱은 그림자를 '카드와 배경을 겨우 가르는' 용도로만 쓴다.
+//             카드(.card) 안에 그림자 버튼을 두면 그림자 위에 그림자가 된다
 //
-// 버튼으로 읽히게 하는 신호 세 가지를 같이 준다. 하나만 바꾸면 어중간하다.
-//   ① 경계   — 흰 판 + 얇은 테두리 (.btn-ghost와 같은 계열 = 이 앱에서 '버튼'인 모양)
-//   ② 아이콘 — 채운 원 안의 ▶. 유튜브에서 익힌 '누르면 재생' 언어라 설명이 필요 없다
-//   ③ 크기   — 40px. 작은 것은 라벨로, 큰 것은 버튼으로 읽힌다 (터치 타깃 권장치이기도 하다)
-//
-// 빨강은 아이콘 원에만 남긴다. 글씨까지 빨가면 카드마다 3~4개씩 늘어서서
-// 화면이 시끄러워지고 로고(빨강)와도 부딪힌다.
-function ClipChips({ clips }: { clips: ArchiveClip[] }) {
+// 빨강은 ▶ 글리프에만. 채운 빨간 원은 이 앱 어디에도 없는 모양이고,
+// 카드마다 3~4개씩 늘어서면 로고(빨강)와 부딪힌다.
+function ClipButtons({ clips }: { clips: ArchiveClip[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {clips.map((c, i) => (
         <button
           key={i}
           onClick={(e) => { e.stopPropagation(); openLink(c.url); }}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-4 text-[13px] font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-95"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
         >
-          <span
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-accent-fg"
-            style={{ backgroundColor: "rgb(var(--accent))" }}
-            aria-hidden="true"
-          >
-            {/* ▶는 시각적으로 왼쪽이 무거워서, 원 가운데에 놓으면 왼쪽으로 쏠려 보인다 */}
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" className="ml-px">
-              <path d="M3 2l7 4-7 4z" />
-            </svg>
-          </span>
+          <PlayIcon className="h-3.5 w-3.5 shrink-0 text-accent" />
           {c.label || `영상 ${i + 1}`}
         </button>
       ))}
@@ -403,7 +395,7 @@ function ArchiveInner() {
 
                   <h3 className="font-semibold">{it.title}</h3>
                   {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
-                  {multi && <div className="mt-3"><ClipChips clips={clips} /></div>}
+                  {multi && <div className="mt-3"><ClipButtons clips={clips} /></div>}
 
                   <div className="mt-3 border-t border-slate-100 pt-3">
                     {isAdmin ? (
@@ -458,8 +450,7 @@ function ArchiveInner() {
                       <span>{prodLabel(it)}</span>
                       {it.date && <><span>·</span><span>{it.date}</span></>}
                     </div>
-                    {/* 재생 버튼이 40px로 커져서 6px로는 메타 줄에 붙어 보인다 */}
-                    {multi && <div className="mt-2.5"><ClipChips clips={clips} /></div>}
+                    {multi && <div className="mt-2"><ClipButtons clips={clips} /></div>}
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); setActionItem(it); }}
