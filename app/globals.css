@@ -137,7 +137,9 @@ body {
   to { height: 26px; opacity: 1; }
 }
 .editor-gap-open {
-  animation: editor-gap-open 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* 240ms는 "휙" 하고 끝나 뭐가 생겼는지 눈이 못 따라갔다. 420ms면 아래 사진이
+     밀려 내려가는 게 보인다. 더 늘리면 글 쓰려는 손을 기다리게 만든다. */
+  animation: editor-gap-open 420ms cubic-bezier(0.32, 0.72, 0, 1);
   overflow: hidden;
 }
 @media (prefers-reduced-motion: reduce) {

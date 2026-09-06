@@ -517,14 +517,25 @@ export default function PostEditorSheet({
     const imgs = Array.from(body.querySelectorAll<HTMLImageElement>("img[data-mid]"));
     if (imgs.length < 2) return false;
 
+    /** 이 사진을 담고 있는 '본문의 바로 아래 칸' */
+    const blockOf = (img: HTMLElement) => {
+      let b: HTMLElement = img;
+      while (b.parentElement && b.parentElement !== body) b = b.parentElement;
+      return b;
+    };
+
     for (let i = 0; i < imgs.length - 1; i++) {
       const above = imgs[i].getBoundingClientRect().bottom;
       const below = imgs[i + 1].getBoundingClientRect().top;
       if (clientY < above || clientY > below) continue;
 
-      // 사진을 감싸고 있는 '본문의 바로 아래 칸'을 찾아 그 뒤에 넣는다
-      let block: HTMLElement = imgs[i];
-      while (block.parentElement && block.parentElement !== body) block = block.parentElement;
+      const block = blockOf(imgs[i]);
+      // ⚠️ 두 사진이 '딱 붙어 있을 때'만 줄을 넣는다.
+      //    한 번 넣고 나면 사이에 그 줄이 있으므로 이웃이 아니게 되고,
+      //    같은 자리를 또 눌러도 아무 일도 안 일어난다 —
+      //    안 그러면 누를 때마다 빈 줄이 쌓인다.
+      if (block.nextElementSibling !== blockOf(imgs[i + 1])) return false;
+
       const line = document.createElement("div");
       line.appendChild(document.createElement("br"));
       line.className = "editor-gap-open";
@@ -540,19 +551,53 @@ export default function PostEditorSheet({
       savedRange.current = r.cloneRange();
       body.focus();
       // 애니메이션이 끝나면 클래스를 떼어 다음에 또 재생되지 않게 한다
-      setTimeout(() => line.classList.remove("editor-gap-open"), 400);
+      setTimeout(() => line.classList.remove("editor-gap-open"), 600);
       return true;
     }
     return false;
   }, []);
 
   /**
+   * 눌린 자리에 커서를 놓는다 (편집 가능 상태로 막 돌아왔을 때 쓴다).
+   * 브라우저마다 이름이 달라 둘 다 본다.
+   */
+  const placeCaretFromPoint = useCallback((x: number, y: number) => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const d = document as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    };
+    let r: Range | null = null;
+    if (d.caretRangeFromPoint) {
+      r = d.caretRangeFromPoint(x, y);
+    } else if (d.caretPositionFromPoint) {
+      const p = d.caretPositionFromPoint(x, y);
+      if (p) {
+        r = document.createRange();
+        r.setStart(p.offsetNode, p.offset);
+        r.collapse(true);
+      }
+    }
+    if (!r || !body.contains(r.commonAncestorContainer)) return placeCaretAtEnd(body);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(r);
+    savedRange.current = r.cloneRange();
+  }, []);
+
+  /**
    * 본문을 누른 순간의 처리 — click이 아니라 pointerdown에서 한다.
    *
-   * ⚠️ 사진을 눌렀을 때 키보드가 올라오면 안 된다. 키보드는 편집칸이 포커스를
-   *    받을 때 올라오는데, 그건 pointerdown의 기본 동작이라 click에서는 이미 늦다.
-   *    여기서 기본 동작을 막아야 포커스가 안 옮겨가고 키보드도 안 올라온다.
-   *    (대신 pointerdown을 막으면 뒤따르는 click이 안 오므로 고르는 일도 여기서 한다)
+   * ⚠️ 사진을 눌렀을 때 키보드가 올라오면 안 된다.
+   *    pointerdown의 기본 동작을 막는 것만으로는 부족했다 — 사진도 결국
+   *    편집칸 안의 '글자 한 개'라, 기기에 따라 뒤늦게 포커스가 들어오면서
+   *    키보드가 다시 올라온다.
+   *    그래서 사진을 고른 동안에는 **본문을 아예 편집 불가로 만든다**
+   *    (아래 contentEditable={!selectedImg}). 편집할 것이 없으면 키보드는
+   *    올라올 수가 없다 — 기기마다 다르게 굴 여지 자체를 없앤 것이다.
+   *    사진에서 손을 떼면(다른 곳을 누르면) 곧바로 되돌리고, 누른 자리에
+   *    커서까지 놓아 줘서 두 번 누를 필요가 없다.
    */
   const handleBodyPointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -569,11 +614,25 @@ export default function PostEditorSheet({
         return;
       }
 
+      // 사진을 골라 둔 상태였다면 본문이 지금 편집 불가다.
+      // 다시 편집 가능해진 다음(다음 그림 뒤) 누른 자리에 커서를 놓아 준다 —
+      // 안 그러면 '한 번은 풀기, 한 번은 커서 두기'로 두 번 눌러야 한다.
+      const wasSelected = !!selectedImg;
       setSelectedImg(null);
+      if (wasSelected) {
+        e.preventDefault();
+        const { clientX, clientY } = e;
+        setTimeout(() => {
+          bodyRef.current?.focus();
+          placeCaretFromPoint(clientX, clientY);
+        }, 0);
+        return;
+      }
+
       // 사진 사이를 눌렀으면 거기에 줄을 하나 편다
       if (openGapAt(e.clientY)) e.preventDefault();
     },
-    [placeOverlay, openGapAt]
+    [placeOverlay, openGapAt, selectedImg, placeCaretFromPoint]
   );
 
   /** 새 사진이 '고른 사진 바로 뒤'에 들어가도록 넣을 자리를 옮겨 둔다 */
@@ -871,7 +930,8 @@ export default function PostEditorSheet({
 
           <div
             ref={bodyRef}
-            contentEditable
+            // 사진을 고른 동안에는 편집 불가 — 편집할 것이 없으면 키보드가 못 올라온다
+            contentEditable={!selectedImg}
             suppressContentEditableWarning
             // 줄이 바뀌어도 켜 둔 서식이 풀리지 않게 (엔터 직전 상태를 기억해 뒀다 되살린다)
             // setMarks를 같이 넘겨야 툴바의 켜짐 표시까지 되살아난다 (lib/rich-text 참고)
