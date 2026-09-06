@@ -259,11 +259,16 @@ export const AlignIcon = ({ align = "left", className }: { align?: "left" | "cen
   );
 };
 
-// 재생 — 채운 삼각형.
+// 재생 — 꼭짓점을 둥글린 채운 삼각형.
 // 선으로만 그리면 작은 크기에서 속이 비어 '멈춤'이나 '다음'처럼 읽힌다.
+// ⚠️ 채우기만으로는 꼭짓점이 바늘처럼 뾰족해 작은 크기에서 지저분하다
+//    → 같은 색 선을 '둥근 이음'(strokeLinejoin)으로 덧대 모서리를 굴린다.
+//    그래서 실제로 그려지는 크기는 path보다 선 굵기의 절반(1.4)만큼 사방으로 크다
+//    (겉 크기 13.2 × 15.0 / 24). 더 키우려면 strokeWidth가 아니라 path를 키울 것 —
+//    선을 키우면 모서리만 더 뭉툭해진다.
 export const PlayIcon: FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
-    <path d="M7.5 5.2v13.6L19 12z" />
+    <path d="M6.8 5.9 17.2 12 6.8 18.1Z" stroke="currentColor" strokeWidth="2.8" strokeLinejoin="round" />
   </svg>
 );
 

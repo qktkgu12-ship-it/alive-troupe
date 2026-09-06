@@ -95,7 +95,7 @@ function ClipButtons({ clips }: { clips: ArchiveClip[] }) {
           onClick={(e) => { e.stopPropagation(); openLink(c.url); }}
           className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
         >
-          <PlayIcon className="h-3.5 w-3.5 shrink-0 text-accent" />
+          <PlayIcon className="h-4 w-4 shrink-0 text-accent" />
           {c.label || `영상 ${i + 1}`}
         </button>
       ))}
