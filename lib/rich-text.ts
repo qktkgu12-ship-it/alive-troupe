@@ -151,6 +151,116 @@ const INLINE: [keyof Marks, string][] = [
   ["strike", "strikeThrough"],
 ];
 
+/** 글자 크기는 두 단계뿐 — 기본과 크게. 편집기 둘이 같은 값을 써야 한다.
+ *  execCommand("fontSize")가 쓰는 1~7 척도로, 3 = 편집칸 기본, 5 = 확실히 큰 글자. */
+export const SIZE_NORMAL = "3";
+export const SIZE_LARGE = "5";
+
+/**
+ * 눈에 안 보이는 '자리표시 글자'(zero-width space).
+ *
+ * 서식을 걸 글자가 아직 없을 때 이걸 하나 놓고 거기에 서식을 건다.
+ * 저장 직전에 lib/sanitize가 전부 걷어내므로 글에는 남지 않는다.
+ */
+const ANCHOR = "​";
+
+function exec(command: string, arg?: string): boolean {
+  try {
+    return document.execCommand(command, false, arg);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 커서 자리에 자리표시 글자를 놓고 '그 글자'를 골라 둔다.
+ *
+ * 바로 앞이 이미 자리표시 글자면 새로 넣지 않고 그걸 다시 쓴다 —
+ * 굵게·밑줄·크게를 연달아 눌러도 자리표시가 하나만 남는다.
+ */
+function selectAnchor(root: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const r = sel.getRangeAt(0);
+  if (!root.contains(r.commonAncestorContainer)) return false;
+
+  const node = r.startContainer;
+  const offset = r.startOffset;
+  if (node.nodeType === 3 && offset > 0 && (node as Text).data[offset - 1] === ANCHOR) {
+    const again = document.createRange();
+    again.setStart(node, offset - 1);
+    again.setEnd(node, offset);
+    sel.removeAllRanges();
+    sel.addRange(again);
+    return true;
+  }
+
+  const t = document.createTextNode(ANCHOR);
+  try {
+    r.insertNode(t);
+  } catch {
+    return false;
+  }
+  const picked = document.createRange();
+  picked.setStart(t, 0);
+  picked.setEnd(t, 1);
+  sel.removeAllRanges();
+  sel.addRange(picked);
+  return true;
+}
+
+/**
+ * 글자 서식을 건다 (굵게·기울임·밑줄·취소선·글자크기).
+ *
+ * ⚠️ 커서만 있고 고른 글자가 없을 때가 문제였다.
+ *    그때 execCommand는 '다음에 칠 글자에 이 서식을 쓰겠다'는 예약만 남기는데,
+ *    이 예약은 브라우저마다 다르게 동작하고(아이폰에서는 그냥 무시되기도 한다)
+ *    커서를 한 번만 다시 놓아도 조용히 사라진다.
+ *    그래서 예약에 기대지 않고, 눈에 안 보이는 자리표시 글자를 하나 놓아
+ *    **진짜 태그를 만들어 버린다.** 이어서 치는 글자는 그 태그 안으로 들어간다.
+ *    덤으로 태그가 실제로 생기니 툴바 불도 제대로 켜진다.
+ */
+export function applyMark(root: HTMLElement | null, command: string, arg?: string): void {
+  if (!root) return;
+  const sel = window.getSelection();
+  const collapsed = !sel || sel.rangeCount === 0 || sel.getRangeAt(0).collapsed;
+  if (!collapsed) {
+    exec(command, arg); // 고른 글자가 있으면 그냥 걸면 된다
+    return;
+  }
+  if (!selectAnchor(root)) {
+    exec(command, arg);
+    return;
+  }
+  exec(command, arg);
+  // 자리표시 글자 바로 뒤(= 새로 생긴 태그 안)로 커서를 옮긴다
+  window.getSelection()?.collapseToEnd();
+}
+
+/**
+ * 켜져 있는 글자 서식을 전부 끈다.
+ *
+ * 엔터를 두 번 쳐서 '빈 줄'을 만들었을 때 부른다 —
+ * 한 문단이 끝났다는 뜻이라, 거기서부터는 서식도 처음으로 돌아가는 게 맞다.
+ */
+export function clearMarks(root: HTMLElement | null, onCleared?: (marks: Marks) => void): void {
+  setTimeout(() => {
+    const now = readMarks(root);
+    let touched = false;
+    for (const [key, command] of INLINE) {
+      if (now[key]) {
+        applyMark(root, command); // 토글이라 한 번 더 걸면 꺼진다
+        touched = true;
+      }
+    }
+    if (now.sizeNow && now.sizeNow !== SIZE_NORMAL) {
+      applyMark(root, "fontSize", SIZE_NORMAL);
+      touched = true;
+    }
+    if (touched) onCleared?.(readMarks(root));
+  }, 0);
+}
+
 /**
  * Enter를 누르기 '직전'에 불러 둘 것.
  *
@@ -176,12 +286,10 @@ export function keepMarksAcrossNewline(
     let touched = false;
     for (const [key, command] of INLINE) {
       if (before[key] && !after[key]) {
-        try {
-          document.execCommand(command, false);
-          touched = true;
-        } catch {
-          /* 무시 */
-        }
+        // applyMark를 쓴다 — 새 줄은 아직 글자가 없어서, 그냥 execCommand로는
+        // '다음에 칠 글자에 쓰겠다'는 예약만 남고 기기에 따라 그대로 날아간다.
+        applyMark(root, command);
+        touched = true;
       }
     }
     // 크기는 size가 아니라 sizeNow로 본다.
@@ -189,12 +297,8 @@ export function keepMarksAcrossNewline(
     // '크게'를 눌러만 두고 아직 글자를 안 친 상태에서는 늘 비어 있었다
     // → 바로 그 상태에서 엔터를 치면 크기가 조용히 풀렸다.
     if (before.sizeNow && after.sizeNow !== before.sizeNow) {
-      try {
-        document.execCommand("fontSize", false, before.sizeNow);
-        touched = true;
-      } catch {
-        /* 무시 */
-      }
+      applyMark(root, "fontSize", before.sizeNow);
+      touched = true;
     }
     if (touched) onRestored?.(readMarks(root));
     return touched;

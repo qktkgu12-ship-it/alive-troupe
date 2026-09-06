@@ -5,13 +5,18 @@ import { sanitizeRichHtml } from "@/lib/sanitize";
 import { LinkIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, TextSizeIcon } from "@/components/Icons";
 // ⚠️ 글쓰기 편집기는 둘이다 — PC는 이 파일, 폰은 components/PostEditorSheet.
 //    공통 로직은 아래 두 곳에 두고 둘이 같이 쓴다. 한쪽만 고치면 폰이 그대로 남는다.
-import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
+import {
+  NO_MARKS,
+  SIZE_LARGE,
+  SIZE_NORMAL,
+  applyMark,
+  clearMarks,
+  keepMarksAcrossNewline,
+  placeCaretAtEnd,
+  readMarks,
+  type Marks,
+} from "@/lib/rich-text";
 import { usePress } from "@/lib/use-press";
-
-// 글자 크기는 두 단계뿐 — 기본과 크게. 폰 편집기와 같은 값이어야 한다.
-// execCommand("fontSize")가 쓰는 1~7 척도로, 3 = 편집칸 기본, 5 = 확실히 큰 글자.
-const SIZE_NORMAL = "3";
-const SIZE_LARGE = "5";
 
 // ⚠️ Btn은 반드시 컴포넌트 '밖'에 있어야 한다.
 //    안에 두면 글자를 칠 때마다 새 컴포넌트로 취급돼 툴바가 통째로 다시 그려지고,
@@ -67,6 +72,8 @@ export default function RichEditor({
   // 막으면 지켜지지만, 폰은 손을 대는 순간(pointerdown) 이미 선택이 풀린다.
   // 그래서 '어디를 골라 뒀는지'를 따로 기억해 두었다가 명령 직전에 되돌린다.
   const savedRange = useRef<Range | null>(null);
+  // 엔터를 연달아 몇 번 쳤는가. 두 번째부터는 '빈 줄'이 생긴 것이라 서식을 푼다.
+  const enterRun = useRef(0);
 
   // 초기값만 주입(입력 중 리렌더로 커서가 튀지 않도록 비제어)
   useEffect(() => {
@@ -96,15 +103,47 @@ export default function RichEditor({
     return () => document.removeEventListener("selectionchange", remember);
   }, [remember]);
 
+  /**
+   * 줄바꿈 규칙 (폰 편집기와 같다)
+   *   엔터 한 번 → 켜 둔 서식을 다음 줄로 가져간다
+   *   엔터 두 번 → 빈 줄이 생긴 것 = 문단이 끝난 것 → 서식을 전부 푼다
+   *
+   * keydown이 아니라 beforeinput을 듣는다 — 한글을 치는 중에는 keydown의 key가
+   * "Process"로 와서 엔터인지 알 수가 없다.
+   */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onBeforeInput = (e: Event) => {
+      const type = (e as InputEvent).inputType || "";
+      if (type === "insertParagraph" || type === "insertLineBreak") {
+        if (enterRun.current >= 1) clearMarks(el, setOn);
+        else keepMarksAcrossNewline(el, setOn);
+        enterRun.current += 1;
+        return;
+      }
+      if (type.startsWith("insert") || type.startsWith("delete")) enterRun.current = 0;
+    };
+    el.addEventListener("beforeinput", onBeforeInput);
+    return () => el.removeEventListener("beforeinput", onBeforeInput);
+  }, []);
+
   function restore() {
     const el = ref.current;
     if (!el) return;
+    const sel = window.getSelection();
+    // ⚠️ 커서가 이미 편집칸 안이면 선택에 손대지 않는다.
+    //    removeAllRanges()는 '아직 어떤 글자에도 안 붙은 서식'을 같이 날린다.
+    //    (폰 편집기의 restoreCaret과 같은 규칙)
+    if (sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      el.focus();
+      return;
+    }
     el.focus();
     const r = savedRange.current;
-    // 기억해 둔 자리가 없으면(= 아직 한 글자도 안 썼거나 커서를 둔 적이 없으면)
-    // 맨 끝에 커서를 놓는다. 그래야 바로 서식부터 켜도 그대로 먹힌다.
-    if (!r) return placeCaretAtEnd(el);
-    const sel = window.getSelection();
+    // 기억해 둔 자리가 없거나 지금 편집칸 밖이면 맨 끝에 커서를 놓는다.
+    // 그래야 바로 서식부터 켜도 그대로 먹힌다.
+    if (!r || !el.contains(r.commonAncestorContainer)) return placeCaretAtEnd(el);
     if (!sel) return;
     sel.removeAllRanges();
     sel.addRange(r);
@@ -114,6 +153,7 @@ export default function RichEditor({
     if (ref.current) onChange(ref.current.innerHTML);
   }
 
+  // 줄 단위 명령 (목록·인용·정렬·링크)
   function cmd(command: string, arg?: string) {
     restore(); // ← 이 한 줄이 폰에서 툴바가 먹히게 하는 핵심
     document.execCommand(command, false, arg);
@@ -122,6 +162,16 @@ export default function RichEditor({
     // 안 그러면 굵게를 눌러도 버튼이 안 켜진다
     syncMarks();
     emit();
+  }
+
+  // 글자 서식 — 아직 아무 글자도 없어도 진짜 태그를 만들어 준다 (lib/rich-text)
+  function mark(command: string, arg?: string) {
+    restore();
+    applyMark(ref.current, command, arg);
+    remember();
+    syncMarks();
+    emit();
+    enterRun.current = 0;
   }
 
   function addLink() {
@@ -150,13 +200,13 @@ export default function RichEditor({
         {/* 링크는 '상태'가 아니라 '한 번 하는 일'이라 켜짐 표시가 없다 */}
         <Btn onPress={addLink} label="링크"><LinkIcon className="h-4 w-4" /></Btn>
         <span className="mx-1 h-5 w-px bg-slate-200" />
-        <Btn onPress={() => cmd("bold")} label="굵게" active={on.bold}><span className="text-[15px] font-bold">B</span></Btn>
-        <Btn onPress={() => cmd("italic")} label="기울임" active={on.italic}><span className="font-serif text-[15px] italic">I</span></Btn>
-        <Btn onPress={() => cmd("underline")} label="밑줄" active={on.underline}><span className="text-[15px] underline">U</span></Btn>
+        <Btn onPress={() => mark("bold")} label="굵게" active={on.bold}><span className="text-[15px] font-bold">B</span></Btn>
+        <Btn onPress={() => mark("italic")} label="기울임" active={on.italic}><span className="font-serif text-[15px] italic">I</span></Btn>
+        <Btn onPress={() => mark("underline")} label="밑줄" active={on.underline}><span className="text-[15px] underline">U</span></Btn>
         {/* 글자 크기 — 목록을 펼치지 않고 기본↔크게만 오간다.
             네 단계 목록은 좁은 화면에서 툴바를 가렸고 '작게'·'아주 크게'는 거의 안 쓰였다. */}
         <Btn
-          onPress={() => cmd("fontSize", largeOn ? SIZE_NORMAL : SIZE_LARGE)}
+          onPress={() => mark("fontSize", largeOn ? SIZE_NORMAL : SIZE_LARGE)}
           label={largeOn ? "글자 크기 (지금 크게)" : "글자 크기 (지금 기본)"}
           active={largeOn}
         >
@@ -164,7 +214,7 @@ export default function RichEditor({
         </Btn>
         {/* 정렬은 없앴다 — 거의 안 쓰였고 툴바 자리만 차지했다.
             이미 정렬해 둔 옛 글은 그대로 보인다 (읽기 쪽은 손대지 않았다). */}
-        <Btn onPress={() => cmd("strikeThrough")} label="취소선" active={on.strike}><span className="text-[15px] line-through">S</span></Btn>
+        <Btn onPress={() => mark("strikeThrough")} label="취소선" active={on.strike}><span className="text-[15px] line-through">S</span></Btn>
         <Btn onPress={() => cmd("insertUnorderedList")} label="목록" active={on.ul}><ListBulletIcon className="h-4 w-4" /></Btn>
         <Btn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={on.ol}><ListOrderedIcon className="h-4 w-4" /></Btn>
         {/* 인용은 한 번 더 누르면 풀리게 — 켜졌다는 표시만 있고 끌 방법이 없으면 갇힌다 */}
@@ -182,7 +232,6 @@ export default function RichEditor({
         suppressContentEditableWarning
         onInput={() => { remember(); emit(); }}
         // setOn을 같이 넘겨야 툴바의 켜짐 표시까지 되살아난다 (lib/rich-text 참고)
-        onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(ref.current, setOn); }}
         onKeyUp={remember}
         onMouseUp={remember}
         onTouchEnd={remember}

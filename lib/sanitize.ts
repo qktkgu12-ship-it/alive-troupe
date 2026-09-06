@@ -10,10 +10,15 @@ const ALLOWED = new Set([
   "IMG",
 ]);
 
+// 편집기가 서식을 걸 자리를 만들려고 넣는 '자리표시 글자'(zero-width space).
+// 눈에 안 보이지만 글자 수에도 잡히고 검색에도 걸리므로 저장 전에 전부 걷어낸다.
+// (왜 넣는지는 lib/rich-text의 applyMark 참고)
+const ANCHOR_RE = /​/g;
+
 export function sanitizeRichHtml(html: string): string {
   if (typeof document === "undefined") return "";
   const root = document.createElement("div");
-  root.innerHTML = html || "";
+  root.innerHTML = (html || "").replace(ANCHOR_RE, "");
 
   const clean = (parent: Node) => {
     Array.from(parent.childNodes).forEach((node) => {
@@ -67,8 +72,9 @@ export function sanitizeRichHtml(html: string): string {
 
 // 글자 수/요약용: 태그 제거한 순수 텍스트
 export function htmlToText(html: string): string {
-  if (typeof document === "undefined") return (html || "").replace(/<[^>]*>/g, "");
+  if (typeof document === "undefined") return (html || "").replace(/<[^>]*>/g, "").replace(ANCHOR_RE, "");
   const d = document.createElement("div");
   d.innerHTML = html || "";
-  return d.textContent || "";
+  // 자리표시 글자를 빼야 '아무것도 안 썼는데 글자가 있다'고 잘못 세지 않는다
+  return (d.textContent || "").replace(ANCHOR_RE, "");
 }

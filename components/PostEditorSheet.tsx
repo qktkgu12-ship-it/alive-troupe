@@ -36,7 +36,17 @@ import {
   type MediaMap,
 } from "@/lib/post-media";
 import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
-import { NO_MARKS, keepMarksAcrossNewline, placeCaretAtEnd, readMarks, type Marks } from "@/lib/rich-text";
+import {
+  NO_MARKS,
+  SIZE_LARGE,
+  SIZE_NORMAL,
+  applyMark,
+  clearMarks,
+  keepMarksAcrossNewline,
+  placeCaretAtEnd,
+  readMarks,
+  type Marks,
+} from "@/lib/rich-text";
 import { usePress } from "@/lib/use-press";
 import {
   CheckIcon,
@@ -61,10 +71,7 @@ type Align = "left" | "center" | "right";
 // 글자 크기는 두 단계뿐이다 — 기본과 크게.
 // 네 단계 목록을 펼치던 것을 없앴다: 좁은 화면에서 목록이 툴바를 가렸고,
 // '작게'와 '아주 크게'는 실제로 거의 안 쓰였다.
-// 값은 execCommand("fontSize")가 쓰는 1~7 척도다. 3 = 편집칸 기본 크기(16px),
-// 5 = 그보다 확실히 큰 크기라 눌렀을 때 바뀐 게 눈에 보인다.
-const SIZE_NORMAL = "3";
-const SIZE_LARGE = "5";
+// 값(3·5)은 lib/rich-text의 SIZE_NORMAL·SIZE_LARGE에 있다 — 편집기 둘이 같이 쓴다.
 
 export type EditorTarget = { post: Post; onSaved?: (p: Post) => void } | { cat?: string } | null;
 
@@ -125,6 +132,8 @@ export default function PostEditorSheet({
   const fileRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const savedRange = useRef<Range | null>(null);
+  // 엔터를 연달아 몇 번 쳤는가. 두 번째부터는 '빈 줄'이 생긴 것이라 서식을 푼다.
+  const enterRun = useRef(0);
   // 커서 자리에 걸려 있는 서식 — 툴바 버튼을 켜서 보여 준다
   const [marks, setMarks] = useState<Marks>(NO_MARKS);
 
@@ -320,6 +329,34 @@ export default function PostEditorSheet({
     return () => document.removeEventListener("selectionchange", rememberCaret);
   }, [open, rememberCaret]);
 
+  /**
+   * 줄바꿈 규칙
+   *   엔터 한 번  → 켜 둔 서식을 다음 줄로 그대로 가져간다
+   *   엔터 두 번  → 빈 줄이 생긴 것 = 문단이 끝난 것 → 서식을 전부 푼다
+   *
+   * ⚠️ keydown이 아니라 beforeinput을 듣는다. 폰 키보드는 한글을 치는 중에
+   *    keydown의 key가 "Process"로 와서 엔터인지 알 수가 없다.
+   *    beforeinput의 inputType은 어느 기기에서나 insertParagraph로 온다.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const el = bodyRef.current;
+    if (!el) return;
+    const onBeforeInput = (e: Event) => {
+      const type = (e as InputEvent).inputType || "";
+      if (type === "insertParagraph" || type === "insertLineBreak") {
+        if (enterRun.current >= 1) clearMarks(el, setMarks);
+        else keepMarksAcrossNewline(el, setMarks);
+        enterRun.current += 1;
+        return;
+      }
+      // 글자를 치거나 지우면 '연속 엔터'가 끊긴 것
+      if (type.startsWith("insert") || type.startsWith("delete")) enterRun.current = 0;
+    };
+    el.addEventListener("beforeinput", onBeforeInput);
+    return () => el.removeEventListener("beforeinput", onBeforeInput);
+  }, [open]);
+
   const restoreCaret = useCallback(() => {
     const body = bodyRef.current;
     if (!body) return;
@@ -382,6 +419,7 @@ export default function PostEditorSheet({
     }
   }, []);
 
+  // 줄 단위 명령 (목록·번호목록·인용)
   const cmd = useCallback(
     (command: string, arg?: string) => {
       restoreCaret();
@@ -389,6 +427,20 @@ export default function PostEditorSheet({
       rememberCaret();
       // selectionchange가 안 올 수도 있어(선택 범위가 그대로일 때) 한 번 더 맞춘다
       setMarks(readMarks(bodyRef.current));
+    },
+    [restoreCaret, rememberCaret]
+  );
+
+  // 글자 서식 (굵게·기울임·밑줄·취소선·크기).
+  // 아직 아무 글자도 없어도 진짜 태그를 만들어 준다 — lib/rich-text의 applyMark 참고.
+  const mark = useCallback(
+    (command: string, arg?: string) => {
+      restoreCaret();
+      applyMark(bodyRef.current, command, arg);
+      rememberCaret();
+      setMarks(readMarks(bodyRef.current));
+      // 서식만 켜 두고 엔터부터 치는 경우가 있어 '연속 엔터' 셈은 초기화한다
+      enterRun.current = 0;
     },
     [restoreCaret, rememberCaret]
   );
@@ -464,6 +516,8 @@ export default function PostEditorSheet({
 
   /* ── 사진 삭제 ───────────────────────────────────── */
   const handleBodyClick = useCallback((e: React.MouseEvent) => {
+    // 손으로 커서를 옮겼으면 '연속 엔터'가 끊긴 것
+    enterRun.current = 0;
     const el = e.target as HTMLElement;
     if (el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid) {
       e.preventDefault();
@@ -769,7 +823,6 @@ export default function PostEditorSheet({
             suppressContentEditableWarning
             // 줄이 바뀌어도 켜 둔 서식이 풀리지 않게 (엔터 직전 상태를 기억해 뒀다 되살린다)
             // setMarks를 같이 넘겨야 툴바의 켜짐 표시까지 되살아난다 (lib/rich-text 참고)
-            onKeyDown={(e) => { if (e.key === "Enter") keepMarksAcrossNewline(bodyRef.current, setMarks); }}
             onKeyUp={() => { rememberCaret(); scrollToCaret(); }}
             onMouseUp={rememberCaret}
             onTouchEnd={rememberCaret}
@@ -841,18 +894,18 @@ export default function PostEditorSheet({
 
               <span className="mx-1 h-5 w-px shrink-0 bg-slate-300/70" />
 
-              <ToolBtn onPress={() => cmd("bold")} label="굵게" active={marks.bold}>
+              <ToolBtn onPress={() => mark("bold")} label="굵게" active={marks.bold}>
                 <span className="text-[16px] font-bold">B</span>
               </ToolBtn>
-              <ToolBtn onPress={() => cmd("italic")} label="기울임" active={marks.italic}>
+              <ToolBtn onPress={() => mark("italic")} label="기울임" active={marks.italic}>
                 <span className="font-serif text-[16px] italic">I</span>
               </ToolBtn>
-              <ToolBtn onPress={() => cmd("underline")} label="밑줄" active={marks.underline}>
+              <ToolBtn onPress={() => mark("underline")} label="밑줄" active={marks.underline}>
                 <span className="text-[16px] underline">U</span>
               </ToolBtn>
               {/* 글자 크기 — 목록을 펼치지 않고 기본↔크게를 오간다 */}
               <ToolBtn
-                onPress={() => cmd("fontSize", largeOn ? SIZE_NORMAL : SIZE_LARGE)}
+                onPress={() => mark("fontSize", largeOn ? SIZE_NORMAL : SIZE_LARGE)}
                 label={largeOn ? "글자 크기 (지금 크게)" : "글자 크기 (지금 기본)"}
                 active={largeOn}
               >
@@ -860,7 +913,7 @@ export default function PostEditorSheet({
               </ToolBtn>
               {/* 예전엔 여기부터가 '더보기(⋯)' 안에 접혀 있었다.
                   글자크기 오른쪽으로 펼쳐 두고, 넘치면 바를 가로로 민다. */}
-              <ToolBtn onPress={() => cmd("strikeThrough")} label="취소선" active={marks.strike}>
+              <ToolBtn onPress={() => mark("strikeThrough")} label="취소선" active={marks.strike}>
                 <span className="text-[16px] line-through">S</span>
               </ToolBtn>
               <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}>
