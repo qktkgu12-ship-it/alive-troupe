@@ -8,15 +8,15 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
-import ImagePicker from "@/components/ImagePicker";
 import Select from "@/components/Select";
 import RichEditor from "@/components/RichEditor";
+import PollComposer, { EMPTY_POLL, type PollDraft } from "@/components/PollComposer";
+import { savePostMedia, usedMediaIds, type MediaMap } from "@/lib/post-media";
 import { htmlToText, sanitizeRichHtml } from "@/lib/sanitize";
 import { clearSearchCache } from "@/lib/search";
 import { pushToAll } from "@/lib/push";
 import { DEFAULT_BOARD_CATEGORIES, type Poll, type Post } from "@/lib/types";
 
-const MAX_DOC_BYTES = 950_000;
 const MAX_LEN = 50000;
 
 function WriteInner() {
@@ -34,27 +34,13 @@ function WriteInner() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState(""); // HTML
   const [tags, setTags] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  const [media, setMedia] = useState<MediaMap>({});
   const [asNotice, setAsNotice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
 
-  // 투표
-  const [pollOn, setPollOn] = useState(false);
-  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
-  const [pollMultiple, setPollMultiple] = useState(false);
-  const [pollAnonymous, setPollAnonymous] = useState(false);
-  const [pollDeadline, setPollDeadline] = useState(""); // datetime-local 문자열
-
-  function updateOption(i: number, v: string) {
-    setPollOptions((prev) => prev.map((o, idx) => (idx === i ? v : o)));
-  }
-  function addOption() {
-    setPollOptions((prev) => (prev.length >= 10 ? prev : [...prev, ""]));
-  }
-  function removeOption(i: number) {
-    setPollOptions((prev) => (prev.length <= 2 ? prev : prev.filter((_, idx) => idx !== i)));
-  }
+  // 투표 — null이면 이 글에 투표가 없다. 카드는 편집기 바로 아래에 붙는다.
+  const [poll, setPoll] = useState<PollDraft | null>(null);
 
   useEffect(() => {
     let usedDraft = false;
@@ -110,24 +96,19 @@ function WriteInner() {
       alert("제목과 내용을 입력해 주세요.");
       return;
     }
-    if (images.length > 0 && JSON.stringify(images).length > MAX_DOC_BYTES) {
-      alert("첨부한 사진 용량이 너무 큽니다. 사진 수를 줄여주세요.");
-      return;
-    }
     // 투표 구성 (켠 경우 선택지 2개 이상 필수)
-    let poll: Poll | undefined;
-    if (pollOn) {
-      const opts = pollOptions.map((o) => o.trim()).filter(Boolean);
+    let builtPoll: Poll | undefined;
+    if (poll) {
+      const opts = poll.options.map((o) => o.trim()).filter(Boolean);
       if (opts.length < 2) {
         alert("투표 선택지를 2개 이상 입력해 주세요.");
         return;
       }
-      const dl = pollDeadline ? new Date(pollDeadline).getTime() : 0;
-      poll = {
+      builtPoll = {
         options: opts,
-        multiple: pollMultiple,
-        anonymous: pollAnonymous,
-        ...(dl ? { deadline: dl } : {}),
+        multiple: poll.multiple,
+        anonymous: poll.anonymous,
+        ...(poll.deadline ? { deadline: poll.deadline } : {}),
       };
     }
     setBusy(true);
@@ -139,9 +120,9 @@ function WriteInner() {
         isNotice: isAdmin ? asNotice : false,
         title: title.trim(),
         content: cleanContent,
-        hasImages: images.length > 0,
+        hasImages: usedMediaIds(cleanContent).length > 0,
         tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
-        ...(poll ? { poll } : {}),
+        ...(builtPoll ? { poll: builtPoll } : {}),
         authorUid: user?.uid ?? "",
         authorName: profile?.name || profile?.displayName || "",
         authorAvatar: profile?.avatar || "",
@@ -151,10 +132,9 @@ function WriteInner() {
         createdAt: now,
         updatedAt: now,
       };
+      // 사진을 먼저 올려야 규칙(작성자 확인)이 통과한다 — 폰 편집기와 같은 순서다
+      await savePostMedia(id, cleanContent, media, user?.uid ?? "");
       await setDoc(doc(db, "posts", id), post);
-      if (images.length > 0) {
-        await setDoc(doc(db, "postMedia", id), { images, authorUid: user?.uid });
-      }
       clearSearchCache(); // 방금 쓴 글이 검색에 바로 잡히도록
       // 공지만 푸시로 알린다. 일반 글까지 울리면 알림이 너무 잦다.
       if (post.isNotice) {
@@ -192,52 +172,22 @@ function WriteInner() {
 
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
 
-        <RichEditor value={content} onChange={setContent} />
+        {/* 사진·투표는 툴바 안에 있다 (폰 편집기와 같은 자리).
+            예전엔 편집기 밖에 갤러리가 따로 있어 사진이 글 끝에만 붙었는데,
+            이제 커서 자리에 글자처럼 끼워 넣는다. */}
+        <RichEditor
+          value={content}
+          onChange={setContent}
+          media={media}
+          onMedia={setMedia}
+          pollOn={!!poll}
+          onTogglePoll={() => setPoll((p) => (p ? null : { ...EMPTY_POLL }))}
+        />
         <p className="text-right text-xs text-slate-400">{textLen.toLocaleString()} / {MAX_LEN.toLocaleString()}</p>
 
-        <div>
-          <label className="label">사진 첨부</label>
-          <ImagePicker images={images} onChange={setImages} />
-        </div>
+        {poll && <PollComposer value={poll} onChange={setPoll} onRemove={() => setPoll(null)} />}
 
         <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="태그 (띄어쓰기/쉼표로 구분)" />
-
-        {/* 투표 */}
-        <div className="rounded-xl border border-slate-200 p-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input type="checkbox" checked={pollOn} onChange={(e) => setPollOn(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-            <span className="tf">🗳️</span> 투표 추가
-          </label>
-          {pollOn && (
-            <div className="mt-3 space-y-2">
-              {pollOptions.map((opt, i) => (
-                <div key={i} className="flex gap-2">
-                  <input className="input" value={opt} onChange={(e) => updateOption(i, e.target.value)} placeholder={`선택지 ${i + 1}`} />
-                  {pollOptions.length > 2 && (
-                    <button type="button" onClick={() => removeOption(i)} aria-label="선택지 삭제" className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 transition hover:bg-slate-50 hover:text-red-500">×</button>
-                  )}
-                </div>
-              ))}
-              {pollOptions.length < 10 && (
-                <button type="button" onClick={addOption} className="text-sm font-medium text-accent hover:underline">+ 선택지 추가</button>
-              )}
-              <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1">
-                <label className="flex items-center gap-2 text-sm text-slate-600">
-                  <input type="checkbox" checked={pollMultiple} onChange={(e) => setPollMultiple(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-                  복수 선택 허용
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-600">
-                  <input type="checkbox" checked={pollAnonymous} onChange={(e) => setPollAnonymous(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-                  익명 투표
-                </label>
-              </div>
-              <div>
-                <label className="label">마감일 (선택)</label>
-                <input type="datetime-local" className="input" value={pollDeadline} onChange={(e) => setPollDeadline(e.target.value)} />
-              </div>
-            </div>
-          )}
-        </div>
 
         {isAdmin && (
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

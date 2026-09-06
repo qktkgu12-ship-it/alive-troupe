@@ -269,9 +269,14 @@ export const DotsIcon: FC<IconProps> = ({ className }) => (
 );
 
 // 투표
+// 투표 — 고른 것(●)과 안 고른 것(○)이 한 줄씩. 막대그래프였던 것을 바꿨다.
+// 목록 아이콘과 헷갈리지 않게: 목록은 세 줄에 점이 다 같지만 투표는 두 줄이고
+// 위는 채워진 점 + 긴 줄, 아래는 빈 점 + 짧은 줄이다.
 export const PollIcon = makeIcon(
   <>
-    <path d="M4.5 19.5V13M12 19.5V5.5M19.5 19.5v-9" />
+    <circle cx="5" cy="8.5" r="2" fill="currentColor" stroke="none" />
+    <circle cx="5" cy="15.5" r="2" />
+    <path d="M10.5 8.5H20M10.5 15.5h6.5" />
   </>
 );
 

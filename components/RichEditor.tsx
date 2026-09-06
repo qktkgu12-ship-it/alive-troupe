@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { sanitizeRichHtml } from "@/lib/sanitize";
-import { LinkIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, TextSizeIcon } from "@/components/Icons";
+import { compressImage } from "@/components/ImagePicker";
+import Spinner from "@/components/Spinner";
+import { MAX_IMAGES, usedMediaIds, type MediaMap } from "@/lib/post-media";
+import { ImageIcon, LinkIcon, ListBulletIcon, ListOrderedIcon, PollIcon, QuoteIcon, TextSizeIcon } from "@/components/Icons";
 // ⚠️ 글쓰기 편집기는 둘이다 — PC는 이 파일, 폰은 components/PostEditorSheet.
 //    공통 로직은 아래 두 곳에 두고 둘이 같이 쓴다. 한쪽만 고치면 폰이 그대로 남는다.
 import {
@@ -11,6 +14,7 @@ import {
   SIZE_NORMAL,
   applyMark,
   clearMarks,
+  insertHtmlAtCaret,
   keepMarksAcrossNewline,
   placeCaretAtEnd,
   readMarks,
@@ -60,12 +64,27 @@ export default function RichEditor({
   value,
   onChange,
   placeholder = "내용을 입력하세요",
+  media,
+  onMedia,
+  pollOn,
+  onTogglePoll,
 }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  /**
+   * 본문에 글자처럼 끼워 넣은 사진 (사진id → data URL).
+   * 주면 툴바에 사진 버튼이 생긴다 — 폰 편집기와 같은 자리, 같은 방식이다.
+   * 예전엔 편집기 밖에 갤러리(ImagePicker)가 따로 있어서 사진이 글 끝에만 붙었다.
+   */
+  media?: MediaMap;
+  onMedia?: (next: MediaMap) => void;
+  /** 주면 툴바에 투표 버튼이 생긴다 (카드는 부모가 편집기 아래에 그린다) */
+  pollOn?: boolean;
+  onTogglePoll?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [imgBusy, setImgBusy] = useState(false);
   // 마지막으로 편집칸 안에 있던 선택 영역.
   //
   // 툴바 버튼을 누르는 순간 브라우저는 선택을 지운다. 데스크톱은 mousedown을
@@ -186,6 +205,41 @@ export default function RichEditor({
     cmd("createLink", url);
   }
 
+  /* ── 사진 — 폰 편집기와 같은 방식으로 본문 안에 끼워 넣는다 ────────── */
+  async function onFiles(files: FileList | null) {
+    if (!files || files.length === 0 || !onMedia) return;
+    const used = usedMediaIds(ref.current?.innerHTML || "").length;
+    const room = MAX_IMAGES - used;
+    if (room <= 0) {
+      alert(`사진은 최대 ${MAX_IMAGES}장까지 넣을 수 있어요.`);
+      return;
+    }
+    const list = Array.from(files).slice(0, room);
+    if (files.length > room) alert(`사진은 최대 ${MAX_IMAGES}장까지예요. ${room}장만 넣을게요.`);
+
+    setImgBusy(true);
+    try {
+      const next: MediaMap = {};
+      let html = "";
+      for (const f of list) {
+        const src = await compressImage(f);
+        const mid = crypto.randomUUID().slice(0, 8);
+        next[mid] = src;
+        html += `<div><img data-mid="${mid}" src="${src}"></div>`;
+      }
+      onMedia({ ...(media ?? {}), ...next });
+      const r = insertHtmlAtCaret(ref.current, savedRange.current, html + "<div><br></div>");
+      if (r) savedRange.current = r;
+      ref.current?.focus();
+      remember();
+      emit();
+    } catch {
+      alert("사진을 불러오지 못했어요. 다른 사진으로 시도해 주세요.");
+    } finally {
+      setImgBusy(false);
+    }
+  }
+
   // '크게'가 켜져 있는가. sizeNow는 커서가 편집칸 안에 있을 때만 값이 있고,
   // 글자를 치기 전에 눌러 둔 것까지 잡아 준다 (lib/rich-text 참고).
   const largeOn = on.sizeNow === SIZE_LARGE;
@@ -194,15 +248,40 @@ export default function RichEditor({
     <div className="rounded-xl border border-slate-200 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
       <div className="flex flex-wrap items-center gap-0.5 border-b border-slate-100 p-1">
         {/* 폰 편집기(PostEditorSheet)와 같은 순서다 —
-            링크 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 취소선 · 목록 · 번호목록 · 인용
-            두 편집기가 다른 순서를 갖고 있으면 기기를 바꿀 때마다 손이 헷갈린다.
-            (사진·투표는 이 편집기 밖 app/board/write가 맡는다) */}
+            링크 · 사진 · 투표 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 취소선 · 목록 · 번호목록 · 인용
+            두 편집기가 다른 순서를 갖고 있으면 기기를 바꿀 때마다 손이 헷갈린다. */}
         {/* 링크는 '상태'가 아니라 '한 번 하는 일'이라 켜짐 표시가 없다 */}
-        <Btn onPress={addLink} label="링크"><LinkIcon className="h-4 w-4" /></Btn>
+        <Btn onPress={addLink} label="링크"><LinkIcon className="h-[18px] w-[18px]" /></Btn>
+
+        {/* 사진 — 폰과 같은 이유로 <label>이다. 숨긴 input을 JS로 여는 방식은
+            브라우저에 따라 막히므로 label 안에 넣어 브라우저가 직접 잇게 한다. */}
+        {onMedia && (
+          <label
+            aria-label="사진 추가"
+            title="사진 추가"
+            className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-lg text-slate-600 transition hover:bg-slate-100"
+          >
+            {imgBusy ? <Spinner className="h-4 w-4" /> : <ImageIcon className="h-[18px] w-[18px]" />}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }}
+            />
+          </label>
+        )}
+
+        {onTogglePoll && (
+          <Btn onPress={onTogglePoll} label={pollOn ? "투표 빼기" : "투표 넣기"} active={!!pollOn}>
+            <PollIcon className="h-[18px] w-[18px]" />
+          </Btn>
+        )}
+
         <span className="mx-1 h-5 w-px bg-slate-200" />
-        <Btn onPress={() => mark("bold")} label="굵게" active={on.bold}><span className="text-[15px] font-bold">B</span></Btn>
-        <Btn onPress={() => mark("italic")} label="기울임" active={on.italic}><span className="font-serif text-[15px] italic">I</span></Btn>
-        <Btn onPress={() => mark("underline")} label="밑줄" active={on.underline}><span className="text-[15px] underline">U</span></Btn>
+        <Btn onPress={() => mark("bold")} label="굵게" active={on.bold}><span className="text-[16px] font-bold">B</span></Btn>
+        <Btn onPress={() => mark("italic")} label="기울임" active={on.italic}><span className="font-serif text-[16px] italic">I</span></Btn>
+        <Btn onPress={() => mark("underline")} label="밑줄" active={on.underline}><span className="text-[16px] underline">U</span></Btn>
         {/* 글자 크기 — 목록을 펼치지 않고 기본↔크게만 오간다.
             네 단계 목록은 좁은 화면에서 툴바를 가렸고 '작게'·'아주 크게'는 거의 안 쓰였다. */}
         <Btn
@@ -210,20 +289,20 @@ export default function RichEditor({
           label={largeOn ? "글자 크기 (지금 크게)" : "글자 크기 (지금 기본)"}
           active={largeOn}
         >
-          <TextSizeIcon className="h-4 w-4" />
+          <TextSizeIcon className="h-[18px] w-[18px]" />
         </Btn>
         {/* 정렬은 없앴다 — 거의 안 쓰였고 툴바 자리만 차지했다.
             이미 정렬해 둔 옛 글은 그대로 보인다 (읽기 쪽은 손대지 않았다). */}
-        <Btn onPress={() => mark("strikeThrough")} label="취소선" active={on.strike}><span className="text-[15px] line-through">S</span></Btn>
-        <Btn onPress={() => cmd("insertUnorderedList")} label="목록" active={on.ul}><ListBulletIcon className="h-4 w-4" /></Btn>
-        <Btn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={on.ol}><ListOrderedIcon className="h-4 w-4" /></Btn>
+        <Btn onPress={() => mark("strikeThrough")} label="취소선" active={on.strike}><span className="text-[16px] line-through">S</span></Btn>
+        <Btn onPress={() => cmd("insertUnorderedList")} label="목록" active={on.ul}><ListBulletIcon className="h-[18px] w-[18px]" /></Btn>
+        <Btn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={on.ol}><ListOrderedIcon className="h-[18px] w-[18px]" /></Btn>
         {/* 인용은 한 번 더 누르면 풀리게 — 켜졌다는 표시만 있고 끌 방법이 없으면 갇힌다 */}
         <Btn
           onPress={() => cmd("formatBlock", on.quote ? "div" : "blockquote")}
           label="인용"
           active={on.quote}
         >
-          <QuoteIcon className="h-4 w-4" />
+          <QuoteIcon className="h-[18px] w-[18px]" />
         </Btn>
       </div>
       <div
@@ -245,7 +324,7 @@ export default function RichEditor({
           if (ref.current) onChange(sanitizeRichHtml(ref.current.innerHTML));
         }}
         data-placeholder={placeholder}
-        className="rich min-h-[240px] w-full px-3.5 py-2.5 text-[15px] leading-relaxed outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]"
+        className="rich min-h-[240px] w-full px-3.5 py-2.5 text-[15px] leading-relaxed outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
       />
     </div>
   );

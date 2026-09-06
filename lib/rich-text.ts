@@ -127,6 +127,41 @@ export function readMarks(root: HTMLElement | null): Marks {
 }
 
 /**
+ * 커서 자리에 HTML을 끼워 넣는다 — execCommand("insertHTML")을 안 쓴다.
+ *
+ * ⚠️ 사진이 안 들어가던 이유가 이것이었다. 사진첩을 다녀오면 편집칸이 포커스를
+ *    잃은 상태라, insertHTML은 "지금 편집 중인 곳"을 못 찾고 조용히 아무 일도
+ *    안 한 채 끝난다(예외도 안 난다). 기억해 둔 Range에 DOM으로 직접 꽂으면
+ *    포커스와 무관하게 들어간다.
+ *
+ * @param saved 기억해 둔 커서 자리. 없거나 편집칸 밖이면 글 맨 끝에 붙인다.
+ * @returns 넣은 것 바로 뒤를 가리키는 새 커서 자리
+ */
+export function insertHtmlAtCaret(
+  root: HTMLElement | null,
+  saved: Range | null,
+  html: string
+): Range | null {
+  if (!root) return null;
+  const frag = document.createRange().createContextualFragment(html);
+  const last = frag.lastChild;
+  if (saved && root.contains(saved.commonAncestorContainer)) {
+    saved.deleteContents();
+    saved.insertNode(frag);
+  } else {
+    root.appendChild(frag);
+  }
+  if (!last) return null;
+  const next = document.createRange();
+  next.setStartAfter(last);
+  next.collapse(true);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(next);
+  return next;
+}
+
+/**
  * 커서를 편집칸 맨 끝에 놓는다.
  *
  * 아무것도 안 쓴 상태에서 툴바부터 누르는 경우를 위한 것.

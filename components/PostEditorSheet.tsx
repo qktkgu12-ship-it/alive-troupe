@@ -42,11 +42,13 @@ import {
   SIZE_NORMAL,
   applyMark,
   clearMarks,
+  insertHtmlAtCaret,
   keepMarksAcrossNewline,
   placeCaretAtEnd,
   readMarks,
   type Marks,
 } from "@/lib/rich-text";
+import PollComposer, { EMPTY_POLL, type PollDraft } from "@/components/PollComposer";
 import { usePress } from "@/lib/use-press";
 import {
   CheckIcon,
@@ -149,7 +151,6 @@ export default function PostEditorSheet({
   // 아래에서 올라오는 애니메이션
   const [enter, setEnter] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [pollOpen, setPollOpen] = useState(false);
 
   // 링크 넣기 — 예전엔 prompt()로 물어봤는데 폰에서 안 먹혔다.
   //
@@ -163,12 +164,8 @@ export default function PostEditorSheet({
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
 
-  // 투표
-  const [pollOn, setPollOn] = useState(false);
-  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
-  const [pollMultiple, setPollMultiple] = useState(false);
-  const [pollAnonymous, setPollAnonymous] = useState(false);
-  const [pollDeadline, setPollDeadline] = useState("");
+  // 투표 — null이면 이 글에 투표가 없다. 카드는 본문 바로 아래에 붙는다.
+  const [poll, setPoll] = useState<PollDraft | null>(null);
 
   // 사진 삭제 오버레이
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
@@ -196,12 +193,16 @@ export default function PostEditorSheet({
         setTags((editing.tags ?? []).join(" "));
         setAsNotice(!!editing.isNotice);
         setAlign(readAlign(editing.content));
-        setPollOn(!!editing.poll);
-        if (editing.poll) {
-          setPollOptions(editing.poll.options);
-          setPollMultiple(!!editing.poll.multiple);
-          setPollAnonymous(!!editing.poll.anonymous);
-        }
+        setPoll(
+          editing.poll
+            ? {
+                options: editing.poll.options,
+                multiple: !!editing.poll.multiple,
+                anonymous: !!editing.poll.anonymous,
+                deadline: editing.poll.deadline ?? 0,
+              }
+            : null
+        );
         // 본문에 들어 있는 사진을 채워 넣는다
         const { media: m, legacy } = await loadPostMedia(editing.id);
         if (!alive) return;
@@ -264,7 +265,6 @@ export default function PostEditorSheet({
   useEffect(() => {
     if (!open) {
       setOptionsOpen(false);
-      setPollOpen(false);
       setLinkOpen(false);
       setEnter(false);
       setSelectedImg(null);
@@ -445,37 +445,10 @@ export default function PostEditorSheet({
     [restoreCaret, rememberCaret]
   );
 
-  /**
-   * 커서 자리에 HTML을 끼워 넣는다 — execCommand("insertHTML")을 안 쓴다.
-   *
-   * ⚠️ 사진이 안 들어가던 이유가 여기였다. 사진첩을 다녀오면 편집칸이 포커스를
-   *    잃은 상태라, insertHTML은 "지금 편집 중인 곳"을 못 찾고 조용히 아무 일도
-   *    안 한 채 끝난다(예외도 안 난다). 그래서 사진을 골라도 화면에 안 나타났다.
-   *    기억해 둔 Range에 DOM으로 직접 꽂으면 포커스와 무관하게 들어간다.
-   */
+  /** 커서 자리에 HTML을 끼워 넣는다 (PC 편집기와 같은 코드 — lib/rich-text) */
   const insertAtCaret = useCallback((html: string) => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const frag = document.createRange().createContextualFragment(html);
-    const last = frag.lastChild;
-    const r = savedRange.current;
-    if (r && body.contains(r.commonAncestorContainer)) {
-      r.deleteContents();
-      r.insertNode(frag);
-    } else {
-      // 커서를 둔 적이 없으면(사진부터 넣는 경우) 글 맨 끝에 붙인다
-      body.appendChild(frag);
-    }
-    // 다음 입력이 사진 뒤로 이어지도록 커서를 옮겨 둔다
-    if (last) {
-      const next = document.createRange();
-      next.setStartAfter(last);
-      next.collapse(true);
-      savedRange.current = next;
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(next);
-    }
+    const next = insertHtmlAtCaret(bodyRef.current, savedRange.current, html);
+    if (next) savedRange.current = next;
   }, []);
 
   /* ── 링크 ───────────────────────────────────────── */
@@ -694,11 +667,15 @@ export default function PostEditorSheet({
   }
 
   function buildPoll(): Poll | undefined | "invalid" {
-    if (!pollOn) return undefined;
-    const opts = pollOptions.map((o) => o.trim()).filter(Boolean);
+    if (!poll) return undefined;
+    const opts = poll.options.map((o) => o.trim()).filter(Boolean);
     if (opts.length < 2) return "invalid";
-    const dl = pollDeadline ? new Date(pollDeadline).getTime() : 0;
-    return { options: opts, multiple: pollMultiple, anonymous: pollAnonymous, ...(dl ? { deadline: dl } : {}) };
+    return {
+      options: opts,
+      multiple: poll.multiple,
+      anonymous: poll.anonymous,
+      ...(poll.deadline ? { deadline: poll.deadline } : {}),
+    };
   }
 
   async function submit() {
@@ -919,6 +896,15 @@ export default function PostEditorSheet({
             className="rich min-h-[168px] w-full px-4 pb-4 pt-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
           />
 
+          {/* ── 투표 카드 — 본문과 툴바 사이 ──
+               글을 쓰는 화면에 그대로 붙어 있어서, 만드는 동안 결과가 보인다.
+               (예전엔 바텀시트가 화면을 덮어 무엇을 만드는지 안 보였다) */}
+          {poll && (
+            <div className="px-4 pb-2">
+              <PollComposer value={poll} onChange={setPoll} onRemove={() => setPoll(null)} />
+            </div>
+          )}
+
           {/* ── 툴바 — 본문 바로 밑 ──
                순서: 링크 · 사진 · 투표 │ 굵게 · 기울임 · 밑줄 · 글자크기 · 취소선 · 목록 · 번호목록 · 인용
 
@@ -934,7 +920,7 @@ export default function PostEditorSheet({
               style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.05), 0 8px 24px -12px rgba(16,24,40,0.08)" }}
             >
               <ToolBtn onPress={openLinkSheet} label="링크">
-                <LinkIcon className="h-[20px] w-[20px]" />
+                <LinkIcon className="h-[21px] w-[21px]" />
               </ToolBtn>
 
               {/*
@@ -959,28 +945,26 @@ export default function PostEditorSheet({
                 />
               </label>
 
-              {/* 투표 — 사진 바로 오른쪽. '넣는 것'끼리 묶여야 손이 헷갈리지 않는다 */}
+              {/* 투표 — 사진 바로 오른쪽. '넣는 것'끼리 묶여야 손이 헷갈리지 않는다.
+                  누르면 본문 아래에 카드가 바로 붙는다 (창을 따로 안 띄운다) */}
               <ToolBtn
-                onPress={() => {
-                  (document.activeElement as HTMLElement | null)?.blur();
-                  setPollOpen(true);
-                }}
-                label="투표"
-                active={pollOn}
+                onPress={() => setPoll((p) => (p ? null : { ...EMPTY_POLL }))}
+                label={poll ? "투표 빼기" : "투표 넣기"}
+                active={!!poll}
               >
-                <PollIcon className="h-[20px] w-[20px]" />
+                <PollIcon className="h-[21px] w-[21px]" />
               </ToolBtn>
 
               <span className="mx-1 h-5 w-px shrink-0 bg-slate-300/70" />
 
               <ToolBtn onPress={() => mark("bold")} label="굵게" active={marks.bold}>
-                <span className="text-[16px] font-bold">B</span>
+                <span className="text-[17px] font-bold">B</span>
               </ToolBtn>
               <ToolBtn onPress={() => mark("italic")} label="기울임" active={marks.italic}>
-                <span className="font-serif text-[16px] italic">I</span>
+                <span className="font-serif text-[17px] italic">I</span>
               </ToolBtn>
               <ToolBtn onPress={() => mark("underline")} label="밑줄" active={marks.underline}>
-                <span className="text-[16px] underline">U</span>
+                <span className="text-[17px] underline">U</span>
               </ToolBtn>
               {/* 글자 크기 — 목록을 펼치지 않고 기본↔크게를 오간다 */}
               <ToolBtn
@@ -993,25 +977,29 @@ export default function PostEditorSheet({
               {/* 예전엔 여기부터가 '더보기(⋯)' 안에 접혀 있었다.
                   글자크기 오른쪽으로 펼쳐 두고, 넘치면 바를 가로로 민다. */}
               <ToolBtn onPress={() => mark("strikeThrough")} label="취소선" active={marks.strike}>
-                <span className="text-[16px] line-through">S</span>
+                <span className="text-[17px] line-through">S</span>
               </ToolBtn>
               <ToolBtn onPress={() => cmd("insertUnorderedList")} label="목록" active={marks.ul}>
-                <ListBulletIcon className="h-[20px] w-[20px]" />
+                <ListBulletIcon className="h-[21px] w-[21px]" />
               </ToolBtn>
               <ToolBtn onPress={() => cmd("insertOrderedList")} label="번호 목록" active={marks.ol}>
-                <ListOrderedIcon className="h-[20px] w-[20px]" />
+                <ListOrderedIcon className="h-[21px] w-[21px]" />
               </ToolBtn>
               <ToolBtn onPress={() => cmd("formatBlock", marks.quote ? "div" : "blockquote")} label="인용" active={marks.quote}>
-                <QuoteIcon className="h-[20px] w-[20px]" />
+                <QuoteIcon className="h-[21px] w-[21px]" />
               </ToolBtn>
             </div>
           </div>
 
           {/* 임시저장 — 레퍼런스처럼 툴바 밑 오른쪽. 툴바를 따라 같이 내려간다 */}
           <div className="flex justify-end px-3 py-2.5">
+            {/* 임시저장 — 앱 배경(--bg 247·248·250)과 surface(241·244·248)는
+                밝기 차가 2%뿐이라 회색 알약이 배경에 묻혀 안 보였다.
+                흰 판 + 테두리 + 진한 글씨로 바꿔 툴바와 같은 '떠 있는 것'으로 읽히게 한다. */}
             <button
               onClick={saveDraft}
-              className="rounded-full bg-surface px-4 py-2 text-[14px] font-semibold text-slate-600 active:brightness-95"
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[14px] font-semibold text-slate-700 transition active:bg-slate-50"
+              style={{ boxShadow: "0 2px 10px rgba(16,24,40,0.05), 0 8px 24px -12px rgba(16,24,40,0.08)" }}
             >
               임시저장
             </button>
@@ -1140,67 +1128,6 @@ export default function PostEditorSheet({
             />
           </div>
         </div>
-      </BottomSheet>
-
-      {/* ── 투표 ── */}
-      <BottomSheet open={pollOpen} title="투표" onClose={() => setPollOpen(false)}>
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <input
-            type="checkbox"
-            checked={pollOn}
-            onChange={(e) => setPollOn(e.target.checked)}
-            className="h-4 w-4 accent-[rgb(var(--accent))]"
-          />
-          이 글에 투표 넣기
-        </label>
-
-        {pollOn && (
-          <div className="mt-3 space-y-2">
-            {pollOptions.map((opt, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  className="input"
-                  value={opt}
-                  onChange={(e) => setPollOptions((p) => p.map((o, j) => (j === i ? e.target.value : o)))}
-                  placeholder={`선택지 ${i + 1}`}
-                />
-                {pollOptions.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => setPollOptions((p) => p.filter((_, j) => j !== i))}
-                    aria-label="선택지 삭제"
-                    className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 active:bg-slate-50"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-            {pollOptions.length < 10 && (
-              <button
-                type="button"
-                onClick={() => setPollOptions((p) => [...p, ""])}
-                className="text-sm font-semibold text-accent"
-              >
-                + 선택지 추가
-              </button>
-            )}
-            <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" checked={pollMultiple} onChange={(e) => setPollMultiple(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-                복수 선택 허용
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" checked={pollAnonymous} onChange={(e) => setPollAnonymous(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--accent))]" />
-                익명 투표
-              </label>
-            </div>
-            <div>
-              <p className="label">마감일 (선택)</p>
-              <input type="datetime-local" className="input" value={pollDeadline} onChange={(e) => setPollDeadline(e.target.value)} />
-            </div>
-          </div>
-        )}
       </BottomSheet>
     </div>
   );
