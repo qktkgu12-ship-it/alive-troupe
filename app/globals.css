@@ -128,6 +128,22 @@ body {
   scrollbar-color: rgba(15, 23, 42, 0.38) transparent;
 }
 
+/* 글쓰기: 사진과 사진 사이를 눌러 새 줄을 끼워 넣을 때.
+   0에서 한 줄 높이로 펴지면서 아래 사진이 밀려 내려가는 게 눈에 보인다 —
+   그냥 나타나면 사진이 갑자기 튀어 보여서 뭐가 생겼는지 알기 어렵다.
+   높이 값은 본문 한 줄(16px × leading-relaxed 1.625 = 26px)에 맞춘 것이다. */
+@keyframes editor-gap-open {
+  from { height: 0; opacity: 0; }
+  to { height: 26px; opacity: 1; }
+}
+.editor-gap-open {
+  animation: editor-gap-open 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-gap-open { animation: none; }
+}
+
 /* 리치 본문(에디터/표시 공용) 서식 */
 .rich {
   word-break: break-word;

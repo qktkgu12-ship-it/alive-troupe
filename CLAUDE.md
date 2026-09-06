@@ -67,6 +67,15 @@ PC 쪽만 세 번 고친 적이 있다. 공통 로직은 `lib/rich-text.ts`(서�
 ⚠️ `keydown`이 아니라 **`beforeinput`의 `inputType`**을 듣는다 — 한글을 치는 중에는
 keydown의 key가 `Process`로 와서 엔터인지 알 수가 없다.
 
+### 본문의 사진을 다루는 법
+- 사진을 누르면 **테두리 + 우상단 ✕(삭제) + 우하단 '추가'**가 뜬다. 추가는 그 사진 **뒤**에 넣는다.
+- 이때 **키보드가 올라오면 안 된다** → `click`이 아니라 `pointerdown`에서 `preventDefault()` 해야 한다.
+  포커스는 pointerdown의 기본 동작이라 click에서는 이미 늦다.
+  (대신 pointerdown을 막으면 뒤따르는 click이 안 오므로 고르는 일도 거기서 한다)
+- **사진 사이를 누르면** 그 자리에 빈 줄이 펴지며(`.editor-gap-open`) 커서가 놓인다.
+  사진을 연달아 붙이면 그 사이에 커서를 둘 방법이 없어서 글을 못 끼워 넣기 때문이다.
+  사진은 `display:block`이라 위아래 여백이 겹친다(margin collapse) → `my-4`면 사이가 16px.
+
 ⚠️ 사진 넣기에서 조심할 것 두 가지 (둘 다 겪은 버그다):
 - 숨긴 `input[type=file]`을 `pointerdown`에서 `.click()`하면 아이폰이 사진첩을 안 연다
   → `<label>` 안에 input을 넣어 브라우저가 직접 잇게 한다 (`display:none`도 금지).

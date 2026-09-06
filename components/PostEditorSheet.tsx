@@ -514,31 +514,106 @@ export default function PostEditorSheet({
     setLinkText("");
   }
 
-  /* ── 사진 삭제 ───────────────────────────────────── */
-  const handleBodyClick = useCallback((e: React.MouseEvent) => {
-    // 손으로 커서를 옮겼으면 '연속 엔터'가 끊긴 것
-    enterRun.current = 0;
-    const el = e.target as HTMLElement;
-    if (el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid) {
-      e.preventDefault();
-      e.stopPropagation();
-      const img = el as HTMLImageElement;
-      const scrollEl = img.closest(".overflow-y-auto");
-      const scrollRect = scrollEl?.getBoundingClientRect();
-      const rect = img.getBoundingClientRect();
-      if (scrollRect) {
-        setImgOverlayPos({
-          top: rect.top - scrollRect.top + (scrollEl?.scrollTop ?? 0),
-          left: rect.left - scrollRect.left,
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-      setSelectedImg(img);
-    } else {
-      setSelectedImg(null);
-    }
+  /* ── 사진 고르기 · 사진 사이에 줄 넣기 ─────────────── */
+
+  /** 고른 사진 위에 덮을 자리(삭제·추가 버튼이 앉을 곳)를 잰다 */
+  const placeOverlay = useCallback((img: HTMLImageElement) => {
+    const scrollEl = scrollRef.current;
+    const scrollRect = scrollEl?.getBoundingClientRect();
+    const rect = img.getBoundingClientRect();
+    if (!scrollRect) return;
+    setImgOverlayPos({
+      top: rect.top - scrollRect.top + (scrollEl?.scrollTop ?? 0),
+      left: rect.left - scrollRect.left,
+      width: rect.width,
+      height: rect.height,
+    });
   }, []);
+
+  /**
+   * 사진과 사진 사이를 눌렀으면 그 자리에 빈 줄을 하나 만든다.
+   *
+   * 사진을 연달아 붙이면 그 사이에 커서를 둘 방법이 없어서 글을 못 끼워 넣는다.
+   * (사진은 '한 글자'라 사이를 탭해도 브라우저가 사진 앞이나 뒤로만 붙인다)
+   * 눌린 곳이 두 사진 사이면 빈 줄을 넣고, 아래 사진이 밀려 내려가는 게
+   * 눈에 보이도록 그 줄이 0에서 한 줄 높이로 펴지는 애니메이션을 준다.
+   */
+  const openGapAt = useCallback((clientY: number): boolean => {
+    const body = bodyRef.current;
+    if (!body) return false;
+    const imgs = Array.from(body.querySelectorAll<HTMLImageElement>("img[data-mid]"));
+    if (imgs.length < 2) return false;
+
+    for (let i = 0; i < imgs.length - 1; i++) {
+      const above = imgs[i].getBoundingClientRect().bottom;
+      const below = imgs[i + 1].getBoundingClientRect().top;
+      if (clientY < above || clientY > below) continue;
+
+      // 사진을 감싸고 있는 '본문의 바로 아래 칸'을 찾아 그 뒤에 넣는다
+      let block: HTMLElement = imgs[i];
+      while (block.parentElement && block.parentElement !== body) block = block.parentElement;
+      const line = document.createElement("div");
+      line.appendChild(document.createElement("br"));
+      line.className = "editor-gap-open";
+      block.after(line);
+
+      // 새로 생긴 줄에 커서를 놓는다 — 바로 글을 칠 수 있어야 한다
+      const r = document.createRange();
+      r.setStart(line, 0);
+      r.collapse(true);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(r);
+      savedRange.current = r.cloneRange();
+      body.focus();
+      // 애니메이션이 끝나면 클래스를 떼어 다음에 또 재생되지 않게 한다
+      setTimeout(() => line.classList.remove("editor-gap-open"), 400);
+      return true;
+    }
+    return false;
+  }, []);
+
+  /**
+   * 본문을 누른 순간의 처리 — click이 아니라 pointerdown에서 한다.
+   *
+   * ⚠️ 사진을 눌렀을 때 키보드가 올라오면 안 된다. 키보드는 편집칸이 포커스를
+   *    받을 때 올라오는데, 그건 pointerdown의 기본 동작이라 click에서는 이미 늦다.
+   *    여기서 기본 동작을 막아야 포커스가 안 옮겨가고 키보드도 안 올라온다.
+   *    (대신 pointerdown을 막으면 뒤따르는 click이 안 오므로 고르는 일도 여기서 한다)
+   */
+  const handleBodyPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      // 손으로 커서를 옮겼으면 '연속 엔터'가 끊긴 것
+      enterRun.current = 0;
+      const el = e.target as HTMLElement;
+
+      if (el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid) {
+        e.preventDefault();
+        (document.activeElement as HTMLElement | null)?.blur();
+        const img = el as HTMLImageElement;
+        placeOverlay(img);
+        setSelectedImg(img);
+        return;
+      }
+
+      setSelectedImg(null);
+      // 사진 사이를 눌렀으면 거기에 줄을 하나 편다
+      if (openGapAt(e.clientY)) e.preventDefault();
+    },
+    [placeOverlay, openGapAt]
+  );
+
+  /** 새 사진이 '고른 사진 바로 뒤'에 들어가도록 넣을 자리를 옮겨 둔다 */
+  function caretAfterSelectedImg() {
+    const body = bodyRef.current;
+    if (!body || !selectedImg) return;
+    let block: HTMLElement = selectedImg;
+    while (block.parentElement && block.parentElement !== body) block = block.parentElement;
+    const r = document.createRange();
+    r.setStartAfter(block);
+    r.collapse(true);
+    savedRange.current = r;
+  }
 
   function deleteSelectedImg() {
     if (!selectedImg) return;
@@ -827,7 +902,7 @@ export default function PostEditorSheet({
             onMouseUp={rememberCaret}
             onTouchEnd={rememberCaret}
             onFocus={rememberCaret}
-            onClick={handleBodyClick}
+            onPointerDown={handleBodyPointerDown}
             onInput={() => {
               rememberCaret();
               setSelectedImg(null);
@@ -837,7 +912,11 @@ export default function PostEditorSheet({
             style={{ textAlign: align }}
             // 최소 높이는 화면이 아니라 고정값이다 — 툴바가 본문을 따라 내려오므로
             // 빈 글에서 툴바가 화면 밖까지 밀려나면 안 된다.
-            className="rich min-h-[168px] w-full px-4 pb-4 pt-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
+            // 사진 위아래 여백 my-4 — 사진 사이가 16px이 된다.
+            // 사진은 display:block이라 위아래 여백이 서로 겹쳐(margin collapse)
+            // 둘을 더한 값이 아니라 큰 쪽 하나만 남는다 → my-4면 딱 16px.
+            // 이 사이를 눌러 줄을 끼워 넣으므로 8px이던 때보다 누르기 쉬워야 한다.
+            className="rich min-h-[168px] w-full px-4 pb-4 pt-4 text-[16px] leading-relaxed outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl"
           />
 
           {/* ── 툴바 — 본문 바로 밑 ──
@@ -938,20 +1017,44 @@ export default function PostEditorSheet({
             </button>
           </div>
 
-          {/* 사진 삭제 오버레이 */}
+          {/* 고른 사진 위에 뜨는 버튼 — 지우기(우상단) · 이 사진 뒤에 추가(우하단).
+              사진을 어둡게 덮지 않고 테두리만 준다 — 뭘 고른 건지 보이면서
+              사진 자체는 그대로 보여야 지울지 말지 판단이 된다. */}
           {selectedImg && (
             <div
-              className="pointer-events-none absolute z-10 flex items-center justify-center rounded-xl bg-black/40"
+              className="pointer-events-none absolute z-10 rounded-xl ring-2 ring-accent"
               style={imgOverlayPos}
             >
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); deleteSelectedImg(); }}
-                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-4 py-2 text-[14px] font-semibold text-red-600 shadow-lg backdrop-blur active:bg-white"
+                aria-label="사진 삭제"
+                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); deleteSelectedImg(); }}
+                className="pointer-events-auto absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-slate-900/70 text-white shadow-lg backdrop-blur active:bg-slate-900/85"
               >
-                <XIcon className="h-4 w-4" />
-                삭제
+                <XIcon className="h-[18px] w-[18px]" />
               </button>
+
+              {/*
+               * 이 사진 바로 뒤에 사진을 더 넣는다.
+               * 툴바의 사진 버튼과 같은 이유로 <label>이다 — 숨긴 input을 JS로 여는
+               * 방식은 아이폰에서 사진첩이 안 열린다 (CLAUDE.md 참고).
+               * 누르는 순간 '넣을 자리'를 이 사진 뒤로 옮겨 둔다.
+               */}
+              <label
+                aria-label="이 사진 뒤에 사진 추가"
+                onPointerDown={() => caretAfterSelectedImg()}
+                className="pointer-events-auto absolute bottom-2 right-2 flex h-9 items-center gap-1.5 overflow-hidden rounded-full bg-slate-900/70 px-3.5 text-[13px] font-semibold text-white shadow-lg backdrop-blur active:bg-slate-900/85"
+              >
+                <ImageIcon className="h-[17px] w-[17px]" />
+                추가
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  onChange={(e) => onFiles(e.target.files)}
+                />
+              </label>
             </div>
           )}
 
