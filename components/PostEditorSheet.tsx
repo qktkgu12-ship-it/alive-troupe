@@ -84,6 +84,29 @@ const MAX_LEN = 50000;
  */
 const GAP_SLOP = 22;
 
+/**
+ * 손이 이만큼 넘게 움직였으면 '누른 것'이 아니라 '민 것'(스크롤)으로 본다 (px).
+ * 툴바 버튼이 쓰는 `lib/use-press`와 같은 값·같은 이유다.
+ */
+const TAP_SLOP = 10;
+
+/**
+ * 사진 '안쪽'으로 얼마나 들어와도 '사이를 노린 것'으로 봐 줄지 (px).
+ * 사진 높이의 1/4을 넘지 않는다 — 안 그러면 낮고 넓은 사진(띠 모양)은
+ * 통째로 '사이'가 되어 눌러도 골라지지 않는다. 가운데 절반은 늘 사진 몫이다.
+ */
+const slopIn = (h: number) => Math.min(GAP_SLOP, Math.round(h / 4));
+
+/** 이 사진을 담고 있는 '본문의 바로 아래 칸' */
+function blockOfImg(body: HTMLElement, img: HTMLElement): HTMLElement {
+  let b: HTMLElement = img;
+  while (b.parentElement && b.parentElement !== body) b = b.parentElement;
+  return b;
+}
+
+/** 빈 줄을 펼 자리 — 어느 칸의 앞이냐 뒤냐 */
+type GapTarget = { block: HTMLElement; where: "before" | "after" } | null;
+
 // 정렬 버튼은 없앴다(거의 안 쓰였고 툴바 자리만 차지했다). 다만 값 자체는 남겨 둔다 —
 // 예전에 가운데·오른쪽으로 맞춰 둔 글을 열었다가 저장하면 정렬이 풀려 버리기 때문이다.
 type Align = "left" | "center" | "right";
@@ -152,6 +175,8 @@ export default function PostEditorSheet({
   const fileRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const savedRange = useRef<Range | null>(null);
+  /** 본문을 누른 자리 — 손을 뗄 때 '민 것'인지 가리려고 기억해 둔다 */
+  const bodyPress = useRef<{ x: number; y: number; id: number } | null>(null);
   // 엔터를 연달아 몇 번 쳤는가. 두 번째부터는 '빈 줄'이 생긴 것이라 서식을 푼다.
   const enterRun = useRef(0);
   // 커서 자리에 걸려 있는 서식 — 툴바 버튼을 켜서 보여 준다
@@ -522,86 +547,22 @@ export default function PostEditorSheet({
   }, []);
 
   /**
-   * 사진 둘레의 '글 쓸 자리가 없는 곳'을 누르면 그 자리에 빈 줄을 하나 편다.
+   * 눌린 자리가 '빈 줄을 펼 자리'인지 본다. 펴지는 않고 어디에 펼지만 알려 준다.
+   *
+   * 누르는 순간과 손 떼는 순간에 둘 다 물어봐야 해서 판정만 따로 뽑아 뒀다 —
+   * 누를 때는 '브라우저 기본 동작을 막을지' 정하려고, 손 뗄 때는 '진짜로 펼지' 정하려고.
    *
    * 사진을 연달아 붙이면 그 사이에 커서를 둘 방법이 없어서 글을 못 끼워 넣는다.
    * (사진은 '한 글자'라 사이를 탭해도 브라우저가 사진 앞이나 뒤로만 붙인다)
    * 첫 사진 '위'와 마지막 사진 '아래'도 같다 — 사진으로 시작하거나 끝나는 글은
    * 그 바깥에 커서를 둘 자리가 없어서 앞뒤로 글을 못 붙인다.
-   *
-   * 빈 줄은 0에서 한 줄 높이로 펴지는 애니메이션을 줘서 무엇이 생겼는지 보이게 한다.
    */
-  const openGapAt = useCallback((clientY: number): boolean => {
+  const gapTargetAt = useCallback((clientY: number): GapTarget => {
     const body = bodyRef.current;
-    if (!body) return false;
+    if (!body) return null;
     const imgs = Array.from(body.querySelectorAll<HTMLImageElement>("img[data-mid]"));
-    if (imgs.length === 0) return false;
-
-    /**
-     * 사진 '안쪽'으로 얼마나 들어와도 '사이를 노린 것'으로 봐 줄지 (px).
-     * 사진 높이의 1/4을 넘지 않는다 — 안 그러면 낮고 넓은 사진(띠 모양)은
-     * 통째로 '사이'가 되어 눌러도 골라지지 않는다. 가운데 절반은 늘 사진 몫이다.
-     */
-    const slopIn = (h: number) => Math.min(GAP_SLOP, Math.round(h / 4));
-
-    /** 이 사진을 담고 있는 '본문의 바로 아래 칸' */
-    const blockOf = (img: HTMLElement) => {
-      let b: HTMLElement = img;
-      while (b.parentElement && b.parentElement !== body) b = b.parentElement;
-      return b;
-    };
-
-    /** 칸의 앞이나 뒤에 빈 줄을 펴고 커서를 그 줄에 놓는다 */
-    const openLine = (block: HTMLElement, where: "before" | "after") => {
-      const line = document.createElement("div");
-      line.appendChild(document.createElement("br"));
-      line.className = "editor-gap-open";
-      if (where === "before") block.before(line);
-      else block.after(line);
-
-      /** 새로 생긴 줄에 커서를 놓는다 — 바로 글을 칠 수 있어야 한다 */
-      const putCaret = () => {
-        if (!line.isConnected) return;
-        const r = document.createRange();
-        r.setStart(line, 0);
-        r.collapse(true);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        savedRange.current = r.cloneRange();
-      };
-      body.focus({ preventScroll: true });
-      putCaret();
-
-      /**
-       * ⚠️ 손을 뗄 때 커서를 한 번 더 제자리로 돌린다.
-       *
-       * 폰은 '탭해서 커서 놓기'를 손가락이 닿을 때가 아니라 **뗄 때** 한다.
-       * pointerdown의 기본 동작을 막아도 그 동작까지 막히지는 않는 기기가 있어서,
-       * 우리가 놓아 둔 커서를 브라우저가 '누른 자리'로 덮어써 버린다.
-       * 그런데 누른 자리는 (위 여유 때문에) 대개 사진 위다 →
-       * 커서가 **첫 사진 앞**으로 튀고, 사진 높이만큼 큰 막대로 보인다.
-       * 실측: 사진 위를 눌러 여백을 편 뒤 그 자리로 커서를 놓아 보면
-       * 글자가 `<div>가나<img></div>` 처럼 사진 앞에 박힌다. 실제로 겪은 증상이다.
-       *
-       * 이미 제자리에 있으면 건드리지 않는다 — 사용자가 곧바로 다른 곳을 눌렀거나
-       * 글을 치기 시작했으면 그쪽이 옳다.
-       */
-      const keep = () => { if (!line.contains(window.getSelection()?.anchorNode ?? null)) putCaret(); };
-      const settle = () => {
-        window.removeEventListener("pointerup", settle, true);
-        window.removeEventListener("pointercancel", settle, true);
-        keep();
-        setTimeout(keep, 0);    // 브라우저의 기본 동작 다음
-        setTimeout(keep, 120);  // 늦게 놓는 기기까지
-      };
-      window.addEventListener("pointerup", settle, true);
-      window.addEventListener("pointercancel", settle, true);
-
-      // 애니메이션이 끝나면 클래스를 떼어 다음에 또 재생되지 않게 한다
-      setTimeout(() => line.classList.remove("editor-gap-open"), 600);
-      return true;
-    };
+    if (imgs.length === 0) return null;
+    const at = (img: HTMLElement) => blockOfImg(body, img);
 
     // ① 사진과 사진 사이
     for (let i = 0; i < imgs.length - 1; i++) {
@@ -609,33 +570,85 @@ export default function PostEditorSheet({
       const c = imgs[i + 1].getBoundingClientRect();
       if (clientY < a.bottom - slopIn(a.height) || clientY > c.top + slopIn(c.height)) continue;
 
-      const block = blockOf(imgs[i]);
+      const block = at(imgs[i]);
       // ⚠️ 두 사진이 '딱 붙어 있을 때'만 줄을 넣는다.
       //    한 번 넣고 나면 사이에 그 줄이 있으므로 이웃이 아니게 되고,
       //    같은 자리를 또 눌러도 아무 일도 안 일어난다 —
       //    안 그러면 누를 때마다 빈 줄이 쌓인다.
-      if (block.nextElementSibling !== blockOf(imgs[i + 1])) return false;
-      return openLine(block, "after");
+      if (block.nextElementSibling !== at(imgs[i + 1])) return null;
+      return { block, where: "after" };
     }
 
     // ② 첫 사진 위 — 그 사진이 본문의 첫 칸일 때만.
     //    위에 이미 줄이 있으면 거기다 쓰면 되므로 넣지 않는다(①과 같은 규칙).
-    const firstBlock = blockOf(imgs[0]);
+    const firstBlock = at(imgs[0]);
     const firstRect = imgs[0].getBoundingClientRect();
     if (!firstBlock.previousElementSibling && clientY < firstRect.top + slopIn(firstRect.height)) {
-      return openLine(firstBlock, "before");
+      return { block: firstBlock, where: "before" };
     }
 
     // ③ 마지막 사진 아래 — 그 사진이 본문의 끝 칸일 때만
     const lastImg = imgs[imgs.length - 1];
-    const lastBlock = blockOf(lastImg);
+    const lastBlock = at(lastImg);
     const lastRect = lastImg.getBoundingClientRect();
     if (!lastBlock.nextElementSibling && clientY > lastRect.bottom - slopIn(lastRect.height)) {
-      return openLine(lastBlock, "after");
+      return { block: lastBlock, where: "after" };
     }
 
-    return false;
+    return null;
   }, []);
+
+  /**
+   * 빈 줄을 실제로 편다. 0에서 한 줄 높이로 펴지는 애니메이션을 줘서
+   * 무엇이 생겼는지 눈에 보이게 한다.
+   */
+  const openGapAt = useCallback((clientY: number): boolean => {
+    const body = bodyRef.current;
+    const target = gapTargetAt(clientY);
+    if (!body || !target) return false;
+
+    const line = document.createElement("div");
+    line.appendChild(document.createElement("br"));
+    line.className = "editor-gap-open";
+    if (target.where === "before") target.block.before(line);
+    else target.block.after(line);
+
+    /** 새로 생긴 줄에 커서를 놓는다 — 바로 글을 칠 수 있어야 한다 */
+    const putCaret = () => {
+      if (!line.isConnected) return;
+      const r = document.createRange();
+      r.setStart(line, 0);
+      r.collapse(true);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(r);
+      savedRange.current = r.cloneRange();
+    };
+    body.focus({ preventScroll: true });
+    putCaret();
+
+    /**
+     * ⚠️ 조금 뒤에 커서를 한 번 더 제자리로 돌린다.
+     *
+     * 폰은 '탭해서 커서 놓기'를 손가락이 닿을 때가 아니라 **뗄 때** 한다.
+     * pointerdown의 기본 동작을 막아도 그 동작까지 막히지는 않는 기기가 있어서,
+     * 우리가 놓아 둔 커서를 브라우저가 '누른 자리'로 덮어써 버린다.
+     * 그런데 누른 자리는 (GAP_SLOP 때문에) 대개 사진 위다 →
+     * 커서가 **첫 사진 앞**으로 튀고, 사진 높이만큼 큰 막대로 보인다.
+     * 실측: 사진 위를 눌러 여백을 편 뒤 그 자리로 커서를 놓아 보면
+     * 글자가 `<div>가나<img></div>` 처럼 사진 앞에 박힌다. 실제로 겪은 증상이다.
+     *
+     * 이미 제자리에 있으면 건드리지 않는다 — 사용자가 곧바로 다른 곳을 눌렀거나
+     * 글을 치기 시작했으면 그쪽이 옳다.
+     */
+    const keep = () => { if (!line.contains(window.getSelection()?.anchorNode ?? null)) putCaret(); };
+    setTimeout(keep, 0);    // 브라우저의 기본 동작 다음
+    setTimeout(keep, 120);  // 늦게 놓는 기기까지
+
+    // 애니메이션이 끝나면 클래스를 떼어 다음에 또 재생되지 않게 한다
+    setTimeout(() => line.classList.remove("editor-gap-open"), 600);
+    return true;
+  }, [gapTargetAt]);
 
   /**
    * 눌린 자리에 커서를 놓는다 (편집 가능 상태로 막 돌아왔을 때 쓴다).
@@ -667,12 +680,22 @@ export default function PostEditorSheet({
   }, []);
 
   /**
-   * 본문을 누른 순간의 처리 — click이 아니라 pointerdown에서 한다.
+   * 본문 누르기 — **막는 건 누를 때, 실행은 손 뗄 때.**
+   *
+   * ⚠️ pointerdown에서 바로 실행하면 안 된다.
+   *    본문은 세로로 미는 스크롤 영역이라, 사진 위에 손을 대고 밀어 내리는
+   *    순간 그 사진이 골라져 버린다("스크롤만 했는데 사진이 선택된다").
+   *    빈 줄 펴기도 마찬가지 — 밀려던 것뿐인데 문서가 바뀐다.
+   *    툴바 버튼이 같은 이유로 pointerup에서 실행한다 (`lib/use-press`).
+   *
+   * ⚠️ 그렇다고 막는 것까지 미룰 수는 없다.
+   *    브라우저의 기본 동작(누른 자리에 커서 놓기·사진 끌기)은 pointerup에서
+   *    막을 수 없다. 그래서 '실행할 만한 자리'인지 누를 때 미리 보고 막아 둔다.
+   *    ⚠️ pointerdown을 막아도 스크롤은 안 막힌다 — 스크롤은 touch-action이 정한다.
    *
    * ⚠️ 사진을 눌렀을 때 키보드가 올라오면 안 된다.
-   *    pointerdown의 기본 동작을 막는 것만으로는 부족했다 — 사진도 결국
-   *    편집칸 안의 '글자 한 개'라, 기기에 따라 뒤늦게 포커스가 들어오면서
-   *    키보드가 다시 올라온다.
+   *    기본 동작을 막는 것만으로는 부족했다 — 사진도 결국 편집칸 안의
+   *    '글자 한 개'라, 기기에 따라 뒤늦게 포커스가 들어오면서 키보드가 올라온다.
    *    그래서 사진을 고른 동안에는 **본문을 아예 편집 불가로 만든다**
    *    (아래 contentEditable={!selectedImg}). 편집할 것이 없으면 키보드는
    *    올라올 수가 없다 — 기기마다 다르게 굴 여지 자체를 없앤 것이다.
@@ -683,46 +706,66 @@ export default function PostEditorSheet({
     (e: React.PointerEvent) => {
       // 손으로 커서를 옮겼으면 '연속 엔터'가 끊긴 것
       enterRun.current = 0;
+      bodyPress.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+
       const el = e.target as HTMLElement;
+      const onImg = el.tagName === "IMG" && !!(el as HTMLImageElement).dataset.mid;
+      const willAct = selectedImg ? true : onImg || !!gapTargetAt(e.clientY);
+      if (willAct) e.preventDefault();
+    },
+    [selectedImg, gapTargetAt]
+  );
 
-      // 사진 둘레의 '글 쓸 자리가 없는 곳'을 노린 것이면 거기에 빈 줄을 편다.
-      //
-      // ⚠️ 사진 누르기보다 **먼저** 본다.
-      //    사진과 사진 사이는 16px뿐이라 그 띠만 노리게 하면 손끝으로 못 맞히고,
-      //    빗나가면 (사진을 누른 게 되어) 엉뚱하게 사진이 골라져 버린다.
-      //    그래서 사진의 가장자리를 눌러도 '사이를 노린 것'으로 쳐 준다.
-      //    사진을 고르는 건 가운데를 누르면 된다 — openGapAt이 가장자리를
-      //    사진 높이의 1/4까지로만 잡으므로 가운데 절반은 늘 사진 몫이다.
-      //
-      // 사진을 이미 골라 둔 상태면 본문이 편집 불가라 줄을 펴 봐야 소용없다 →
-      // 그때는 아래 '고른 사진 풀기'가 먼저다.
-      if (!selectedImg && openGapAt(e.clientY)) {
-        e.preventDefault();
-        return;
-      }
+  /** 스크롤이 시작되면 브라우저가 pointercancel을 보낸다 → 누름을 없던 일로 */
+  const handleBodyPointerCancel = useCallback(() => {
+    bodyPress.current = null;
+  }, []);
 
-      if (el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid) {
-        e.preventDefault();
+  /** 손을 뗄 때 실제로 한다 — 민 것이면(SLOP 초과) 아무 일도 안 한다 */
+  const handleBodyPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      const s = bodyPress.current;
+      bodyPress.current = null;
+      if (!s || s.id !== e.pointerId) return;
+      if (Math.abs(e.clientX - s.x) > TAP_SLOP || Math.abs(e.clientY - s.y) > TAP_SLOP) return;
+
+      const el = e.target as HTMLElement;
+      const img =
+        el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid ? (el as HTMLImageElement) : null;
+
+      /** 사진 고르기 — 키보드가 못 올라오게 포커스부터 뺀다 */
+      const pick = (target: HTMLImageElement) => {
         (document.activeElement as HTMLElement | null)?.blur();
-        const img = el as HTMLImageElement;
-        placeOverlay(img);
-        setSelectedImg(img);
-        return;
-      }
+        placeOverlay(target);
+        setSelectedImg(target);
+      };
+
+      // 사진을 골라 둔 채로 사진을 눌렀으면 그 사진으로 옮겨 고른다
+      if (selectedImg && img) { pick(img); return; }
 
       // 사진을 골라 둔 상태였다면 본문이 지금 편집 불가다.
       // 다시 편집 가능해진 다음(다음 그림 뒤) 누른 자리에 커서를 놓아 준다 —
       // 안 그러면 '한 번은 풀기, 한 번은 커서 두기'로 두 번 눌러야 한다.
-      const wasSelected = !!selectedImg;
-      setSelectedImg(null);
-      if (wasSelected) {
-        e.preventDefault();
-        const { clientX, clientY } = e;
+      if (selectedImg) {
+        setSelectedImg(null);
         setTimeout(() => {
           bodyRef.current?.focus();
-          placeCaretFromPoint(clientX, clientY);
+          placeCaretFromPoint(s.x, s.y);
         }, 0);
+        return;
       }
+
+      // 사진 둘레의 '글 쓸 자리가 없는 곳'을 노린 것이면 거기에 빈 줄을 편다.
+      //
+      // ⚠️ 사진 고르기보다 **먼저** 본다.
+      //    사진과 사진 사이는 16px뿐이라 그 띠만 노리게 하면 손끝으로 못 맞히고,
+      //    빗나가면 (사진을 누른 게 되어) 엉뚱하게 사진이 골라져 버린다.
+      //    그래서 사진의 가장자리를 눌러도 '사이를 노린 것'으로 쳐 준다.
+      //    사진을 고르는 건 가운데를 누르면 된다 — slopIn이 가장자리를
+      //    사진 높이의 1/4까지로만 잡으므로 가운데 절반은 늘 사진 몫이다.
+      if (openGapAt(s.y)) return;
+
+      if (img) pick(img);
     },
     [placeOverlay, openGapAt, selectedImg, placeCaretFromPoint]
   );
@@ -1032,6 +1075,8 @@ export default function PostEditorSheet({
             onTouchEnd={rememberCaret}
             onFocus={rememberCaret}
             onPointerDown={handleBodyPointerDown}
+            onPointerUp={handleBodyPointerUp}
+            onPointerCancel={handleBodyPointerCancel}
             onInput={() => {
               rememberCaret();
               setSelectedImg(null);

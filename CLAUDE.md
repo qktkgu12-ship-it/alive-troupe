@@ -90,6 +90,14 @@ keydown의 key가 `Process`로 와서 엔터인지 알 수가 없다.
 
 ### 본문의 사진을 다루는 법
 - 사진을 누르면 **테두리 + 우상단 ✕(삭제) + 우하단 '추가'**가 뜬다. 추가는 그 사진 **뒤**에 넣는다.
+  ⚠️ **막는 건 누를 때, 실행은 손 뗄 때** (`handleBodyPointerDown` / `handleBodyPointerUp`).
+  본문은 세로로 미는 스크롤 영역이라, pointerdown에서 바로 실행하면 사진 위에 손을 대고
+  밀어 내리는 순간 그 사진이 골라져 버린다(빈 줄 펴기도 마찬가지 — 밀려던 것뿐인데 문서가 바뀐다).
+  손이 `TAP_SLOP`(10px) 넘게 움직였거나 pointercancel이 오면 없던 일로 한다.
+  그렇다고 막는 것까지 미룰 수는 없다 — 브라우저 기본 동작(커서 놓기·사진 끌기)은 pointerup에서
+  못 막는다. 그래서 누를 때 `gapTargetAt`으로 '실행할 만한 자리'인지 미리 보고 막아 둔다.
+  (pointerdown을 막아도 스크롤은 안 막힌다 — 스크롤은 touch-action이 정한다.)
+  툴바 버튼이 같은 이유로 pointerup에서 실행한다 (`lib/use-press`).
 - 이때 **키보드가 올라오면 안 된다.** pointerdown을 `preventDefault()` 하는 것만으로는 부족했다 —
   사진도 결국 편집칸 안의 '글자 한 개'라 기기에 따라 뒤늦게 포커스가 들어온다.
   → **사진을 고른 동안에는 본문을 통째로 편집 불가로 만든다** (`contentEditable={!selectedImg}`).
