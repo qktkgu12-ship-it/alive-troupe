@@ -130,9 +130,14 @@ export default function ScheduleCarousel({
   //      브라우저가 카드를 한 번 더 끌고 갔다.
   //
   // 고친 방법:
-  //   1) 카드의 왼쪽 끝(offsetLeft)을 기준으로 삼는다. 카드가 아무리 넓어져도
-  //      제 왼쪽 끝은 그대로라 계산이 흔들리지 않는다. 펼친 카드는 화면 폭을
-  //      꽉 채우므로 왼쪽 여백 16px에 맞추면 그게 곧 가운데다.
+  //   1) 카드의 왼쪽 끝을 기준으로 삼는다. 카드가 아무리 넓어져도 제 왼쪽 끝은
+  //      그대로라 계산이 흔들리지 않는다. 펼친 카드는 화면 폭을 꽉 채우므로
+  //      왼쪽 여백 16px에 맞추면 그게 곧 가운데다.
+  //      ⚠️ offsetLeft를 쓰면 안 된다. 그 값은 '가장 가까운 positioned 조상'에서
+  //         재는 값이라, 트랙 바깥 어딘가에 position:relative가 하나 붙기만 해도
+  //         기준점이 통째로 옮겨간다. 실제로 화살표 버튼을 놓으려고 감싸는 div에
+  //         relative를 붙였더니 펼친 카드가 딱 16px(트랙의 -mx-4만큼) 오른쪽으로
+  //         쏠렸다. 그래서 화면 좌표로 직접 잰다 — 무엇이 어디에 붙든 안 흔들린다.
   //   2) 펼쳐진 동안에는 스냅을 끈다 (아래 트랙 className).
   //   3) 커지는 360ms 동안 매 프레임 같은 자리로 되잡는다 — 다른 카드를 펼쳐
   //      앞 카드가 줄어드는 경우에는 왼쪽 끝도 같이 움직이기 때문이다.
@@ -147,8 +152,11 @@ export default function ScheduleCarousel({
     const t0 = performance.now();
     let raf = 0;
     const pin = () => {
+      // 지금 스크롤 위치 + (카드가 트랙 왼쪽 끝에서 떨어진 거리) = 트랙 안에서의 자리
+      const inTrack =
+        track.scrollLeft + (kid.getBoundingClientRect().left - track.getBoundingClientRect().left);
       track.scrollTo({
-        left: Math.max(0, kid.offsetLeft - 16),
+        left: Math.max(0, inTrack - 16),
         behavior: "instant" as ScrollBehavior,
       });
       if (performance.now() - t0 < 420) raf = requestAnimationFrame(pin);
