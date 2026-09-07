@@ -12,6 +12,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { getMembers } from "@/lib/members";
 import EventCard, { EXPAND, eventColor, type Member } from "@/components/EventCard";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/Icons";
 import type { ScheduleEvent } from "@/lib/types";
 
 export { eventColor };
@@ -73,6 +74,46 @@ export default function ScheduleCarousel({
   // 어느 카드를 방금 펼쳤는지 (아래 자리 잡기에서 쓴다)
   const openIdx = useRef(-1);
 
+  /**
+   * PC 좌우 버튼.
+   *
+   * 폰은 손으로 밀면 되지만 **마우스에는 미는 방법이 아예 없다** —
+   * 가로 스크롤 막대는 숨겨 뒀고(no-scrollbar), 휠은 세로만 굴러서
+   * 이 줄에는 닿지 않는다. 그래서 PC에서만 버튼을 띄운다.
+   *
+   * ⚠️ 휠을 가로 스크롤로 바꿔치기하지 않는다 — 페이지를 세로로 내리다
+   *    커서가 이 줄 위를 지나가는 순간 페이지가 멈추고 카드가 옆으로 흐른다.
+   * 끝에 닿은 쪽 버튼은 아예 안 그린다(누를 수 없는 버튼을 두지 않는다).
+   */
+  const [nav, setNav] = useState({ left: false, right: false });
+  const updateNav = useCallback(() => {
+    const t = trackRef.current;
+    if (!t) return;
+    const max = t.scrollWidth - t.clientWidth;
+    // 4px은 소수점 오차용 — 끝에 닿았는데 버튼이 남아 있지 않게
+    setNav({ left: t.scrollLeft > 4, right: t.scrollLeft < max - 4 });
+  }, []);
+  useEffect(() => {
+    const t = trackRef.current;
+    if (!t) return;
+    updateNav();
+    t.addEventListener("scroll", updateNav, { passive: true });
+    const ro = new ResizeObserver(updateNav);
+    ro.observe(t);
+    return () => {
+      t.removeEventListener("scroll", updateNav);
+      ro.disconnect();
+    };
+  }, [updateNav, events.length]);
+
+  /** 카드 한 장 + 사이 간격만큼 옮긴다 — 스냅이 나머지를 맞춰 준다 */
+  const nudge = (dir: -1 | 1) => {
+    const t = trackRef.current;
+    const kid = t?.firstElementChild as HTMLElement | undefined;
+    if (!t || !kid) return;
+    t.scrollBy({ left: dir * (kid.getBoundingClientRect().width + 12), behavior: "smooth" });
+  };
+
   function toggle(i: number, id: string) {
     const next = openId === id ? null : id;
     openIdx.current = next ? i : -1;
@@ -123,7 +164,7 @@ export default function ScheduleCarousel({
   }
 
   return (
-    <div>
+    <div className="relative">
       {/* 섹션 제목은 여기 없다 — 홈의 인사말 블록 둘째 줄이 그 역할을 겸한다.
           큰 제목(인사말 26px)과 섹션 제목(22px)이 나란히 있으면 서로 경쟁해
           어느 쪽이 주인공인지 안 읽혔다. 제목을 하나로 합쳐 그 경쟁을 없앴다. */}
@@ -187,6 +228,32 @@ export default function ScheduleCarousel({
           );
         })}
       </div>
+
+      {/* 좌우 버튼 — PC에서만(md 이상). 폰은 손으로 밀면 되므로 안 그린다.
+          카드 가장자리에 반쯤 걸치게 둔다 — 완전히 카드 위에 올리면 제목을 가리고,
+          바깥으로 빼면 좁은 화면에서 갈 자리가 없다.
+          top-20(80px) = 접힌 카드 높이 160px의 한가운데.
+          카드를 펼친 동안에는 한 장이 화면을 꽉 채우므로 밀 일이 없다 → 숨긴다. */}
+      {!openId && nav.left && (
+        <button
+          type="button"
+          onClick={() => nudge(-1)}
+          aria-label="이전 일정"
+          className="absolute left-0 top-20 z-10 hidden h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_2px_10px_-2px_rgba(16,24,40,0.18)] transition hover:text-slate-900 md:grid"
+        >
+          <ChevronLeftIcon className="h-[18px] w-[18px]" />
+        </button>
+      )}
+      {!openId && nav.right && (
+        <button
+          type="button"
+          onClick={() => nudge(1)}
+          aria-label="다음 일정"
+          className="absolute right-0 top-20 z-10 hidden h-9 w-9 -translate-y-1/2 translate-x-1/2 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_2px_10px_-2px_rgba(16,24,40,0.18)] transition hover:text-slate-900 md:grid"
+        >
+          <ChevronRightIcon className="h-[18px] w-[18px]" />
+        </button>
+      )}
 
       {/* dot 인디케이터 제거 — 카드가 옆으로 삐져나오는(peek) 것만으로
           슬라이드가 있다는 걸 충분히 전달한다. dot이 없으면

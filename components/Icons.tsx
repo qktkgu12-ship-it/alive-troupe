@@ -103,6 +103,8 @@ export const BoardIcon = makeIcon(
 );
 
 export const ChevronDownIcon = makeIcon(<path d="m6 9 6 6 6-6" />);
+export const ChevronLeftIcon = makeIcon(<path d="m15 18-6-6 6-6" />);
+export const ChevronRightIcon = makeIcon(<path d="m9 18 6-6-6-6" />);
 
 export const PlusIcon = makeIcon(<path d="M12 5v14M5 12h14" />);
 
