@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import { SkeletonCards } from "@/components/Skeleton";
@@ -106,6 +107,7 @@ function ClipButtons({ clips }: { clips: ArchiveClip[] }) {
 function ArchiveInner() {
   const { user, profile, role } = useAuth();
   const isAdmin = role === "admin";
+  const { settings, loading: settingsLoading } = useTheme();
 
   const [productions, setProductions] = useState<Production[]>([]);
   const [items, setItems] = useState<ArchiveItem[]>([]);
@@ -202,6 +204,29 @@ function ArchiveInner() {
   }, [user, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
+
+  /**
+   * 아카이브를 열면 '지금 하는 작품'이 먼저 걸려 있게 한다.
+   * 자료가 기수별로 쌓이다 보니 전체를 펼쳐 놓으면 지금 작품 것을 찾아 내려가야 한다.
+   *
+   * 딱 한 번만 정한다 — 사용자가 손으로 '전체 작품'으로 바꿔 놓은 걸 되돌리면 안 된다.
+   * 아래 셋 중 하나라도 어긋나면 예전처럼 '전체 작품'으로 둔다:
+   *   · 관리에서 현재 작품을 안 정해 놨다
+   *   · 내가 그 작품 참여자가 아니라 목록에 없다 (고를 수 없는 값이 걸리면 빈 화면이 된다)
+   *   · 그 작품 자료가 아직 하나도 없다 (첫 화면이 '자료가 없습니다'면 안 된다)
+   */
+  const prodDefaultDone = useRef(false);
+  useEffect(() => {
+    if (prodDefaultDone.current || loading || settingsLoading) return;
+    prodDefaultDone.current = true;
+    // 홈에서 자료를 콕 집어 들어온 것이면 필터를 걸면 안 된다 — 그 자료가 가려진다
+    if (searchParams.get("item")) return;
+    const cur = settings.currentProductionId;
+    if (!cur) return;
+    if (!productions.some((p) => p.id === cur)) return;
+    if (!items.some((it) => it.productionId === cur)) return;
+    setProdFilter(cur);
+  }, [loading, settingsLoading, settings.currentProductionId, productions, items, searchParams]);
 
   const { createdAt } = useCreateSheet();
   useEffect(() => { if (createdAt?.kind === "archive") load(); }, [createdAt, load]);

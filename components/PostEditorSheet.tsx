@@ -66,6 +66,24 @@ import {
 
 const MAX_LEN = 50000;
 
+/**
+ * 사진 둘레의 '빈 줄을 펼 자리'를 누른 것으로 봐 주는 여유 (px).
+ *
+ * 사진과 사진 사이는 16px밖에 안 된다(my-4가 겹쳐서). 그 띠만 정확히 노리게 하면
+ * 손끝으로는 거의 못 맞힌다 — 위아래로 22px씩 넓혀 노리는 폭을 60px로 만든다.
+ * 손끝이 화면에 닿는 넓이가 대략 이만하다.
+ *
+ * 넓힌 자리는 사진 위로 파고든다. 그래야 뜻이 있다 — 사이를 노리다 빗나가면
+ * 닿는 곳이 바로 사진이기 때문이다. 그래서 handleBodyPointerDown은 사진 누르기보다
+ * 이쪽을 먼저 본다.
+ *
+ * ⚠️ 그래도 사진을 못 고르게 되지는 않는다:
+ *    · 파고드는 깊이는 그 사진 높이의 1/4까지다 (openGapAt의 slopIn) → 가운데 절반은 사진 몫
+ *    · 빈 줄은 '앞뒤에 쓸 자리가 아예 없을 때'만 편다 (openGapAt의 ①②③ 조건) →
+ *      한 번 펴고 나면 같은 자리는 다시 사진 몫으로 돌아간다
+ */
+const GAP_SLOP = 22;
+
 // 정렬 버튼은 없앴다(거의 안 쓰였고 툴바 자리만 차지했다). 다만 값 자체는 남겨 둔다 —
 // 예전에 가운데·오른쪽으로 맞춰 둔 글을 열었다가 저장하면 정렬이 풀려 버리기 때문이다.
 type Align = "left" | "center" | "right";
@@ -504,18 +522,27 @@ export default function PostEditorSheet({
   }, []);
 
   /**
-   * 사진과 사진 사이를 눌렀으면 그 자리에 빈 줄을 하나 만든다.
+   * 사진 둘레의 '글 쓸 자리가 없는 곳'을 누르면 그 자리에 빈 줄을 하나 편다.
    *
    * 사진을 연달아 붙이면 그 사이에 커서를 둘 방법이 없어서 글을 못 끼워 넣는다.
    * (사진은 '한 글자'라 사이를 탭해도 브라우저가 사진 앞이나 뒤로만 붙인다)
-   * 눌린 곳이 두 사진 사이면 빈 줄을 넣고, 아래 사진이 밀려 내려가는 게
-   * 눈에 보이도록 그 줄이 0에서 한 줄 높이로 펴지는 애니메이션을 준다.
+   * 첫 사진 '위'와 마지막 사진 '아래'도 같다 — 사진으로 시작하거나 끝나는 글은
+   * 그 바깥에 커서를 둘 자리가 없어서 앞뒤로 글을 못 붙인다.
+   *
+   * 빈 줄은 0에서 한 줄 높이로 펴지는 애니메이션을 줘서 무엇이 생겼는지 보이게 한다.
    */
   const openGapAt = useCallback((clientY: number): boolean => {
     const body = bodyRef.current;
     if (!body) return false;
     const imgs = Array.from(body.querySelectorAll<HTMLImageElement>("img[data-mid]"));
-    if (imgs.length < 2) return false;
+    if (imgs.length === 0) return false;
+
+    /**
+     * 사진 '안쪽'으로 얼마나 들어와도 '사이를 노린 것'으로 봐 줄지 (px).
+     * 사진 높이의 1/4을 넘지 않는다 — 안 그러면 낮고 넓은 사진(띠 모양)은
+     * 통째로 '사이'가 되어 눌러도 골라지지 않는다. 가운데 절반은 늘 사진 몫이다.
+     */
+    const slopIn = (h: number) => Math.min(GAP_SLOP, Math.round(h / 4));
 
     /** 이 사진을 담고 있는 '본문의 바로 아래 칸' */
     const blockOf = (img: HTMLElement) => {
@@ -524,22 +551,13 @@ export default function PostEditorSheet({
       return b;
     };
 
-    for (let i = 0; i < imgs.length - 1; i++) {
-      const above = imgs[i].getBoundingClientRect().bottom;
-      const below = imgs[i + 1].getBoundingClientRect().top;
-      if (clientY < above || clientY > below) continue;
-
-      const block = blockOf(imgs[i]);
-      // ⚠️ 두 사진이 '딱 붙어 있을 때'만 줄을 넣는다.
-      //    한 번 넣고 나면 사이에 그 줄이 있으므로 이웃이 아니게 되고,
-      //    같은 자리를 또 눌러도 아무 일도 안 일어난다 —
-      //    안 그러면 누를 때마다 빈 줄이 쌓인다.
-      if (block.nextElementSibling !== blockOf(imgs[i + 1])) return false;
-
+    /** 칸의 앞이나 뒤에 빈 줄을 펴고 커서를 그 줄에 놓는다 */
+    const openLine = (block: HTMLElement, where: "before" | "after") => {
       const line = document.createElement("div");
       line.appendChild(document.createElement("br"));
       line.className = "editor-gap-open";
-      block.after(line);
+      if (where === "before") block.before(line);
+      else block.after(line);
 
       // 새로 생긴 줄에 커서를 놓는다 — 바로 글을 칠 수 있어야 한다
       const r = document.createRange();
@@ -553,7 +571,39 @@ export default function PostEditorSheet({
       // 애니메이션이 끝나면 클래스를 떼어 다음에 또 재생되지 않게 한다
       setTimeout(() => line.classList.remove("editor-gap-open"), 600);
       return true;
+    };
+
+    // ① 사진과 사진 사이
+    for (let i = 0; i < imgs.length - 1; i++) {
+      const a = imgs[i].getBoundingClientRect();
+      const c = imgs[i + 1].getBoundingClientRect();
+      if (clientY < a.bottom - slopIn(a.height) || clientY > c.top + slopIn(c.height)) continue;
+
+      const block = blockOf(imgs[i]);
+      // ⚠️ 두 사진이 '딱 붙어 있을 때'만 줄을 넣는다.
+      //    한 번 넣고 나면 사이에 그 줄이 있으므로 이웃이 아니게 되고,
+      //    같은 자리를 또 눌러도 아무 일도 안 일어난다 —
+      //    안 그러면 누를 때마다 빈 줄이 쌓인다.
+      if (block.nextElementSibling !== blockOf(imgs[i + 1])) return false;
+      return openLine(block, "after");
     }
+
+    // ② 첫 사진 위 — 그 사진이 본문의 첫 칸일 때만.
+    //    위에 이미 줄이 있으면 거기다 쓰면 되므로 넣지 않는다(①과 같은 규칙).
+    const firstBlock = blockOf(imgs[0]);
+    const firstRect = imgs[0].getBoundingClientRect();
+    if (!firstBlock.previousElementSibling && clientY < firstRect.top + slopIn(firstRect.height)) {
+      return openLine(firstBlock, "before");
+    }
+
+    // ③ 마지막 사진 아래 — 그 사진이 본문의 끝 칸일 때만
+    const lastImg = imgs[imgs.length - 1];
+    const lastBlock = blockOf(lastImg);
+    const lastRect = lastImg.getBoundingClientRect();
+    if (!lastBlock.nextElementSibling && clientY > lastRect.bottom - slopIn(lastRect.height)) {
+      return openLine(lastBlock, "after");
+    }
+
     return false;
   }, []);
 
@@ -605,6 +655,22 @@ export default function PostEditorSheet({
       enterRun.current = 0;
       const el = e.target as HTMLElement;
 
+      // 사진 둘레의 '글 쓸 자리가 없는 곳'을 노린 것이면 거기에 빈 줄을 편다.
+      //
+      // ⚠️ 사진 누르기보다 **먼저** 본다.
+      //    사진과 사진 사이는 16px뿐이라 그 띠만 노리게 하면 손끝으로 못 맞히고,
+      //    빗나가면 (사진을 누른 게 되어) 엉뚱하게 사진이 골라져 버린다.
+      //    그래서 사진의 가장자리를 눌러도 '사이를 노린 것'으로 쳐 준다.
+      //    사진을 고르는 건 가운데를 누르면 된다 — openGapAt이 가장자리를
+      //    사진 높이의 1/4까지로만 잡으므로 가운데 절반은 늘 사진 몫이다.
+      //
+      // 사진을 이미 골라 둔 상태면 본문이 편집 불가라 줄을 펴 봐야 소용없다 →
+      // 그때는 아래 '고른 사진 풀기'가 먼저다.
+      if (!selectedImg && openGapAt(e.clientY)) {
+        e.preventDefault();
+        return;
+      }
+
       if (el.tagName === "IMG" && (el as HTMLImageElement).dataset.mid) {
         e.preventDefault();
         (document.activeElement as HTMLElement | null)?.blur();
@@ -626,11 +692,7 @@ export default function PostEditorSheet({
           bodyRef.current?.focus();
           placeCaretFromPoint(clientX, clientY);
         }, 0);
-        return;
       }
-
-      // 사진 사이를 눌렀으면 거기에 줄을 하나 편다
-      if (openGapAt(e.clientY)) e.preventDefault();
     },
     [placeOverlay, openGapAt, selectedImg, placeCaretFromPoint]
   );
