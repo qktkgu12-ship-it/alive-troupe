@@ -235,7 +235,10 @@ export default function ScheduleCarousel({
             · 버튼 자신이 곧 '가져다 대는 자리'다 — opacity:0이어도 마우스는 닿으므로
               hover:opacity-100 하나로 '끝에 가져가면 나타난다'가 그대로 된다.
               (다 나타난 뒤에야 누르게 되므로 '안 보이는 걸 눌렀다'가 생기지 않는다)
-            · 흰 반투명 + 살짝 블러 — 카드 그림이 비쳐서 카드 위에 얹힌 게 읽힌다.
+            · 판 색은 **앱 배경색**(bg-canvas)을 65%로 깐 것 + 블러 2px.
+              흰색으로 깔면 카드(흰색)와 같은 색이라 띠의 경계가 사라진다.
+              배경색이면 '카드 밖의 것이 카드 위로 올라온' 것으로 읽히고,
+              블러 덕에 아래 카드가 비쳐 떠 있는 느낌은 그대로다.
               어두운 판(넷플릭스)은 이 앱이 밝은 테마라 구멍처럼 보인다.
             · 꺾쇠는 0.9배에서 제 크기로 — 페이드만이면 '켜졌다'에 가깝고,
               살짝 커지면 '떠올랐다'로 읽힌다.
@@ -246,7 +249,7 @@ export default function ScheduleCarousel({
           type="button"
           onClick={() => nudge(-1)}
           aria-label="이전 일정"
-          className="group absolute left-0 top-0 z-10 hidden h-40 w-12 place-items-center rounded-l-2xl bg-white/65 text-slate-800 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 md:grid"
+          className="group absolute left-0 top-0 z-10 hidden h-40 w-12 place-items-center rounded-l-2xl bg-canvas/65 text-slate-800 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 md:grid"
         >
           <ChevronLeftIcon className="h-8 w-8 scale-90 transition-transform duration-200 group-hover:scale-100" />
         </button>
@@ -256,7 +259,7 @@ export default function ScheduleCarousel({
           type="button"
           onClick={() => nudge(1)}
           aria-label="다음 일정"
-          className="group absolute right-0 top-0 z-10 hidden h-40 w-12 place-items-center rounded-r-2xl bg-white/65 text-slate-800 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 md:grid"
+          className="group absolute right-0 top-0 z-10 hidden h-40 w-12 place-items-center rounded-r-2xl bg-canvas/65 text-slate-800 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 md:grid"
         >
           <ChevronRightIcon className="h-8 w-8 scale-90 transition-transform duration-200 group-hover:scale-100" />
         </button>
