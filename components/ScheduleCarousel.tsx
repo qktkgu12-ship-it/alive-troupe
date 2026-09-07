@@ -77,12 +77,10 @@ export default function ScheduleCarousel({
   /**
    * PC 좌우 버튼.
    *
-   * 폰은 손으로 밀면 되지만 **마우스에는 미는 방법이 아예 없다** —
-   * 가로 스크롤 막대는 숨겨 뒀고(no-scrollbar), 휠은 세로만 굴러서
-   * 이 줄에는 닿지 않는다. 그래서 PC에서만 버튼을 띄운다.
-   *
-   * ⚠️ 휠을 가로 스크롤로 바꿔치기하지 않는다 — 페이지를 세로로 내리다
-   *    커서가 이 줄 위를 지나가는 순간 페이지가 멈추고 카드가 옆으로 흐른다.
+   * 폰은 손으로 밀면 되지만 마우스에는 가로 스크롤 막대가 숨겨져 있어(no-scrollbar)
+   * 밀 수단이 마땅찮다. 그래서 PC에서만 버튼을 띄운다.
+   * (휠로 넘기는 것도 함께 되지만, 휠은 커서를 이 줄에 올려 둬야만 먹는다 —
+   *  버튼은 그것 없이도 눈에 보이는 수단이라 둘 다 둔다.)
    * 끝에 닿은 쪽 버튼은 아예 안 그린다(누를 수 없는 버튼을 두지 않는다).
    */
   const [nav, setNav] = useState({ left: false, right: false });
@@ -107,12 +105,51 @@ export default function ScheduleCarousel({
   }, [updateNav, events.length]);
 
   /** 카드 한 장 + 사이 간격만큼 옮긴다 — 스냅이 나머지를 맞춰 준다 */
-  const nudge = (dir: -1 | 1) => {
+  const nudge = useCallback((dir: -1 | 1) => {
     const t = trackRef.current;
     const kid = t?.firstElementChild as HTMLElement | undefined;
     if (!t || !kid) return;
     t.scrollBy({ left: dir * (kid.getBoundingClientRect().width + 12), behavior: "smooth" });
-  };
+  }, []);
+
+  /**
+   * 휠로 옆으로 넘기기 (마우스가 있는 기기에서만 — 폰은 휠 자체가 없다).
+   *
+   * ⚠️ 원래 권하지 않는 방식이다. 페이지를 세로로 내리다 커서가 이 줄 위를
+   *    지나가는 순간 페이지가 멈추고 카드가 옆으로 흐른다. 그래도 쓰기로 했으니
+   *    부작용이 최소가 되게 네 가지를 지킨다 —
+   *
+   *   ① **끝에 닿으면 놓아 준다.** 그 방향으로 더 갈 데가 없으면 가로채지 않는다.
+   *      → 카드를 끝까지 넘긴 뒤에는 페이지가 자연스럽게 이어서 내려간다.
+   *      이게 없으면 이 줄 위에서 페이지가 영영 안 내려간다.
+   *   ② **트랙패드의 가로 스크롤(deltaX)은 건드리지 않는다.** 원래 잘 되던 것이다.
+   *   ③ **한 번 굴리면 한 장.** 트랙패드는 작은 이벤트를 우수수 보내서,
+   *      그대로 더하면 한 번 쓸어내릴 때 카드가 다 지나가 버린다.
+   *   ④ 삼킨 이벤트는 기본 동작도 같이 막는다 — 안 막으면 페이지가 덜컥거린다.
+   *
+   * 펼친 동안에는 넘길 일이 없으므로 아예 안 듣는다.
+   * ⚠️ passive:false로 직접 붙인다. 리액트의 onWheel로는 preventDefault가 안 먹는다.
+   */
+  const wheelAt = useRef(0);
+  useEffect(() => {
+    const t = trackRef.current;
+    if (!t || openId) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // ②
+      if (Math.abs(e.deltaY) < 12) return;                 // 미세한 떨림은 무시
+      const max = t.scrollWidth - t.clientWidth;
+      if (max <= 0) return;
+      const dir = e.deltaY > 0 ? 1 : -1;
+      if (dir > 0 && t.scrollLeft >= max - 4) return;       // ① 오른쪽 끝
+      if (dir < 0 && t.scrollLeft <= 4) return;             // ① 왼쪽 끝
+      e.preventDefault();                                   // ④
+      if (e.timeStamp - wheelAt.current < 260) return;      // ③
+      wheelAt.current = e.timeStamp;
+      nudge(dir);
+    };
+    t.addEventListener("wheel", onWheel, { passive: false });
+    return () => t.removeEventListener("wheel", onWheel);
+  }, [openId, nudge]);
 
   function toggle(i: number, id: string) {
     const next = openId === id ? null : id;
