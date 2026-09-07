@@ -23,11 +23,10 @@ import { SkeletonList } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import Select from "@/components/Select";
 import { ProfileName } from "@/components/ProfileViewer";
-import { relativeTime } from "@/lib/utils";
+import { isNewItem, relativeTime } from "@/lib/utils";
 import { boardCategoryLabel, DEFAULT_BOARD_CATEGORIES, type Post } from "@/lib/types";
 
-const DAY = 86_400_000;
-const isRecent = (p: Post) => (p.createdAt ?? 0) > Date.now() - 7 * DAY;
+// NEW 뱃지 기준은 lib/utils 한 곳에 모아 뒀다 (게시판·자료실·아카이브가 같이 쓴다)
 
 function BoardInner() {
   const { role } = useAuth();
@@ -258,7 +257,7 @@ function BoardInner() {
             >
               <span className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-xs font-bold text-accent-fg">공지</span>
               <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{p.title}</span>
-              {isRecent(p) && (
+              {isNewItem(p.createdAt) && (
                 <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
               )}
               <span className="shrink-0 text-xs text-slate-400">{relativeTime(p.createdAt)}</span>
@@ -285,7 +284,7 @@ function BoardInner() {
               {/* 제목 행 */}
               <p className="flex items-center gap-1.5 font-medium text-slate-900">
                 <span className="truncate">{p.title}</span>
-                {isRecent(p) && (
+                {isNewItem(p.createdAt) && (
                   <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
                 )}
                 {p.poll && <span className="tf shrink-0 text-xs text-slate-400">🗳️</span>}

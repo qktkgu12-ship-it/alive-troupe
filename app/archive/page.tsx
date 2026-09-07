@@ -43,7 +43,7 @@ import {
   type ArchiveKind,
   type Production,
 } from "@/lib/types";
-import { chunk, safeExternalUrl } from "@/lib/utils";
+import { chunk, isNewItem, safeExternalUrl } from "@/lib/utils";
 
 function openLink(url: string) {
   const safe = safeExternalUrl(url);
@@ -418,7 +418,12 @@ function ArchiveInner() {
                     </button>
                   </div>
 
-                  <h3 className="font-semibold">{it.title}</h3>
+                  <h3 className="flex items-center gap-1.5 font-semibold">
+                    <span className="min-w-0">{it.title}</span>
+                    {isNewItem(it.createdAt) && (
+                      <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
+                    )}
+                  </h3>
                   {it.description && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.description}</p>}
                   {multi && <div className="mt-3"><ClipButtons clips={clips} /></div>}
 
@@ -468,7 +473,12 @@ function ArchiveInner() {
                 <div className="flex items-center gap-3">
                   <span className="tf text-2xl">{ARCHIVE_KIND_EMOJI[it.kind]}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-slate-900">{it.title}</p>
+                    <p className="flex items-center gap-1.5 font-medium text-slate-900">
+                      <span className="truncate">{it.title}</span>
+                      {isNewItem(it.createdAt) && (
+                        <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
+                      )}
+                    </p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
                       <span className="text-slate-500">{it.createdByName}</span>
                       <span>·</span>

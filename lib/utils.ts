@@ -247,3 +247,17 @@ export function isMobileDevice(): boolean {
   // iPadOS는 사파리에서 자신을 맥으로 소개하므로 터치 지원 여부로 가린다
   return /macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
+
+/**
+ * 목록의 NEW 뱃지 — 올린 지 48시간 안쪽이면 '새 것'으로 본다.
+ *
+ * 읽었는지와 무관하게 **시각만** 본다. 읽음 기준으로 사라지는 건 내비게이션
+ * 뱃지·하단 바 빨간점 쪽이고 그건 lib/nav-new가 따로 맡는다.
+ *
+ * 7일이었는데 그러면 한 주치 글에 전부 뱃지가 붙어 '새 것'이라는 신호가 안 됐다.
+ * 48시간이면 '내가 어제오늘 안 들어온 사이에 올라온 것'만 남는다.
+ */
+export const NEW_MS = 48 * 60 * 60 * 1000;
+export function isNewItem(createdAt?: number): boolean {
+  return (createdAt ?? 0) > Date.now() - NEW_MS;
+}

@@ -230,18 +230,25 @@ export default function ScheduleCarousel({
       </div>
 
       {/* 좌우 버튼 — PC에서만(md 이상). 폰은 손으로 밀면 되므로 안 그린다.
-          카드 가장자리에 반쯤 걸치게 둔다 — 완전히 카드 위에 올리면 제목을 가리고,
-          바깥으로 빼면 좁은 화면에서 갈 자리가 없다.
-          top-20(80px) = 접힌 카드 높이 160px의 한가운데.
+          넷플릭스 방식: 평소엔 안 보이다가 **끝 가장자리에 마우스를 가져가면**
+          카드 높이만큼의 띠가 스르륵 떠오른다.
+            · 버튼 자신이 곧 '가져다 대는 자리'다 — opacity:0이어도 마우스는 닿으므로
+              hover:opacity-100 하나로 '끝에 가져가면 나타난다'가 그대로 된다.
+              (다 나타난 뒤에야 누르게 되므로 '안 보이는 걸 눌렀다'가 생기지 않는다)
+            · 흰 반투명 + 살짝 블러 — 카드 그림이 비쳐서 카드 위에 얹힌 게 읽힌다.
+              어두운 판(넷플릭스)은 이 앱이 밝은 테마라 구멍처럼 보인다.
+            · 꺾쇠는 0.9배에서 제 크기로 — 페이드만이면 '켜졌다'에 가깝고,
+              살짝 커지면 '떠올랐다'로 읽힌다.
+          h-40(160px) = 접힌 카드 높이. 바깥쪽 모서리만 카드와 같은 라운드로 깎는다.
           카드를 펼친 동안에는 한 장이 화면을 꽉 채우므로 밀 일이 없다 → 숨긴다. */}
       {!openId && nav.left && (
         <button
           type="button"
           onClick={() => nudge(-1)}
           aria-label="이전 일정"
-          className="absolute left-0 top-20 z-10 hidden h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_2px_10px_-2px_rgba(16,24,40,0.18)] transition hover:text-slate-900 md:grid"
+          className="group absolute left-0 top-0 z-10 hidden h-40 w-12 place-items-center rounded-l-2xl bg-white/65 text-slate-800 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 md:grid"
         >
-          <ChevronLeftIcon className="h-[18px] w-[18px]" />
+          <ChevronLeftIcon className="h-8 w-8 scale-90 transition-transform duration-200 group-hover:scale-100" />
         </button>
       )}
       {!openId && nav.right && (
@@ -249,9 +256,9 @@ export default function ScheduleCarousel({
           type="button"
           onClick={() => nudge(1)}
           aria-label="다음 일정"
-          className="absolute right-0 top-20 z-10 hidden h-9 w-9 -translate-y-1/2 translate-x-1/2 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-[0_2px_10px_-2px_rgba(16,24,40,0.18)] transition hover:text-slate-900 md:grid"
+          className="group absolute right-0 top-0 z-10 hidden h-40 w-12 place-items-center rounded-r-2xl bg-white/65 text-slate-800 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 md:grid"
         >
-          <ChevronRightIcon className="h-[18px] w-[18px]" />
+          <ChevronRightIcon className="h-8 w-8 scale-90 transition-transform duration-200 group-hover:scale-100" />
         </button>
       )}
 

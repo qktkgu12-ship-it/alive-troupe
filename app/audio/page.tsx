@@ -12,7 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { relativeTime, safeExternalUrl } from "@/lib/utils";
+import { isNewItem, relativeTime, safeExternalUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 import Guard from "@/components/Guard";
@@ -30,8 +30,7 @@ import {
   type AudioTrack,
   type Production,
 } from "@/lib/types";
-const DAY = 86_400_000;
-const isRecent = (t: AudioTrack) => (t.createdAt ?? 0) > Date.now() - 7 * DAY;
+// NEW 뱃지 기준은 lib/utils 한 곳에 모아 뒀다 (게시판·자료실·아카이브가 같이 쓴다)
 
 function openLink(url: string) {
   const safe = safeExternalUrl(url);
@@ -389,7 +388,7 @@ function AudioInner() {
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 font-medium text-slate-900">
                       <span className="truncate">{itemTitle(t)}</span>
-                      {isRecent(t) && (
+                      {isNewItem(t.createdAt) && (
                         <span className="shrink-0 rounded bg-accent px-1 py-px text-[9px] font-extrabold leading-none text-accent-fg">NEW</span>
                       )}
                     </p>
