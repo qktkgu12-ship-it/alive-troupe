@@ -48,11 +48,23 @@ function eventPassed(e: ScheduleEvent, nowMs: number) {
 // 일정 카드(주인공)와 콘텐츠 카드(보조)의 위계가 달라진다.
 function CardHead({ title, href, label }: { title: string; href: string; label: string }) {
   return (
-    <Link href={href} aria-label={label} className="flex items-center justify-between px-4 pb-1 pt-4">
-      <h2 className="text-[17px] font-semibold tracking-tight text-slate-900">{title}</h2>
-      <span className="grid h-6 w-6 place-items-center rounded-full text-slate-300 transition hover:text-accent">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-      </span>
+    // 화살표는 제목 '바로 옆'에 붙인다 — 오른쪽 끝으로 밀지 않는다.
+    //   · 끝으로 밀면 제목과 화살표 사이가 텅 비어 둘이 딴 물건처럼 보이고,
+    //     "이 줄 전체가 링크"라는 게 안 읽힌다.
+    //   · 붙여 두면 제목 + 꺾쇠가 한 덩어리(= 눌러서 들어가는 것)로 읽힌다.
+    // 줄 전체가 여전히 링크라 누르는 자리는 그대로 넓다.
+    <Link href={href} aria-label={label} className="group flex items-center gap-0.5 px-4 pb-1.5 pt-4">
+      {/* 17px는 항목 제목(15px)과 2px밖에 차이가 안 나 머리글로 안 읽혔다.
+          19px + bold — 굵기와 크기를 같이 올려야 한 단계가 생긴다.
+          위로는 인사말(26px extrabold)이 있어 자리를 다투지 않는다. */}
+      <h2 className="text-[19px] font-bold tracking-tight text-slate-900">{title}</h2>
+      <svg
+        className="mt-px h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-accent"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M9 18l6-6-6-6" />
+      </svg>
     </Link>
   );
 }

@@ -242,7 +242,9 @@ guest가 `admins`로 보내면 서버가 문구를 고정한다(가입 신청 �
 - 원형 아이콘 버튼: `grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-accent-fg`
 - 브랜드색: `rgb(var(--accent))` = `#e53535`
 - 이모지: `.tf` 클래스(토스페이스). ⚠️ **이모지만 든 칸에만** 붙일 것 — 이 글꼴은 키캡 이모지 때문에 숫자·#·*도 들고 있어서 글이 섞인 칸에 붙이면 숫자까지 바뀐다
-- 텍스트 계층(홈): 섹션 제목 `18px bold slate-900` / 항목 제목 `15px medium slate-800` / 메타 `12px slate-400`
+- 텍스트 계층(홈): 인사말 `26px extrabold` / 카드 머리글 `19px bold slate-900` / 항목 제목 `15px medium slate-800` / 메타 `12px slate-400`
+  ⚠️ 카드 머리글이 한때 17px semibold였는데 항목 제목(15px)과 2px 차이라 머리글로 안 읽혔다 — **크기와 굵기를 같이** 올려야 한 단계가 생긴다.
+  '전체 보기' 꺾쇠는 오른쪽 끝이 아니라 **제목 바로 옆**(`gap-0.5`, 눈에 보이는 사이 7px). 끝으로 밀면 사이가 텅 비어 제목과 딴 물건처럼 보인다. 줄 전체는 그대로 링크다.
 
 ---
 
