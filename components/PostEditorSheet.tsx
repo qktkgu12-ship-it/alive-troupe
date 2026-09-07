@@ -559,15 +559,45 @@ export default function PostEditorSheet({
       if (where === "before") block.before(line);
       else block.after(line);
 
-      // 새로 생긴 줄에 커서를 놓는다 — 바로 글을 칠 수 있어야 한다
-      const r = document.createRange();
-      r.setStart(line, 0);
-      r.collapse(true);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(r);
-      savedRange.current = r.cloneRange();
-      body.focus();
+      /** 새로 생긴 줄에 커서를 놓는다 — 바로 글을 칠 수 있어야 한다 */
+      const putCaret = () => {
+        if (!line.isConnected) return;
+        const r = document.createRange();
+        r.setStart(line, 0);
+        r.collapse(true);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        savedRange.current = r.cloneRange();
+      };
+      body.focus({ preventScroll: true });
+      putCaret();
+
+      /**
+       * ⚠️ 손을 뗄 때 커서를 한 번 더 제자리로 돌린다.
+       *
+       * 폰은 '탭해서 커서 놓기'를 손가락이 닿을 때가 아니라 **뗄 때** 한다.
+       * pointerdown의 기본 동작을 막아도 그 동작까지 막히지는 않는 기기가 있어서,
+       * 우리가 놓아 둔 커서를 브라우저가 '누른 자리'로 덮어써 버린다.
+       * 그런데 누른 자리는 (위 여유 때문에) 대개 사진 위다 →
+       * 커서가 **첫 사진 앞**으로 튀고, 사진 높이만큼 큰 막대로 보인다.
+       * 실측: 사진 위를 눌러 여백을 편 뒤 그 자리로 커서를 놓아 보면
+       * 글자가 `<div>가나<img></div>` 처럼 사진 앞에 박힌다. 실제로 겪은 증상이다.
+       *
+       * 이미 제자리에 있으면 건드리지 않는다 — 사용자가 곧바로 다른 곳을 눌렀거나
+       * 글을 치기 시작했으면 그쪽이 옳다.
+       */
+      const keep = () => { if (!line.contains(window.getSelection()?.anchorNode ?? null)) putCaret(); };
+      const settle = () => {
+        window.removeEventListener("pointerup", settle, true);
+        window.removeEventListener("pointercancel", settle, true);
+        keep();
+        setTimeout(keep, 0);    // 브라우저의 기본 동작 다음
+        setTimeout(keep, 120);  // 늦게 놓는 기기까지
+      };
+      window.addEventListener("pointerup", settle, true);
+      window.addEventListener("pointercancel", settle, true);
+
       // 애니메이션이 끝나면 클래스를 떼어 다음에 또 재생되지 않게 한다
       setTimeout(() => line.classList.remove("editor-gap-open"), 600);
       return true;

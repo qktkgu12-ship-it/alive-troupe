@@ -140,7 +140,11 @@ body {
   /* 240ms는 "휙" 하고 끝나 뭐가 생겼는지 눈이 못 따라갔다. 420ms면 아래 사진이
      밀려 내려가는 게 보인다. 더 늘리면 글 쓰려는 손을 기다리게 만든다. */
   animation: editor-gap-open 420ms cubic-bezier(0.32, 0.72, 0, 1);
-  overflow: hidden;
+  /* ⚠️ overflow: hidden을 걸지 않는다.
+     이 줄은 높이 0에서 시작하는데, 잘라 내면 그 안의 커서까지 같이 잘려
+     여백이 다 열릴 때까지 커서가 안 보인다. 커서가 안 보이면 사용자는
+     '엉뚱한 데 갔나' 하고 한 번 더 누르게 된다.
+     빈 줄이라 넘쳐 봐야 그려질 것도 없다(br 하나뿐). */
 }
 @media (prefers-reduced-motion: reduce) {
   .editor-gap-open { animation: none; }
