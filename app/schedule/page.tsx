@@ -195,6 +195,29 @@ function TeamBadge({ team, className = "" }: { team?: string; className?: string
   );
 }
 
+/**
+ * 확정 일정 카드의 대상 배지.
+ *
+ * 개별 지정 일정(participantUids)은 이름을 콕 집은 것이라 팀과 무관하다.
+ * 그런데 신청자의 팀이 그대로 따라 붙어서, 귤색(개별 지정) 카드에 '원캐스트'
+ * 같은 팀 칩이 뜨고 있었다 — 팀 일정으로 오해하기 딱 좋다.
+ * 개별 지정이면 팀 대신 '개인'을 보여 준다. 색은 카드의 귤색과 같은 계열 —
+ * 팀 배지들과 같은 방식으로 INDIVIDUAL_COLOR를 쓴다 (흰 바탕 대비까지 맞춰 둔 값이다).
+ */
+function EventAudienceBadge({ e, className = "" }: { e: ScheduleEvent; className?: string }) {
+  if (e.participantUids && e.participantUids.length > 0) {
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${className}`}
+        style={{ backgroundColor: INDIVIDUAL_COLOR.bg, color: INDIVIDUAL_COLOR.color }}
+      >
+        개인
+      </span>
+    );
+  }
+  return <TeamBadge team={e.team} className={className} />;
+}
+
 // 일정방의 대상(팀 또는 개별 지정 인원) 배지
 function AudienceBadge({ coord, className = "" }: { coord: Coordination; className?: string }) {
   if (coord.participantUids && coord.participantUids.length > 0) {
@@ -2595,6 +2618,8 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [naverSheet, setNaverSheet] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // 지금 확정·거절을 처리 중인 신청 (중복 탭 방지 + 버튼에 '처리 중' 표시)
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -2620,8 +2645,19 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
   useEffect(() => { load(); }, [load]);
 
   async function approve(r: BookingRequest) {
-    // events 컬렉션에 확정 일정 생성
-    const ref = doc(collection(db, "events"));
+    // ⚠️ 같은 일정이 두 개 생기던 버그가 여기 있었다.
+    //    확정을 누르면 문서 쓰기 → 삭제 → 푸시 → 다시 읽기로 1~3초가 걸리는데,
+    //    그동안 버튼이 멀쩡히 눌리는 상태라 반응이 없다고 생각한 관리자가 한 번 더 눌렀다.
+    //    막는 자물쇠가 두 겹이다 —
+    //      ① 처리 중에는 버튼을 잠근다 (아래 busyId)
+    //      ② 그래도 두 번 들어오면 '같은 문서'에 쓰이게 한다 (문서 ID = 신청 ID)
+    //    ②가 진짜 해결책이다. 예전엔 doc(collection(...))으로 매번 새 임의 ID를
+    //    뽑아서, 두 번 불리면 내용이 같은 다른 문서가 두 개 생겼다.
+    //    (신청 문서 삭제는 이미 지워진 것을 지워도 조용히 성공해서 오류도 안 났다)
+    if (busyId) return;
+    setBusyId(r.id);
+    try {
+    const ref = doc(db, "events", r.id);
     await setDoc(ref, {
       title: r.title,
       date: r.date,
@@ -2655,12 +2691,22 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
     await load();
     onApproved();
     setNaverSheet(true);
+    } catch (err) {
+      console.error("[PendingApprovals] 확정 실패:", err);
+      alert("확정에 실패했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function reject(r: BookingRequest) {
+    // 거절도 두 번 눌리면 거절 알림이 두 번 간다
+    if (busyId) return;
     if (!confirm(`"${r.title}" 신청을 거절할까요?`)) return;
     // 사유는 선택 — 비워 두면 사유 없이 거절 알림만 간다
     const reason = (prompt("거절 사유를 적어 주세요. (선택 — 비워 두고 확인을 눌러도 됩니다)") ?? "").trim();
+    setBusyId(r.id);
+    try {
     await deleteDoc(doc(db, "bookingRequests", r.id));
     // 신청 단원에게 거절 알림 — 승인만 알리고 거절은 안 알리면 계속 기다리게 된다.
     // 날짜·시간은 넣지 않는다 (승인 알림과 달리, 안 잡힌 시간을 다시 읽어 봐야 소용이 없다).
@@ -2671,6 +2717,12 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
       tag: "booking-rejected",
     });
     await load();
+    } catch (err) {
+      console.error("[PendingApprovals] 거절 실패:", err);
+      alert("거절 처리에 실패했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -2754,20 +2806,34 @@ function PendingApprovals({ onApproved, onCountChange }: { onApproved: () => voi
                 <div className="flex gap-2 px-4 pb-3.5">
                   <button
                     onClick={() => reject(r)}
-                    className="flex-1 rounded-xl py-3 text-[15px] font-bold text-slate-400 transition hover:bg-slate-50"
+                    disabled={!!busyId}
+                    className="flex-1 rounded-xl py-3 text-[15px] font-bold text-slate-400 transition hover:bg-slate-50 disabled:opacity-40"
                     style={{ border: "1.5px solid #e5e5ea", background: "#fff" }}
                   >
                     거절
                   </button>
+                  {/* 처리 중에는 잠그고 그렇다고 알려 준다.
+                      아무 표시가 없어서 '안 눌렸나' 하고 다시 누른 것이
+                      일정이 두 개 등록되던 실제 원인이었다. */}
                   <button
                     onClick={() => approve(r)}
-                    className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl py-3 text-[15px] font-extrabold text-white transition active:brightness-90"
+                    disabled={!!busyId}
+                    className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl py-3 text-[15px] font-extrabold text-white transition active:brightness-90 disabled:opacity-60"
                     style={{ background: "#e53535", boxShadow: "0 4px 12px -3px rgba(229,53,53,0.55)" }}
                   >
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    확정
+                    {busyId === r.id ? (
+                      <>
+                        <Spinner className="h-4 w-4" />
+                        확정하는 중…
+                      </>
+                    ) : (
+                      <>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        확정
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -3521,7 +3587,7 @@ function EventsSection({
                       onEdit={isAdmin && !past ? () => setEditEvent(e) : undefined}
                       onDelete={(isAdmin || mine) && !past ? () => removeEvent(e.id) : undefined}
                       dimmed={dimmed}
-                      titlePrefix={<TeamBadge team={e.team} />}
+                      titlePrefix={<EventAudienceBadge e={e} />}
                       badge={
                         (isHidden || past) ? (
                           <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
